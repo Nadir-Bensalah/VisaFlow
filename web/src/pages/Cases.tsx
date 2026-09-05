@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Input, Select, Field, Modal, useToast } from '@/components/ui'
@@ -16,7 +16,10 @@ export function Cases() {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [stage, setStage] = useState<Stage | 'tous'>('tous')
-  const [filter, setFilter] = useState<Filter>('tous')
+  // Le tableau de bord ouvre la liste deja filtree : /dossiers?filtre=retard
+  const [params, setParams] = useSearchParams()
+  const filter = (params.get('filtre') as Filter | null) ?? 'tous'
+  const setFilter = (value: Filter) => setParams(value === 'tous' ? {} : { filtre: value }, { replace: true })
   const [creating, setCreating] = useState(false)
 
   const rows = useMemo(() => {
