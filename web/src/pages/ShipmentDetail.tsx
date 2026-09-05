@@ -1,7 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
+import { useState } from 'react'
 import { Avatar, Button, Card, Empty, Pill, Progress, useToast } from '@/components/ui'
+import { ShipmentEditor } from '@/components/ShipmentEditor'
 import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead } from '@/components/bits'
 import { SHIPMENT_STAGES, SHIPMENT_TONE, clientName, shipmentLate, shipmentProgress } from '@/lib/derive'
@@ -9,10 +12,12 @@ import { SHIPMENT_STAGES, SHIPMENT_TONE, clientName, shipmentLate, shipmentProgr
 export function ShipmentDetail() {
   const { id = '' } = useParams()
   const { db, actions } = useStore()
+  const v = useVisible()
   const { t, tt, formatDate, formatMoney, formatNumber } = useI18n()
   const toast = useToast()
+  const [editing, setEditing] = useState(false)
 
-  const shipment = db.shipments.find((s) => s.id === id)
+  const shipment = v.shipments.find((s) => s.id === id)
   if (!shipment) return <Empty title={t('ship.none')} action={<Link to="/cargaisons" className="btn btn--secondary">{t('action.back')}</Link>} />
 
   const client = db.clients.find((c) => c.id === shipment.clientId)!
@@ -29,6 +34,7 @@ export function ShipmentDetail() {
         subtitle={`${shipment.reference} · ${tt(shipment.goods)} · ${shipment.supplier}`}
         action={
           <div className="row gap-2">
+            {v.can('shipment:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
             <Button
               icon="copy"
               onClick={async () => {
@@ -37,7 +43,7 @@ export function ShipmentDetail() {
             >
               {t('caseDetail.portalLink')}
             </Button>
-            {shipment.status === 'en_cours' && (
+            {shipment.status === 'en_cours' && v.can('shipment:write') && (
               <Button variant="primary" icon="arrow" onClick={() => { actions.advanceShipment(shipment.id); toast(t('ship.advance')) }}>
                 {t('ship.advance')}
               </Button>
@@ -45,6 +51,8 @@ export function ShipmentDetail() {
           </div>
         }
       />
+
+      {editing && <ShipmentEditor shipment={shipment} onClose={() => setEditing(false)} />}
 
       <div className="grid grid--main">
         <div className="col gap-6">
@@ -126,10 +134,10 @@ export function ShipmentDetail() {
               <Row label={t('ship.packages')} value={formatNumber(shipment.packages)} />
               <Row label={t('ship.weight')} value={`${formatNumber(shipment.weightKg)} kg`} />
               <Row label={t('ship.volume')} value={`${shipment.volumeCbm} m³`} />
-              <Row label={t('ship.value')} value={formatMoney(shipment.declaredValue)} />
               <hr className="divider" style={{ margin: 0 }} />
-              <Row label={t('ship.freight')} value={formatMoney(shipment.freightCost)} />
-              {shipment.customsDuty !== undefined && <Row label={t('ship.duty')} value={formatMoney(shipment.customsDuty)} />}
+              {v.can('finance:global') && <Row label={t('ship.freight')} value={formatMoney(shipment.freightCost)} />}
+              {v.can('finance:global') && shipment.customsDuty !== undefined && <Row label={t('ship.duty')} value={formatMoney(shipment.customsDuty)} />}
+              {v.can('finance:global') && <Row label={t('ship.value')} value={formatMoney(shipment.declaredValue)} />}
               <Row
                 label={t('cases.balance')}
                 value={shipment.freightCost - shipment.amountPaid > 0 ? formatMoney(shipment.freightCost - shipment.amountPaid) : t('payment.regle')}

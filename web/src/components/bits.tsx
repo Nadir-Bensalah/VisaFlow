@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { CaseStatus, DocState, Priority, Stage, VisaCase } from '@/data/types'
 import { useI18n } from '@/i18n'
 import { useStore } from '@/data/store'
+import { useNow } from '@/data/clock'
 import { DOC_TONE, PRIORITY_TONE, STAGE_TONE, clientName, daysSince, daysUntil, progress, urgency } from '@/lib/derive'
 import { Avatar, Pill, Progress } from './ui'
 import { Icon } from './Icon'
@@ -44,10 +45,12 @@ export function StatusPill({ status }: { status: CaseStatus }) {
 /** Date relative, dans la langue courante, sans dependance externe. */
 export function Ago({ iso }: { iso?: string }) {
   const { t } = useI18n()
+  // L'horloge fait re-rendre : « il y a 3 min » ne reste pas figé.
+  const now = useNow()
   if (!iso) return <span className="t-tertiary">—</span>
   const days = daysSince(iso)
   if (days <= 0) {
-    const hours = Math.round((Date.now() - new Date(iso).getTime()) / 3600000)
+    const hours = Math.round((now - new Date(iso).getTime()) / 3600000)
     return <span>{hours < 1 ? t('time.justNow') : t('time.hoursAgo', { n: hours })}</span>
   }
   if (days === 1) return <span>{t('time.yesterday')}</span>
@@ -56,6 +59,7 @@ export function Ago({ iso }: { iso?: string }) {
 
 export function Countdown({ iso }: { iso?: string }) {
   const { t } = useI18n()
+  useNow()
   if (!iso) return <span className="t-tertiary">—</span>
   const days = daysUntil(iso)
   if (days < 0) return <span style={{ color: 'var(--red)' }}>{t('time.overdue', { n: -days })}</span>
@@ -84,7 +88,7 @@ export function UrgencyReason({ kase }: { kase: VisaCase }) {
 /** Ligne de dossier reutilisee par le tableau de bord, la recherche et le client. */
 export function CaseRow({ kase, showUrgency }: { kase: VisaCase; showUrgency?: boolean }) {
   const { db } = useStore()
-  const { tt } = useI18n()
+  const { t, tt } = useI18n()
   const visa = db.visaTypes.find((v) => v.id === kase.visaTypeId)
   const p = progress(db, kase.id)
   const name = clientName(db, kase.clientId)
@@ -102,8 +106,13 @@ export function CaseRow({ kase, showUrgency }: { kase: VisaCase; showUrgency?: b
         </span>
       </span>
       {showUrgency && <UrgencyReason kase={kase} />}
-      <span style={{ width: 92 }} className="col gap-1">
-        <Progress pct={p.pct} tone={p.pct === 100 ? 'green' : p.pct < 40 ? 'orange' : undefined} />
+      <span className="col gap-1 caserow__progress" style={{ width: 92 }}>
+        <Progress
+          pct={p.pct}
+          label={t('cases.progress')}
+          valueText={`${p.done}/${p.total}`}
+          tone={p.pct === 100 ? 'green' : p.pct < 40 ? 'orange' : undefined}
+        />
         <span className="t-caption t-tertiary t-num">{p.done}/{p.total}</span>
       </span>
       <StagePill stage={kase.stage} />

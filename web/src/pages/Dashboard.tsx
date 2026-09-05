@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Card, Empty, Pill } from '@/components/ui'
 import { Ago, CaseRow, Countdown, PageHead } from '@/components/bits'
@@ -7,12 +8,13 @@ import { Icon } from '@/components/Icon'
 import { ACTIVE_STAGES, STAGE_TONE, kpis, urgency } from '@/lib/derive'
 
 export function Dashboard() {
-  const { db, currentUserId } = useStore()
+  const { db } = useStore()
+  const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
   const k = kpis(db)
-  const user = db.users.find((u) => u.id === currentUserId) ?? db.users[0]
+  const user = v.user
 
-  const attention = db.cases
+  const attention = v.cases
     .filter((c) => c.status === 'ouvert')
     .map((c) => ({ kase: c, u: urgency(db, c) }))
     .filter((x) => x.u.score > 0)
@@ -20,14 +22,14 @@ export function Dashboard() {
     .slice(0, 6)
 
   // Les cargaisons a surveiller : celles qui arrivent, celles qui traînent.
-  const watchedShipments = db.shipments
+  const watchedShipments = v.shipments
     .filter((s) => s.status === 'en_cours')
     .sort((a, b) => (a.eta ?? '').localeCompare(b.eta ?? ''))
     .slice(0, 5)
 
   const byStage = ACTIVE_STAGES.map((stage) => ({
     stage,
-    count: db.cases.filter((c) => c.status === 'ouvert' && c.stage === stage).length,
+    count: v.cases.filter((c) => c.status === 'ouvert' && c.stage === stage).length,
   }))
   const maxStage = Math.max(...byStage.map((s) => s.count), 1)
 
@@ -35,7 +37,9 @@ export function Dashboard() {
     { label: t('dash.open'), value: formatNumber(k.open), hint: t('dash.thisWeek'), to: '/dossiers' },
     { label: t('dash.missing'), value: formatNumber(k.missingDocs), hint: t('docs.title'), to: '/pieces', tone: k.missingDocs > 0 ? 'var(--orange)' : undefined },
     { label: t('dash.late'), value: formatNumber(k.late), hint: t('cases.late'), to: '/dossiers?filtre=retard', tone: k.late > 0 ? 'var(--red)' : undefined },
-    { label: t('dash.revenue'), value: formatMoney(k.collected), hint: t('pay.collected'), to: '/paiements' },
+    ...(v.can('finance:global')
+      ? [{ label: t('dash.revenue'), value: formatMoney(k.collected), hint: t('pay.collected'), to: '/paiements' }]
+      : [{ label: t('today.appointments'), value: formatNumber(k.todayAppointments), hint: t('today.title'), to: '/rendez-vous' }]),
   ]
 
   return (
@@ -102,16 +106,16 @@ export function Dashboard() {
 
         <div className="col gap-6">
           <Card title={t('dash.todayAppts')} flush>
-            {db.appointments.filter((a) => a.status === 'prevu').length === 0 ? (
+            {v.appointments.filter((a) => a.status === 'prevu').length === 0 ? (
               <Empty title={t('appts.none')} />
             ) : (
               <div className="list">
-                {db.appointments
+                {v.appointments
                   .filter((a) => a.status === 'prevu')
                   .sort((a, b) => a.at.localeCompare(b.at))
                   .slice(0, 5)
                   .map((a) => {
-                    const kase = db.cases.find((c) => c.id === a.caseId)
+                    const kase = v.cases.find((c) => c.id === a.caseId)
                     const client = db.clients.find((c) => c.id === kase?.clientId)
                     return (
                       <Link key={a.id} to={`/dossiers/${a.caseId}`} className="list__row">
@@ -151,16 +155,18 @@ export function Dashboard() {
             )}
           </Card>
 
-          <Card title={t('pay.outstanding')}>
-            <div className="stat" style={{ padding: 0 }}>
-              <div className="stat__value">{formatMoney(k.outstanding)}</div>
-              <div className="stat__hint">{t('pay.subtitle')}</div>
-            </div>
-          </Card>
+          {v.can('finance:global') && (
+            <Card title={t('pay.outstanding')}>
+              <div className="stat" style={{ padding: 0 }}>
+                <div className="stat__value">{formatMoney(k.outstanding)}</div>
+                <div className="stat__hint">{t('pay.subtitle')}</div>
+              </div>
+            </Card>
+          )}
 
           <Card title={t('dash.recent')} flush>
             <div className="list">
-              {db.events.slice(0, 8).map((e) => (
+              {v.events.slice(0, 8).map((e) => (
                 <div key={e.id} className="list__row">
                   <Icon name={e.automated ? 'automations' : 'check'} size={16} className="t-tertiary" />
                   <span className="col grow" style={{ minWidth: 0 }}>

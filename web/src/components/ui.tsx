@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { Illustration, type Scene } from './Illustration'
 import { Icon, type IconName } from './Icon'
 import type { Tone } from '@/lib/derive'
 import { avatarTone, initials } from '@/lib/derive'
@@ -51,7 +52,7 @@ export function Card({ title, action, children, flush, className }: {
     <section className={`card ${className ?? ''}`}>
       {(title || action) && (
         <header className="card__head">
-          <div className="card__title">{title}</div>
+          <h2 className="card__title">{title}</h2>
           {action}
         </header>
       )}
@@ -85,9 +86,22 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md'
 
 /* ------------------------------ Progression -------------------------- */
 
-export function Progress({ pct, tone }: { pct: number; tone?: 'green' | 'orange' }) {
+export function Progress({ pct, tone, label, valueText }: {
+  pct: number
+  tone?: 'green' | 'orange'
+  label?: string
+  valueText?: string
+}) {
   return (
-    <div className="progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+    <div
+      className="progress"
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={pct}
+      aria-valuetext={valueText}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <div className={`progress__bar ${tone ? `progress__bar--${tone}` : ''}`} style={{ width: `${Math.max(pct, 2)}%` }} />
     </div>
   )
@@ -95,11 +109,21 @@ export function Progress({ pct, tone }: { pct: number; tone?: 'green' | 'orange'
 
 /* ------------------------------- Vide -------------------------------- */
 
-export function Empty({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
+export function Empty({ title, hint, action, scene = 'vide' }: {
+  title: string
+  hint?: string
+  action?: ReactNode
+  scene?: Scene | 'aucune'
+}) {
   return (
     <div className="empty">
-      <h4>{title}</h4>
-      {hint && <p className="t-small t-tertiary">{hint}</p>}
+      {scene !== 'aucune' && (
+        <div className="empty__art">
+          <Illustration scene={scene} size={116} />
+        </div>
+      )}
+      <p className="t-title" style={{ fontSize: 'var(--size-lead)' }}>{title}</p>
+      {hint && <p className="t-small t-tertiary" style={{ marginTop: 'var(--sp-2)' }}>{hint}</p>}
       {action && <div style={{ marginTop: 'var(--sp-5)' }}>{action}</div>}
     </div>
   )
@@ -108,12 +132,13 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
 /* ------------------------------ Formulaire --------------------------- */
 
 export function Field({ label, hint, error, children }: { label?: string; hint?: string; error?: string; children: ReactNode }) {
+  const id = useId()
   return (
     <label className="field">
       {label && <span className="field__label">{label}</span>}
       {children}
-      {hint && !error && <span className="field__hint">{hint}</span>}
-      {error && <span className="field__error">{error}</span>}
+      {hint && !error && <span className="field__hint" id={`${id}-hint`}>{hint}</span>}
+      {error && <span className="field__error" id={`${id}-error`} role="alert">{error}</span>}
     </label>
   )
 }
@@ -135,15 +160,22 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
   )
 }
 
-export function Segmented<T extends string>({ value, options, onChange }: {
+export function Segmented<T extends string>({ value, options, onChange, label }: {
   value: T
   options: { value: T; label: string }[]
   onChange: (v: T) => void
+  label?: string
 }) {
   return (
-    <div className="segmented" role="tablist">
+    <div className="segmented" role="group" aria-label={label}>
       {options.map((o) => (
-        <button key={o.value} type="button" role="tab" aria-selected={o.value === value} onClick={() => onChange(o.value)}>
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={o.value === value}
+          aria-selected={o.value === value}
+          onClick={() => onChange(o.value)}
+        >
           {o.label}
         </button>
       ))}
@@ -151,15 +183,37 @@ export function Segmented<T extends string>({ value, options, onChange }: {
   )
 }
 
-export function Tabs<T extends string>({ value, options, onChange }: {
+export function Tabs<T extends string>({ value, options, onChange, idPrefix = 'tab' }: {
   value: T
   options: { value: T; label: string; count?: number }[]
   onChange: (v: T) => void
+  idPrefix?: string
 }) {
+  const move = (delta: number) => {
+    const index = options.findIndex((o) => o.value === value)
+    const next = options[(index + delta + options.length) % options.length]
+    if (next) onChange(next.value)
+  }
   return (
     <div className="tabs" role="tablist">
       {options.map((o) => (
-        <button key={o.value} type="button" role="tab" className="tab" aria-selected={o.value === value} onClick={() => onChange(o.value)}>
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          id={`${idPrefix}-${o.value}`}
+          aria-controls={`${idPrefix}-panel-${o.value}`}
+          className="tab"
+          aria-selected={o.value === value}
+          tabIndex={o.value === value ? 0 : -1}
+          onClick={() => onChange(o.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') { e.preventDefault(); move(1) }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); move(-1) }
+            if (e.key === 'Home') { e.preventDefault(); onChange(options[0].value) }
+            if (e.key === 'End') { e.preventDefault(); onChange(options[options.length - 1].value) }
+          }}
+        >
           {o.label}
           {o.count !== undefined && <span className="t-tertiary t-num"> {o.count}</span>}
         </button>
@@ -170,6 +224,8 @@ export function Tabs<T extends string>({ value, options, onChange }: {
 
 /* ------------------------------- Modale ------------------------------ */
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
 export function Modal({ title, onClose, footer, wide, children }: {
   title: string
   onClose: () => void
@@ -177,17 +233,38 @@ export function Modal({ title, onClose, footer, wide, children }: {
   wide?: boolean
   children: ReactNode
 }) {
+  const id = useId()
+  const boxRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const previous = document.activeElement as HTMLElement | null
+    const first = boxRef.current?.querySelector<HTMLElement>(FOCUSABLE)
+    first?.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key !== 'Tab' || !boxRef.current) return
+      // Le focus tourne en rond dans la modale, il ne part jamais derriere.
+      const items = [...boxRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      if (items.length === 0) return
+      const start = items[0]
+      const end = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === start) { e.preventDefault(); end.focus() }
+      else if (!e.shiftKey && document.activeElement === end) { e.preventDefault(); start.focus() }
+    }
+
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      previous?.focus()
+    }
   }, [onClose])
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={wide ? 'modal modal--wide' : 'modal'}>
+    <div className="overlay" role="dialog" aria-modal="true" aria-labelledby={id} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={boxRef} className={wide ? 'modal modal--wide' : 'modal'}>
         <header className="modal__head">
-          <h3 style={{ fontSize: 'var(--size-h4)' }}>{title}</h3>
+          <h3 id={id} style={{ fontSize: 'var(--size-h4)' }}>{title}</h3>
           <IconButton icon="close" label="Fermer" onClick={onClose} />
         </header>
         <div className="modal__body">{children}</div>
@@ -208,7 +285,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((text: string) => {
     const id = Date.now() + Math.random()
     setToasts((t) => [...t, { id, text }])
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200)
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000)
   }, [])
 
   const value = useMemo(() => push, [push])
@@ -220,7 +297,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div key={t.id} className="toast">
             <Icon name="check" size={16} />
-            <span>{t.text}</span>
+            <span className="grow">{t.text}</span>
+            <button
+              type="button"
+              aria-label="Fermer"
+              onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))}
+              style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+            >
+              <Icon name="close" size={14} />
+            </button>
           </div>
         ))}
       </div>

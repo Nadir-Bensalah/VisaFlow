@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Input, Select, Field, Modal, useToast } from '@/components/ui'
 import { Ago, Countdown, PageHead, StagePill, StatusPill } from '@/components/bits'
@@ -10,7 +11,8 @@ import type { Stage } from '@/data/types'
 type Filter = 'tous' | 'mine' | 'retard' | 'bloques'
 
 export function Cases() {
-  const { db, currentUserId } = useStore()
+  const { db } = useStore()
+  const v = useVisible()
   const { t, tt, formatMoney, formatDate } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -24,10 +26,10 @@ export function Cases() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return db.cases
+    return v.cases
       .filter((c) => (stage === 'tous' ? true : c.stage === stage))
       .filter((c) => {
-        if (filter === 'mine') return c.assigneeId === currentUserId
+        if (filter === 'mine') return c.assigneeId === v.user.id
         if (filter === 'retard') return isLate(db, c)
         if (filter === 'bloques') return urgency(db, c).reason === 'bloque'
         return true
@@ -38,7 +40,7 @@ export function Cases() {
         return name.includes(q) || c.reference.toLowerCase().includes(q)
       })
       .sort((a, b) => urgency(db, b).score - urgency(db, a).score)
-  }, [db, query, stage, filter, currentUserId])
+  }, [db, v, query, stage, filter])
 
   const exportCsv = () => {
     const head = ['reference', 'client', 'visa', 'etape', 'agent', 'depart', 'total', 'paye']
@@ -69,8 +71,8 @@ export function Cases() {
         subtitle={t('cases.subtitle')}
         action={
           <div className="row gap-2">
-            <Button icon="download" onClick={exportCsv}>{t('action.export')}</Button>
-            <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('cases.newCase')}</Button>
+            {v.can('data:export') && <Button icon="download" onClick={exportCsv}>{t('action.export')}</Button>}
+            {v.can('case:create') && <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('cases.newCase')}</Button>}
           </div>
         }
       />
@@ -78,12 +80,13 @@ export function Cases() {
       <Card flush>
         <div className="row wrap gap-3" style={{ padding: 'var(--sp-4) var(--sp-6)', borderBottom: '1px solid var(--hairline)' }}>
           <Input
+            aria-label={t('action.search')}
             placeholder={t('action.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ maxWidth: 260 }}
           />
-          <Select value={stage} onChange={(e) => setStage(e.target.value as Stage | 'tous')} style={{ width: 'auto' }}>
+          <Select aria-label={t('cases.stage')} value={stage} onChange={(e) => setStage(e.target.value as Stage | 'tous')} style={{ width: 'auto' }}>
             <option value="tous">{t('misc.everything')}</option>
             {ACTIVE_STAGES.map((s) => (
               <option key={s} value={s}>{t(`stage.${s}` as 'stage.nouveau')}</option>
@@ -103,25 +106,25 @@ export function Cases() {
             ))}
           </div>
           <span className="grow" />
-          <span className="t-small t-tertiary t-num">{t('cases.count', { n: rows.length })}</span>
+          <span className="t-small t-tertiary t-num" role="status" aria-live="polite">{t('cases.count', { n: rows.length })}</span>
         </div>
 
         {rows.length === 0 ? (
           <Empty title={t('cases.none')} />
         ) : (
           <div className="tablewrap">
-            <table className="table">
+            <table className="table table--clickable">
               <thead>
                 <tr>
                   <th>{t('cases.reference')}</th>
                   <th>{t('cases.client')}</th>
-                  <th>{t('cases.visa')}</th>
+                  <th className="col-optional">{t('cases.visa')}</th>
                   <th>{t('cases.stage')}</th>
                   <th>{t('cases.progress')}</th>
-                  <th>{t('cases.assignee')}</th>
+                  <th className="col-optional">{t('cases.assignee')}</th>
                   <th>{t('cases.travel')}</th>
-                  <th className="num">{t('cases.balance')}</th>
-                  <th>{t('cases.updated')}</th>
+                  {v.can('finance:global') && <th className="num">{t('cases.balance')}</th>}
+                  <th className="col-optional">{t('cases.updated')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,16 +132,27 @@ export function Cases() {
                   const visa = db.visaTypes.find((v) => v.id === c.visaTypeId)
                   const p = progress(db, c.id)
                   return (
-                    <tr key={c.id} onClick={() => navigate(`/dossiers/${c.id}`)}>
+                    <tr
+                      key={c.id}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`${c.reference} ${clientName(db, c.clientId)}`}
+                      onClick={() => navigate(`/dossiers/${c.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dossiers/${c.id}`) }
+                      }}
+                    >
                       <td className="t-mono t-small">{c.reference}</td>
                       <td className="t-medium">{clientName(db, c.clientId)}</td>
-                      <td className="t-small t-secondary">{tt(visa?.country)} · {tt(visa?.label)}</td>
+                      <td className="t-small t-secondary col-optional">{tt(visa?.country)} · {tt(visa?.label)}</td>
                       <td>{c.status === 'ouvert' ? <StagePill stage={c.stage} /> : <StatusPill status={c.status} />}</td>
                       <td className="t-small t-num t-secondary">{p.done}/{p.total}</td>
-                      <td className="t-small t-secondary">{db.users.find((u) => u.id === c.assigneeId)?.name}</td>
+                      <td className="t-small t-secondary col-optional">{db.users.find((u) => u.id === c.assigneeId)?.name}</td>
                       <td className="t-small">{c.status === 'ouvert' ? <Countdown iso={c.travelDate} /> : formatDate(c.travelDate)}</td>
-                      <td className="num t-small">{caseBalance(c) > 0 ? formatMoney(caseBalance(c)) : <span className="t-tertiary">—</span>}</td>
-                      <td className="t-small t-tertiary"><Ago iso={c.updatedAt} /></td>
+                      {v.can('finance:global') && (
+                        <td className="num t-small">{caseBalance(c) > 0 ? formatMoney(caseBalance(c)) : <span className="t-tertiary">—</span>}</td>
+                      )}
+                      <td className="t-small t-tertiary col-optional"><Ago iso={c.updatedAt} /></td>
                     </tr>
                   )
                 })}

@@ -7,29 +7,32 @@
   --bg-page: #f5f5f7;
   --bg-elevated: #fbfbfd;
   --bg-dark: #1d1d1f;
-  --bg-hover: rgba(0, 0, 0, 0.035);
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-sunken: rgba(0, 0, 0, 0.025);
+  --bg-bar: rgba(251, 251, 253, 0.82);
   --bg-active: rgba(0, 102, 204, 0.08);
 
   /* Texte */
   --text-primary: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-tertiary: #86868b;
+  /* Contrastes verifies sur fond blanc : 7,4:1 et 4,6:1. */
+  --text-secondary: #4b4b50;
+  --text-tertiary: #6e6e73;
   --text-on-dark: #f5f5f7;
   --text-white: #ffffff;
 
   /* Accent et etats */
   --blue: #0066cc;
   --blue-hover: #0077ed;
-  --green: #2d8c3c;
-  --orange: #e85d04;
-  --red: #e30000;
+  --green: #1f7a2e;
+  --orange: #b04503;
+  --red: #d10000;
   --violet: #5e5ce6;
 
   /* Teintes douces des etats (fonds de pastilles) */
   --tint-blue: rgba(0, 102, 204, 0.1);
-  --tint-green: rgba(45, 140, 60, 0.12);
-  --tint-orange: rgba(232, 93, 4, 0.12);
-  --tint-red: rgba(227, 0, 0, 0.1);
+  --tint-green: rgba(31, 122, 46, 0.12);
+  --tint-orange: rgba(176, 69, 3, 0.12);
+  --tint-red: rgba(209, 0, 0, 0.1);
   --tint-gray: rgba(110, 110, 115, 0.12);
   --tint-violet: rgba(94, 92, 230, 0.12);
 
@@ -72,8 +75,10 @@
   --w-title: 600;
   --w-bold: 700;
 
-  --size-caption: 12px;
-  --size-small: 13px;
+  --size-caption: 12.5px;
+  --size-small: 13.5px;
+  /* La taille des controles : boutons, champs, lignes de tableau, navigation. */
+  --size-control: 14px;
   --size-body: 15px;
   --size-lead: 17px;
   --size-h4: 19px;
@@ -81,16 +86,25 @@
   --size-h2: 32px;
   --size-h1: 40px;
 
-  --track-tight: -0.022em;
+  /* L'interlettrage suit la taille optique : serre en grand, ouvert en petit. */
   --track-tighter: -0.03em;
+  --track-tight: -0.022em;
+  --track-body: -0.01em;
+  --track-small: 0em;
+  --track-caption: 0.01em;
   --lh-tight: 1.15;
-  --lh-body: 1.5;
+  --lh-body: 1.53;
 
   /* Chrome */
   --sidebar-w: 264px;
   --topbar-h: 60px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur: 0.22s;
+  --content-max: 1440px;
+  /* La courbe d'apple.com. Elle demarre doucement et s'arrete longuement.
+     L'ancienne, cubic-bezier(0.4, 0, 0.2, 1), est celle de Material. */
+  --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+  --dur-fast: 0.2s;
+  --dur: 0.3s;
+  --dur-slow: 0.4s;
 }
 
 /* Piles de polices par langue. L'arabe et le chinois ne se contentent pas
@@ -109,4 +123,6 @@
   --w-bold: 800;
   --track-tight: 0;
   --track-tighter: 0;
+  --track-body: 0;
+  --track-caption: 0;
 }

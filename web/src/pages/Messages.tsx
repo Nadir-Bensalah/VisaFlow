@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
-import { useI18n } from '@/i18n'
+import { useVisible } from '@/data/scope'
+import { useI18n, LOCALES } from '@/i18n'
 import { Avatar, Card, Empty, Pill, Segmented } from '@/components/ui'
 import { Ago, PageHead } from '@/components/bits'
 import { Icon } from '@/components/Icon'
@@ -11,6 +12,7 @@ type View = 'tous' | 'entrants' | 'automatiques'
 
 export function Messages() {
   const { db } = useStore()
+  const v = useVisible()
   const { t, tt } = useI18n()
   const navigate = useNavigate()
   const [view, setView] = useState<View>('tous')
@@ -19,7 +21,7 @@ export function Messages() {
      c'est la vue qui remplace le fil WhatsApp de l'agence. */
   const threads = useMemo(() => {
     const byCase = new Map<string, typeof db.messages>()
-    db.messages.forEach((m) => {
+    v.messages.forEach((m) => {
       const list = byCase.get(m.caseId) ?? []
       list.push(m)
       byCase.set(m.caseId, list)
@@ -31,7 +33,7 @@ export function Messages() {
       })
       .filter((x) => (view === 'entrants' ? x.unread : view === 'automatiques' ? x.last.automated : true))
       .sort((a, b) => b.last.at.localeCompare(a.last.at))
-  }, [db.messages, view])
+  }, [db, v.messages, view])
 
   return (
     <>
@@ -56,7 +58,7 @@ export function Messages() {
           ) : (
             <div className="list">
               {threads.map(({ caseId, last, count, unread }) => {
-                const kase = db.cases.find((c) => c.id === caseId)
+                const kase = v.cases.find((c) => c.id === caseId)
                 if (!kase) return null
                 const name = clientName(db, kase.clientId)
                 return (
@@ -85,17 +87,30 @@ export function Messages() {
           )}
         </Card>
 
-        <Card title={t('msg.templates')} flush>
+        <Card
+          title={t('msg.templates')}
+          action={
+            v.can('catalog:manage')
+              ? <Link to="/reglages?section=modeles" className="btn btn--ghost btn--sm">{t('crud.add')}</Link>
+              : undefined
+          }
+          flush
+        >
           <div className="list">
             {db.templates.map((tpl) => (
-              <div key={tpl.id} className="list__row col gap-2" style={{ alignItems: 'stretch' }}>
+              <Link
+                key={tpl.id}
+                to="/reglages?section=modeles"
+                className="list__row col gap-2"
+                style={{ alignItems: 'stretch' }}
+              >
                 <span className="row gap-2">
                   <Icon name={tpl.channel === 'whatsapp' ? 'whatsapp' : 'mail'} size={14} className="t-tertiary" />
                   <span className="t-small t-medium grow">{tt(tpl.name)}</span>
-                  <span className="t-caption t-tertiary">4 langues</span>
+                  <span className="t-caption t-tertiary">{LOCALES.filter((l) => tpl.body[l]).length} / {LOCALES.length}</span>
                 </span>
                 <span className="t-caption t-tertiary" style={{ lineHeight: 1.45 }}>{tpl.body.fr}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </Card>

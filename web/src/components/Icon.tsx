@@ -45,6 +45,15 @@ const P: Record<string, string> = {
   plane: 'M10 21h2l3-8 5.5-1.6a1.4 1.4 0 0 0 0-2.7L15 7l-3-4h-2l1.6 4.6L7 8.6 5.5 6.4h-2L5 11l-1.5 4.6h2L7 13.4l4.6 1.2L10 21Z',
   ship: 'M3 17c1.5 0 1.5 1.2 3 1.2s1.5-1.2 3-1.2 1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2 1.5-1.2 3-1.2M5 17l-1-5h16l-1.6 5M8 12V7h8v5M11 7V4h2v3',
   box: 'M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Zm0 0 9 4.5m0 0 9-4.5m-9 4.5V20',
+  today: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4.5l3 1.8',
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-13V2m0 20v-2m8-8h2M2 12h2m13.7-5.7 1.4-1.4M4.9 19.1l1.4-1.4m11.4 0 1.4 1.4M4.9 4.9l1.4 1.4',
+  lock: 'M6 11h12v9a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-9Zm2 0V7.5a4 4 0 0 1 8 0V11',
+  eye: 'M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Zm10 2.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z',
+  save: 'M5 4h11l3 3v13H5V4Zm3 0v6h8V4M8 20v-6h8v6',
+  refresh: 'M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5',
+  pin: 'M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  star: 'm12 4 2.5 5.3 5.5.8-4 4 1 5.6-5-2.8-5 2.8 1-5.6-4-4 5.5-.8L12 4Z',
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   tasks: 'M4 7h2l1 1.5L9.5 5M4 14h2l1 1.5L9.5 12M13 7h7M13 15h7',
 }
 
@@ -60,7 +69,7 @@ export function Icon({ name, size = 18, className, style }: { name: IconName; si
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.6}
+      strokeWidth={(1.6 * 24) / size}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

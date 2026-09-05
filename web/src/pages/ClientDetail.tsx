@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Avatar, Card, Empty, Pill } from '@/components/ui'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
@@ -9,14 +10,15 @@ import { daysUntil } from '@/lib/derive'
 export function ClientDetail() {
   const { id = '' } = useParams()
   const { db } = useStore()
+  const v = useVisible()
   const { t, tt, formatDate } = useI18n()
 
-  const client = db.clients.find((c) => c.id === id)
+  const client = v.clients.find((c) => c.id === id)
   if (!client) return <Empty title={t('clients.none')} action={<Link to="/clients" className="btn btn--secondary">{t('action.back')}</Link>} />
 
-  const cases = db.cases.filter((c) => c.clientId === client.id)
-  const events = db.events.filter((e) => cases.some((c) => c.id === e.caseId)).slice(0, 12)
-  const shipments = db.shipments.filter((x) => x.clientId === client.id)
+  const cases = v.cases.filter((c) => c.clientId === client.id)
+  const events = v.events.filter((e) => cases.some((c) => c.id === e.caseId)).slice(0, 12)
+  const shipments = v.shipments.filter((x) => x.clientId === client.id)
   const passportSoon = daysUntil(client.passportExpiry) < 180
 
   return (

@@ -1,6 +1,12 @@
+import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
-import { ToastProvider } from './components/ui'
+import { Card, Empty, ToastProvider } from './components/ui'
+import { useStore } from './data/store'
+import { useVisible } from './data/scope'
+import { useI18n } from './i18n'
+import type { Capability } from './lib/permissions'
+import { Today } from './pages/Today'
 import { Dashboard } from './pages/Dashboard'
 import { Pipeline } from './pages/Pipeline'
 import { Cases } from './pages/Cases'
@@ -23,6 +29,27 @@ import { PortalCase } from './pages/portal/PortalCase'
 import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
 
+/** Personne n'entre dans l'espace agence sans session. */
+function RequireSession({ children }: { children: ReactNode }) {
+  const { signedIn } = useStore()
+  if (!signedIn) return <Navigate to="/connexion" replace />
+  return <>{children}</>
+}
+
+/** Le rôle décide de l'écran, pas seulement de ce qu'on affiche dedans. */
+function Require({ capability, children }: { capability: Capability; children: ReactNode }) {
+  const v = useVisible()
+  const { t } = useI18n()
+  if (!v.can(capability)) {
+    return (
+      <Card>
+        <Empty title={t('access.denied')} hint={t('access.deniedHint')} scene="alerte" />
+      </Card>
+    )
+  }
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <ToastProvider>
@@ -32,8 +59,9 @@ export default function App() {
         <Route path="/portail/cargaison/:token" element={<PortalShipment />} />
         <Route path="/portail/:token" element={<PortalCase />} />
 
-        <Route element={<Shell />}>
-          <Route path="/" element={<Dashboard />} />
+        <Route element={<RequireSession><Shell /></RequireSession>}>
+          <Route path="/" element={<Today />} />
+          <Route path="/tableau-de-bord" element={<Dashboard />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/dossiers" element={<Cases />} />
           <Route path="/dossiers/:id" element={<CaseDetail />} />
@@ -44,11 +72,11 @@ export default function App() {
           <Route path="/pieces" element={<Documents />} />
           <Route path="/rendez-vous" element={<Appointments />} />
           <Route path="/messages" element={<Messages />} />
-          <Route path="/paiements" element={<Payments />} />
           <Route path="/taches" element={<Tasks />} />
-          <Route path="/automatisations" element={<Automations />} />
-          <Route path="/rapports" element={<Reports />} />
-          <Route path="/reglages" element={<Settings />} />
+          <Route path="/paiements" element={<Require capability="finance:global"><Payments /></Require>} />
+          <Route path="/automatisations" element={<Require capability="automation:manage"><Automations /></Require>} />
+          <Route path="/rapports" element={<Require capability="reports:view"><Reports /></Require>} />
+          <Route path="/reglages" element={<Require capability="settings:view"><Settings /></Require>} />
         </Route>
 
         <Route path="/index.html" element={<Navigate to="/" replace />} />

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Segmented, useToast } from '@/components/ui'
 import { PageHead } from '@/components/bits'
@@ -9,6 +10,7 @@ import { clientName, kpis } from '@/lib/derive'
 
 export function Payments() {
   const { db, actions } = useStore()
+  const v = useVisible()
   const { t, tt, formatMoney, formatDate } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -16,10 +18,10 @@ export function Payments() {
   const k = kpis(db)
 
   const rows = useMemo(
-    () => db.payments
+    () => v.payments
       .filter((p) => (view === 'tous' ? true : view === 'du' ? p.state !== 'regle' : p.state === 'regle'))
       .sort((a, b) => (b.at ?? b.dueAt ?? '').localeCompare(a.at ?? a.dueAt ?? '')),
-    [db.payments, view],
+    [v.payments, view],
   )
 
   return (
@@ -49,7 +51,7 @@ export function Payments() {
           <Empty title={t('pay.none')} />
         ) : (
           <div className="tablewrap">
-            <table className="table">
+            <table className="table table--clickable">
               <thead>
                 <tr>
                   <th>{t('pay.label')}</th>
@@ -64,7 +66,7 @@ export function Payments() {
               </thead>
               <tbody>
                 {rows.map((p) => {
-                  const kase = db.cases.find((c) => c.id === p.caseId)
+                  const kase = v.cases.find((c) => c.id === p.caseId)
                   return (
                     <tr key={p.id} onClick={() => kase && navigate(`/dossiers/${kase.id}`)}>
                       <td className="t-small t-medium">{tt(p.label)}</td>

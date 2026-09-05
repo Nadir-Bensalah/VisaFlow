@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Avatar, Pill, Progress, useToast } from '@/components/ui'
 import { Countdown, PageHead, PriorityPill } from '@/components/bits'
@@ -9,6 +10,7 @@ import type { Stage } from '@/data/types'
 
 export function Pipeline() {
   const { db, actions } = useStore()
+  const v = useVisible()
   const { t, tt } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
@@ -17,7 +19,7 @@ export function Pipeline() {
 
   const drop = (stage: Stage) => {
     if (!dragging) return
-    const kase = db.cases.find((c) => c.id === dragging)
+    const kase = v.cases.find((c) => c.id === dragging)
     actions.setStage(dragging, stage)
     setDragging(null)
     setOver(null)
@@ -30,7 +32,7 @@ export function Pipeline() {
 
       <div className="kanban">
         {ACTIVE_STAGES.map((stage) => {
-          const cases = db.cases.filter((c) => c.status === 'ouvert' && c.stage === stage)
+          const cases = v.cases.filter((c) => c.status === 'ouvert' && c.stage === stage)
           return (
             <div
               key={stage}
@@ -57,7 +59,9 @@ export function Pipeline() {
                     onDragStart={() => setDragging(c.id)}
                     onDragEnd={() => setDragging(null)}
                     onClick={() => navigate(`/dossiers/${c.id}`)}
-                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/dossiers/${c.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dossiers/${c.id}`) }
+                    }}
                     className={`kanban__card ${dragging === c.id ? 'kanban__card--dragging' : ''}`}
                   >
                     <div className="row gap-2" style={{ marginBottom: 'var(--sp-2)' }}>

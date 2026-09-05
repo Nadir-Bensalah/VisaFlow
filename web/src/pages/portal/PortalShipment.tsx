@@ -23,7 +23,6 @@ export function PortalShipment() {
     )
   }
 
-  const client = db.clients.find((c) => c.id === shipment.clientId)!
   const events = db.shipmentEvents.filter((e) => e.shipmentId === shipment.id)
   const currentIndex = SHIPMENT_STAGES.indexOf(shipment.stage)
   const office = db.agency.offices.find((o) => o.id === shipment.officeId)!
@@ -87,7 +86,6 @@ export function PortalShipment() {
               <div className="row-between"><span className="t-small t-secondary">{t('ship.packages')}</span><span className="t-small t-num">{formatNumber(shipment.packages)}</span></div>
               <div className="row-between"><span className="t-small t-secondary">{t('ship.weight')}</span><span className="t-small t-num">{formatNumber(shipment.weightKg)} kg</span></div>
               {shipment.containerNo && <div className="row-between"><span className="t-small t-secondary">{t('ship.container')}</span><span className="t-small t-mono">{shipment.containerNo}</span></div>}
-              {shipment.blNumber && <div className="row-between"><span className="t-small t-secondary">{t('ship.bl')}</span><span className="t-small t-mono">{shipment.blNumber}</span></div>}
             </div>
           </Card>
 
@@ -103,7 +101,7 @@ export function PortalShipment() {
           </Card>
 
           <p className="t-caption t-tertiary" style={{ textAlign: 'center' }}>
-            {client.firstName} · {t('portal.poweredBy')}
+            {t('portal.poweredBy')}
           </p>
         </div>
       </main>

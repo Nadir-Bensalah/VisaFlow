@@ -34,7 +34,10 @@ export function PortalCase() {
   const appt = db.appointments.filter((a) => a.caseId === kase.id && a.status === 'prevu').sort((a, b) => a.at.localeCompare(b.at))[0]
   const payments = db.payments.filter((p) => p.caseId === kase.id)
   const due = payments.filter((p) => p.state !== 'regle').reduce((s, p) => s + p.amount, 0)
-  const messages = db.messages.filter((m) => m.caseId === kase.id).slice(-6)
+  // Jamais de canal interne dans le portail : ce sont des notes d'equipe.
+  const messages = db.messages
+    .filter((m) => m.caseId === kase.id && m.channel !== 'interne')
+    .slice(-6)
   const stages = visa.stages
   const currentIndex = stages.indexOf(kase.stage)
   const p = progress(db, kase.id)

@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { buildSeed } from './seed'
 import type {
-  ActivityEvent, Appointment, CaseDocument, Database, DocState, EventType, I18nText,
-  Message, Payment, ShipmentEvent, ShipmentStage, Stage, VisaCase,
+  ActivityEvent, Appointment, CaseDocument, ChecklistItem, Database, DocState, EventType,
+  I18nText, Message, MessageTemplate, Payment, Role, Shipment, ShipmentDocument, ShipmentEvent,
+  ShipmentStage, Stage, User, VisaCase, VisaType,
 } from './types'
 
 /* Magasin local. Toute l'application passe par ici, jamais par le stockage
@@ -36,13 +37,26 @@ function save(slug: string, db: Database) {
 const nowIso = () => new Date().toISOString()
 const rid = (p: string) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 
+/** Jeton de suivi client : imprevisible, pas seulement unique. */
+function token(prefix: string): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}_${crypto.randomUUID().replace(/-/g, '')}`
+  }
+  return rid(prefix)
+}
+
 interface StoreValue {
   db: Database
   slug: string
   /** Utilisateur connecte a l'espace agence. */
   currentUserId: string
-  setCurrentUserId: (id: string) => void
+  /** Faux tant que personne ne s'est connecte : les routes internes sont fermees. */
+  signedIn: boolean
+  signIn: (userId: string) => void
+  signOut: () => void
   actions: Actions
+  live: boolean
+  setLive: (v: boolean) => void
 }
 
 interface Actions {
@@ -60,8 +74,23 @@ interface Actions {
   toggleTask: (taskId: string) => void
   createCase: (input: { clientId: string; visaTypeId: string; assigneeId: string; travelDate?: string; source: VisaCase['source'] }) => string
   createClient: (input: { firstName: string; lastName: string; phone: string; email?: string; nationality: string; locale: Database['agency']['defaultLocale']; officeId: string }) => string
+  decideCase: (caseId: string, status: 'accepte' | 'refuse' | 'annule', reason?: string) => void
+  updateCase: (caseId: string, patch: Partial<VisaCase>) => void
+  createTask: (input: { caseId?: string; assigneeId: string; title: I18nText; dueAt: string }) => void
+  updateAppointment: (id: string, patch: Partial<Appointment>) => void
+  saveShipment: (shipment: Omit<Shipment, 'agencyId' | 'id'> & { id?: string }) => void
   advanceShipment: (shipmentId: string) => void
   setShipmentDocState: (docId: string, state: DocState) => void
+  saveUser: (user: Omit<User, 'agencyId' | 'id'> & { id?: string }) => void
+  removeUser: (userId: string) => void
+  saveTemplate: (template: Omit<MessageTemplate, 'agencyId' | 'id'> & { id?: string }) => void
+  removeTemplate: (templateId: string) => void
+  saveVisaType: (visa: Omit<VisaType, 'agencyId' | 'id'> & { id?: string }) => void
+  removeVisaType: (visaTypeId: string) => void
+  saveChecklistItem: (checklistId: string, item: ChecklistItem, previousKey?: string) => void
+  removeChecklistItem: (checklistId: string, key: string) => void
+  saveRule: (rule: Database['rules'][number]) => void
+  removeRule: (ruleId: string) => void
   updateAgency: (patch: Partial<Database['agency']>) => void
   reset: () => void
   exportJson: () => string
@@ -71,9 +100,56 @@ const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ slug, children }: { slug: string; children: ReactNode }) {
   const [db, setDb] = useState<Database>(() => load(slug))
-  const [currentUserId, setCurrentUserId] = useState<string>(() => db.users[1]?.id ?? db.users[0].id)
+  // La session survit au rechargement, jamais au changement d'agence.
+  const [session, setSession] = useState<string | null>(() => {
+    try { return window.localStorage.getItem(`visaflow.session.${slug}`) } catch { return null }
+  })
+  const currentUserId = session ?? db.users[0].id
+  const [live, setLive] = useState(true)
 
-  useEffect(() => { save(slug, db) }, [slug, db])
+  // Diffusion entre onglets. Deux fenetres ouvertes sur la meme agence voient
+  // la meme chose, sans rechargement : c'est le comportement d'un poste
+  // partage au comptoir.
+  const channelRef = useRef<BroadcastChannel | null>(null)
+  const fromRemote = useRef(false)
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel(`visaflow.${slug}`)
+    channelRef.current = channel
+    channel.onmessage = (event: MessageEvent<{ db: Database }>) => {
+      if (!event.data?.db) return
+      fromRemote.current = true
+      setDb(event.data.db)
+    }
+    return () => {
+      channel.close()
+      channelRef.current = null
+    }
+  }, [slug])
+
+  useEffect(() => {
+    save(slug, db)
+    // On ne renvoie pas ce qu'on vient de recevoir, sinon les onglets se
+    // repondent en boucle.
+    if (fromRemote.current) {
+      fromRemote.current = false
+      return
+    }
+    channelRef.current?.postMessage({ db })
+  }, [slug, db])
+
+
+
+  const signIn = useCallback((userId: string) => {
+    setSession(userId)
+    try { window.localStorage.setItem(`visaflow.session.${slug}`, userId) } catch { /* stockage indisponible */ }
+  }, [slug])
+
+  const signOut = useCallback(() => {
+    setSession(null)
+    try { window.localStorage.removeItem(`visaflow.session.${slug}`) } catch { /* stockage indisponible */ }
+  }, [slug])
 
   const log = useCallback(
     (draft: Database, type: EventType, detail: I18nText, caseId?: string, automated = false): Database => {
@@ -138,6 +214,51 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         }, caseId)
         return next
       })
+
+    /* Une decision de consulat n'est pas une etape : c'est une issue.
+       Sans elle, le taux d'acceptation des rapports est faux. */
+    const decideCase: Actions['decideCase'] = (caseId, status, reason) =>
+      setDb((prev) => {
+        const target = prev.cases.find((c) => c.id === caseId)
+        if (!target) return prev
+        let next: Database = {
+          ...prev,
+          cases: prev.cases.map((c) =>
+            c.id === caseId
+              ? {
+                  ...c,
+                  status,
+                  stage: status === 'accepte' ? 'retrait' : 'clos',
+                  decisionAt: nowIso(),
+                  refusalReason: status === 'refuse' ? reason : undefined,
+                  updatedAt: nowIso(),
+                }
+              : c,
+          ),
+        }
+        next = log(next, 'decision_recue', {
+          fr: `${target.reference} : ${status}.`,
+          en: `${target.reference}: ${status}.`,
+          ar: `${target.reference}: ${status}.`,
+          zh: `${target.reference}：${status}。`,
+        }, caseId)
+        return next
+      })
+
+    const updateCase: Actions['updateCase'] = (caseId, patch) =>
+      setDb((prev) => ({
+        ...prev,
+        cases: prev.cases.map((c) => (c.id === caseId ? { ...c, ...patch, updatedAt: nowIso() } : c)),
+      }))
+
+    const createTask: Actions['createTask'] = ({ caseId, assigneeId, title, dueAt }) =>
+      setDb((prev) => ({
+        ...prev,
+        tasks: [
+          { id: rid('tk'), agencyId: prev.agency.id, caseId, assigneeId, title, dueAt, done: false, createdAt: nowIso(), automated: false },
+          ...prev.tasks,
+        ],
+      }))
 
     const setDocState: Actions['setDocState'] = (docId, state, reason) =>
       setDb((prev) => {
@@ -276,6 +397,42 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return next
       })
 
+    const updateAppointment: Actions['updateAppointment'] = (id, patch) =>
+      setDb((prev) => ({
+        ...prev,
+        appointments: prev.appointments.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+      }))
+
+    const saveShipment: Actions['saveShipment'] = (input) =>
+      setDb((prev) => {
+        const id = input.id ?? rid('sh')
+        const exists = prev.shipments.some((x) => x.id === id)
+        const shipment: Shipment = { ...input, id, agencyId: prev.agency.id }
+        let next: Database = {
+          ...prev,
+          shipments: exists ? prev.shipments.map((x) => (x.id === id ? shipment : x)) : [shipment, ...prev.shipments],
+        }
+        if (!exists) {
+          // Les documents de transport naissent avec la cargaison, sinon
+          // personne ne se souvient du certificat d'origine avant la douane.
+          const docs: ShipmentDocument[] = [
+            { key: 'facture', label: { fr: 'Facture commerciale', en: 'Commercial invoice', ar: 'الفاتورة التجارية', zh: '商业发票' } },
+            { key: 'packing', label: { fr: 'Liste de colisage', en: 'Packing list', ar: 'قائمة التعبئة', zh: '装箱单' } },
+            { key: 'bl', label: { fr: 'Connaissement', en: 'Bill of lading', ar: 'سند الشحن', zh: '提单' } },
+            { key: 'origine', label: { fr: 'Certificat d’origine', en: 'Certificate of origin', ar: 'شهادة المنشأ', zh: '原产地证' } },
+            { key: 'titre', label: { fr: 'Titre de commerce extérieur', en: 'Import licence', ar: 'رخصة التوريد', zh: '进口许可' } },
+          ].map((d) => ({ id: `${id}_${d.key}`, shipmentId: id, key: d.key, label: d.label, state: 'manquante' as DocState, required: true, reminders: 0 }))
+          next = { ...next, shipmentDocs: [...next.shipmentDocs, ...docs] }
+          next = log(next, 'dossier_cree', {
+            fr: `Cargaison ${shipment.reference} ouverte.`,
+            en: `Shipment ${shipment.reference} opened.`,
+            ar: `فتح الشحنة ${shipment.reference}.`,
+            zh: `已建立货运 ${shipment.reference}。`,
+          })
+        }
+        return next
+      })
+
     const toggleRule: Actions['toggleRule'] = (ruleId) =>
       setDb((prev) => ({
         ...prev,
@@ -388,7 +545,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
           officeId: client.officeId, assigneeId, stage: 'nouveau', status: 'ouvert',
           priority: 'normale', source, openedAt: nowIso(), updatedAt: nowIso(),
           travelDate, dueAt: travelDate, amountTotal: visa.feeAgency + visa.feeConsulate,
-          amountPaid: 0, portalToken: rid('tok'),
+          amountPaid: 0, portalToken: token('tok'),
         }
         const docs: CaseDocument[] = (checklist?.items ?? []).map((item) => ({
           id: `${id}_${item.key}`, caseId: id, key: item.key, label: item.label,
@@ -475,6 +632,100 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return next
       })
 
+    /* ---------------------------------------------------------------- */
+    /* Equipe, modeles, catalogue : tout ce qui se configure sans code     */
+    /* ---------------------------------------------------------------- */
+
+    const saveUser: Actions['saveUser'] = (input) =>
+      setDb((prev) => {
+        const id = input.id ?? rid('u')
+        const user: User = { ...input, id, agencyId: prev.agency.id, role: input.role as Role }
+        const exists = prev.users.some((u) => u.id === id)
+        return {
+          ...prev,
+          users: exists ? prev.users.map((u) => (u.id === id ? user : u)) : [...prev.users, user],
+        }
+      })
+
+    const removeUser: Actions['removeUser'] = (userId) =>
+      setDb((prev) => {
+        // On ne supprime jamais quelqu'un qui porte des dossiers : on le
+        // desactive. Sinon l'historique perd son auteur.
+        const holdsCases = prev.cases.some((c) => c.assigneeId === userId)
+        if (holdsCases) {
+          return { ...prev, users: prev.users.map((u) => (u.id === userId ? { ...u, active: false } : u)) }
+        }
+        return { ...prev, users: prev.users.filter((u) => u.id !== userId) }
+      })
+
+    const saveTemplate: Actions['saveTemplate'] = (input) =>
+      setDb((prev) => {
+        const id = input.id ?? rid('tpl')
+        const template: MessageTemplate = { ...input, id, agencyId: prev.agency.id }
+        const exists = prev.templates.some((t) => t.id === id)
+        return {
+          ...prev,
+          templates: exists ? prev.templates.map((t) => (t.id === id ? template : t)) : [...prev.templates, template],
+        }
+      })
+
+    const removeTemplate: Actions['removeTemplate'] = (templateId) =>
+      setDb((prev) => ({ ...prev, templates: prev.templates.filter((t) => t.id !== templateId) }))
+
+    const saveVisaType: Actions['saveVisaType'] = (input) =>
+      setDb((prev) => {
+        const id = input.id ?? rid('vt')
+        const visa: VisaType = { ...input, id, agencyId: prev.agency.id }
+        const exists = prev.visaTypes.some((v) => v.id === id)
+        return {
+          ...prev,
+          visaTypes: exists ? prev.visaTypes.map((v) => (v.id === id ? visa : v)) : [...prev.visaTypes, visa],
+        }
+      })
+
+    const removeVisaType: Actions['removeVisaType'] = (visaTypeId) =>
+      setDb((prev) => {
+        const used = prev.cases.some((c) => c.visaTypeId === visaTypeId)
+        if (used) {
+          return { ...prev, visaTypes: prev.visaTypes.map((v) => (v.id === visaTypeId ? { ...v, active: false } : v)) }
+        }
+        return { ...prev, visaTypes: prev.visaTypes.filter((v) => v.id !== visaTypeId) }
+      })
+
+    const saveChecklistItem: Actions['saveChecklistItem'] = (checklistId, item, previousKey) =>
+      setDb((prev) => ({
+        ...prev,
+        checklists: prev.checklists.map((list) => {
+          if (list.id !== checklistId) return list
+          const key = previousKey ?? item.key
+          const exists = list.items.some((i) => i.key === key)
+          return {
+            ...list,
+            items: exists ? list.items.map((i) => (i.key === key ? item : i)) : [...list.items, item],
+          }
+        }),
+      }))
+
+    const removeChecklistItem: Actions['removeChecklistItem'] = (checklistId, key) =>
+      setDb((prev) => ({
+        ...prev,
+        checklists: prev.checklists.map((list) =>
+          list.id === checklistId ? { ...list, items: list.items.filter((i) => i.key !== key) } : list,
+        ),
+      }))
+
+    const saveRule: Actions['saveRule'] = (rule) =>
+      setDb((prev) => {
+        const exists = prev.rules.some((r) => r.id === rule.id)
+        return {
+          ...prev,
+          rules: exists ? prev.rules.map((r) => (r.id === rule.id ? rule : r)) : [...prev.rules, rule],
+        }
+      })
+
+    const removeRule: Actions['removeRule'] = (ruleId) =>
+      setDb((prev) => ({ ...prev, rules: prev.rules.filter((r) => r.id !== ruleId) }))
+
     const reset: Actions['reset'] = () => setDb(buildSeed(slug))
 
     const exportJson: Actions['exportJson'] = () => JSON.stringify(db, null, 2)
@@ -482,16 +733,26 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     return {
       setStage, advance, setDocState, requestMissingDocs, remindDoc, sendMessage, addNote,
       markPaymentPaid, addAppointment, toggleRule, runRules, toggleTask, createCase,
-      createClient, advanceShipment, setShipmentDocState, updateAgency, reset, exportJson,
+      createClient, decideCase, updateCase, createTask, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
+      saveTemplate, removeTemplate, saveVisaType, removeVisaType, saveChecklistItem,
+      removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
     }
     // db n'entre pas dans les dependances : toutes les mutations passent par
     // setDb(prev => ...) et lisent donc toujours l'etat le plus recent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, log, slug, db])
 
+  // Les regles tournent toutes les minutes tant que le temps reel est actif.
+  // C'est exactement ce que fera la tache planifiee cote serveur.
+  useEffect(() => {
+    if (!live) return
+    const id = window.setInterval(() => actions.runRules(), 60_000)
+    return () => window.clearInterval(id)
+  }, [live, actions])
+
   const value = useMemo<StoreValue>(
-    () => ({ db, slug, currentUserId, setCurrentUserId, actions }),
-    [db, slug, currentUserId, actions],
+    () => ({ db, slug, currentUserId, signedIn: Boolean(session), signIn, signOut, actions, live, setLive }),
+    [db, slug, currentUserId, session, signIn, signOut, actions, live],
   )
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

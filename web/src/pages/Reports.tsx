@@ -1,4 +1,5 @@
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Card } from '@/components/ui'
 import { PageHead } from '@/components/bits'
@@ -6,6 +7,7 @@ import { kpis } from '@/lib/derive'
 
 export function Reports() {
   const { db } = useStore()
+  const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
   const k = kpis(db)
 
@@ -18,19 +20,19 @@ export function Reports() {
     return {
       key,
       label: date.toLocaleDateString(undefined, { month: 'short' }),
-      count: db.cases.filter((c) => c.openedAt.slice(0, 7) === key).length,
+      count: v.cases.filter((c) => c.openedAt.slice(0, 7) === key).length,
     }
   })
   const maxMonth = Math.max(...months.map((m) => m.count), 1)
 
-  const byCountry = db.visaTypes.map((v) => ({
-    label: `${tt(v.country)} · ${tt(v.label)}`,
-    count: db.cases.filter((c) => c.visaTypeId === v.id).length,
-    revenue: db.cases.filter((c) => c.visaTypeId === v.id).reduce((s, c) => s + c.amountPaid, 0),
+  const byCountry = db.visaTypes.map((type) => ({
+    label: `${tt(type.country)} · ${tt(type.label)}`,
+    count: v.cases.filter((c) => c.visaTypeId === type.id).length,
+    revenue: v.cases.filter((c) => c.visaTypeId === type.id).reduce((sum, c) => sum + c.amountPaid, 0),
   })).sort((a, b) => b.count - a.count)
 
   const byAgent = db.users.map((u) => {
-    const cases = db.cases.filter((c) => c.assigneeId === u.id)
+    const cases = v.cases.filter((c) => c.assigneeId === u.id)
     const decided = cases.filter((c) => c.status === 'accepte' || c.status === 'refuse')
     return {
       name: u.name,
@@ -40,7 +42,7 @@ export function Reports() {
     }
   }).filter((a) => a.total > 0).sort((a, b) => b.total - a.total)
 
-  const revenue = db.payments.filter((p) => p.state === 'regle').reduce((s, p) => s + p.amount, 0)
+  const revenue = v.payments.filter((p) => p.state === 'regle').reduce((sum, p) => sum + p.amount, 0)
 
   return (
     <>
@@ -49,7 +51,9 @@ export function Reports() {
       <div className="grid grid--4" style={{ marginBottom: 'var(--sp-5)' }}>
         <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.acceptance')}</div><div className="stat__value">{k.acceptance}%</div></div></Card>
         <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.delay')}</div><div className="stat__value">{formatNumber(k.avgDays)}</div><div className="stat__hint">{t('reports.days', { n: k.avgDays })}</div></div></Card>
-        <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.revenue')}</div><div className="stat__value">{formatMoney(revenue)}</div></div></Card>
+        {v.can('finance:global') && (
+          <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.revenue')}</div><div className="stat__value">{formatMoney(revenue)}</div></div></Card>
+        )}
         <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('dash.open')}</div><div className="stat__value">{formatNumber(k.open)}</div></div></Card>
       </div>
 
@@ -84,16 +88,16 @@ export function Reports() {
           </div>
         </Card>
 
-        <Card title={t('reports.byCountry')} flush className="grid--2" >
+        <Card title={t('reports.byCountry')} flush className="grid__wide">
           <div className="tablewrap">
             <table className="table">
-              <thead><tr><th>{t('cases.visa')}</th><th className="num">{t('cases.title')}</th><th className="num">{t('reports.revenue')}</th></tr></thead>
+              <thead><tr><th>{t('cases.visa')}</th><th className="num">{t('cases.title')}</th>{v.can('finance:global') && <th className="num">{t('reports.revenue')}</th>}</tr></thead>
               <tbody>
                 {byCountry.map((c) => (
                   <tr key={c.label}>
                     <td className="t-small">{c.label}</td>
                     <td className="num t-small">{c.count}</td>
-                    <td className="num t-small">{formatMoney(c.revenue)}</td>
+                    {v.can('finance:global') && <td className="num t-small">{formatMoney(c.revenue)}</td>}
                   </tr>
                 ))}
               </tbody>

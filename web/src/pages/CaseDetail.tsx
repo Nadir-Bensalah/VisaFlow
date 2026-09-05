@@ -1,23 +1,30 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { blockingDocs, caseBalance, daysSince, progress } from '@/lib/derive'
-import type { AppointmentKind, Channel, DocState } from '@/data/types'
+import type { AppointmentKind, Channel, DocState, PaymentMethod } from '@/data/types'
 
 type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'historique'
 
 export function CaseDetail() {
   const { id = '' } = useParams()
   const { db, actions } = useStore()
+  const v = useVisible()
   const { t, tt, formatDate, formatMoney } = useI18n()
   const toast = useToast()
-  const [tab, setTab] = useState<Tab>('apercu')
+  // L'onglet vit dans l'adresse : le lien se partage et le retour marche.
+  const [params, setParams] = useSearchParams()
+  const tab = (params.get('onglet') as Tab | null) ?? 'apercu'
+  const setTab = (value: Tab) => setParams(value === 'apercu' ? {} : { onglet: value }, { replace: true })
+  const [deciding, setDeciding] = useState(false)
 
-  const kase = db.cases.find((c) => c.id === id)
+  // Hors perimetre, le dossier n'existe pas. On ne confirme meme pas sa reference.
+  const kase = v.cases.find((c) => c.id === id)
   if (!kase) return <Empty title={t('cases.none')} action={<Link to="/dossiers" className="btn btn--secondary">{t('action.back')}</Link>} />
 
   const client = db.clients.find((c) => c.id === kase.clientId)!
@@ -54,13 +61,21 @@ export function CaseDetail() {
 
   return (
     <>
+      <Link to="/dossiers" className="row gap-2 t-small" style={{ marginBottom: 'var(--sp-4)' }}>
+        <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} />
+        {t('cases.title')}
+      </Link>
+
       <PageHead
         title={`${client.firstName} ${client.lastName}`}
         subtitle={`${kase.reference} · ${tt(visa.country)} ${tt(visa.label)}`}
         action={
           <div className="row gap-2">
             <Button icon="copy" onClick={copyPortal}>{t('caseDetail.portalLink')}</Button>
-            {kase.status === 'ouvert' && kase.stage !== 'clos' && (
+            {kase.status === 'ouvert' && ['decision', 'consulat', 'depot'].includes(kase.stage) && (
+              <Button icon="check" onClick={() => setDeciding(true)}>{t('status.accepte')} / {t('status.refuse')}</Button>
+            )}
+            {kase.status === 'ouvert' && kase.stage !== 'clos' && v.can('case:write') && (
               <Button variant="primary" icon="arrow" onClick={() => { actions.advance(kase.id); toast(t('caseDetail.advance')) }}>
                 {t('caseDetail.advance')}
               </Button>
@@ -68,6 +83,8 @@ export function CaseDetail() {
           </div>
         }
       />
+
+      {deciding && <Decision caseId={kase.id} onClose={() => setDeciding(false)} />}
 
       <div className="grid grid--main">
         <div className="col gap-6">
@@ -123,7 +140,9 @@ export function CaseDetail() {
               <Row label={t('caseDetail.travelOn')} value={<Countdown iso={kase.travelDate} />} />
               <Row label={t('caseDetail.source')} value={t(`source.${kase.source}` as 'source.comptoir')} />
               {kase.consulateRef && <Row label={t('caseDetail.consulateRef')} value={<span className="t-mono">{kase.consulateRef}</span>} />}
-              <Row label={t('cases.balance')} value={caseBalance(kase) > 0 ? formatMoney(caseBalance(kase)) : t('payment.regle')} />
+              {v.can('payment:write') && (
+                <Row label={t('cases.balance')} value={caseBalance(kase) > 0 ? formatMoney(caseBalance(kase)) : t('payment.regle')} />
+              )}
             </div>
           </Card>
 
@@ -492,6 +511,8 @@ function PaymentsTab({ caseId }: { caseId: string }) {
   const { t, tt, formatMoney, formatDate } = useI18n()
   const toast = useToast()
   const payments = db.payments.filter((p) => p.caseId === caseId)
+  const [cashing, setCashing] = useState<string | null>(null)
+  const [method, setMethod] = useState<PaymentMethod>('especes')
 
   return (
     <div className="col gap-3">
@@ -510,7 +531,7 @@ function PaymentsTab({ caseId }: { caseId: string }) {
             {p.state === 'regle' ? (
               <Pill tone="green" dot>{t('payment.regle')}</Pill>
             ) : (
-              <Button size="sm" variant="primary" onClick={() => { actions.markPaymentPaid(p.id, 'especes'); toast(t('action.markPaid')) }}>
+              <Button size="sm" variant="primary" onClick={() => { setCashing(p.id); setMethod('especes') }}>
                 {t('action.markPaid')}
               </Button>
             )}
@@ -518,7 +539,80 @@ function PaymentsTab({ caseId }: { caseId: string }) {
         </div>
       ))}
       <p className="t-caption t-tertiary">{t('pay.subtitle')}</p>
+
+      {cashing && (
+        <Modal
+          title={t('action.markPaid')}
+          onClose={() => setCashing(null)}
+          footer={
+            <>
+              <Button onClick={() => setCashing(null)}>{t('action.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={() => { actions.markPaymentPaid(cashing, method); setCashing(null); toast(t('action.markPaid')) }}
+              >
+                {t('action.confirm')}
+              </Button>
+            </>
+          }
+        >
+          <Field label={t('pay.method')}>
+            <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
+              {(['especes', 'virement', 'carte', 'cheque'] as PaymentMethod[]).map((m) => (
+                <option key={m} value={m}>{t(`payment.${m}` as 'payment.especes')}</option>
+              ))}
+            </Select>
+          </Field>
+        </Modal>
+      )}
     </div>
+  )
+}
+
+/* ----------------------------- Decision ------------------------------ */
+
+function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) {
+  const { actions } = useStore()
+  const { t } = useI18n()
+  const toast = useToast()
+  const [status, setStatus] = useState<'accepte' | 'refuse' | 'annule'>('accepte')
+  const [reason, setReason] = useState('')
+
+  return (
+    <Modal
+      title={t('caseDetail.overview')}
+      onClose={onClose}
+      footer={
+        <>
+          <Button onClick={onClose}>{t('action.cancel')}</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              actions.decideCase(caseId, status, reason || undefined)
+              onClose()
+              toast(t('crud.updated'))
+            }}
+          >
+            {t('action.confirm')}
+          </Button>
+        </>
+      }
+    >
+      <div className="col gap-4">
+        <Field label={t('cases.stage')}>
+          <Select value={status} onChange={(e) => setStatus(e.target.value as 'accepte' | 'refuse' | 'annule')}>
+            <option value="accepte">{t('status.accepte')}</option>
+            <option value="refuse">{t('status.refuse')}</option>
+            <option value="annule">{t('status.annule')}</option>
+          </Select>
+        </Field>
+        {status === 'refuse' && (
+          <Field label={t('docs.reason')}>
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        )}
+      </div>
+    </Modal>
   )
 }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Segmented, useToast } from '@/components/ui'
 import { DocPill, PageHead } from '@/components/bits'
@@ -11,26 +12,27 @@ type View = 'bloquantes' | 'attente' | 'toutes'
 
 export function Documents() {
   const { db, actions } = useStore()
+  const v = useVisible()
   const { t, tt } = useI18n()
   const navigate = useNavigate()
   const toast = useToast()
   const [view, setView] = useState<View>('bloquantes')
 
   const rows = useMemo(() => {
-    const openIds = new Set(db.cases.filter((c) => c.status === 'ouvert').map((c) => c.id))
+    const openIds = new Set(v.cases.filter((c) => c.status === 'ouvert').map((c) => c.id))
     const states: Record<View, DocState[]> = {
       bloquantes: ['manquante', 'refusee', 'expiree'],
       attente: ['manquante', 'demandee', 'recue', 'refusee', 'expiree'],
       toutes: ['manquante', 'demandee', 'recue', 'refusee', 'expiree', 'validee'],
     }
-    return db.documents
+    return v.documents
       .filter((d) => openIds.has(d.caseId) && states[view].includes(d.state) && (view === 'toutes' || d.required))
       .map((d) => {
-        const kase = db.cases.find((c) => c.id === d.caseId)!
+        const kase = v.cases.find((c) => c.id === d.caseId)!
         return { doc: d, kase, waiting: daysSince(d.requestedAt ?? kase.openedAt) }
       })
       .sort((a, b) => b.waiting - a.waiting)
-  }, [db, view])
+  }, [db, v, view])
 
   const remindAll = () => {
     const late = rows.filter((r) => r.doc.state === 'demandee' && r.waiting >= 3)
@@ -65,7 +67,7 @@ export function Documents() {
           <Empty title={t('docs.none')} />
         ) : (
           <div className="tablewrap">
-            <table className="table">
+            <table className="table table--clickable">
               <thead>
                 <tr>
                   <th>{t('docs.item')}</th>
@@ -73,13 +75,22 @@ export function Documents() {
                   <th>{t('cases.reference')}</th>
                   <th>{t('docs.state')}</th>
                   <th className="num">{t('docs.since')}</th>
-                  <th className="num">{t('docs.reminders')}</th>
+                  <th className="num col-optional">{t('docs.reminders')}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {rows.map(({ doc, kase, waiting }) => (
-                  <tr key={doc.id} onClick={() => navigate(`/dossiers/${kase.id}`)}>
+                  <tr
+                    key={doc.id}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`${tt(doc.label)} ${kase.reference}`}
+                    onClick={() => navigate(`/dossiers/${kase.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dossiers/${kase.id}`) }
+                    }}
+                  >
                     <td className="t-medium t-small">{tt(doc.label)}</td>
                     <td className="t-small">{clientName(db, kase.clientId)}</td>
                     <td className="t-mono t-small t-tertiary">{kase.reference}</td>
@@ -87,7 +98,7 @@ export function Documents() {
                     <td className="num t-small" style={{ color: waiting > 7 ? 'var(--red)' : waiting > 3 ? 'var(--orange)' : undefined }}>
                       {Number.isFinite(waiting) ? t('time.daysAgo', { n: waiting }) : '—'}
                     </td>
-                    <td className="num t-small t-tertiary">{doc.reminders || '—'}</td>
+                    <td className="num t-small t-tertiary col-optional">{doc.reminders || '—'}</td>
                     <td style={{ textAlign: 'end' }}>
                       <Button
                         size="sm"

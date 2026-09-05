@@ -5,12 +5,12 @@ import { Avatar, Button, Field, Input, Select } from '@/components/ui'
 import type { Locale } from '@/data/types'
 
 export function Login() {
-  const { db, setCurrentUserId } = useStore()
+  const { db, signIn } = useStore()
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
 
   const enter = (userId: string) => {
-    setCurrentUserId(userId)
+    signIn(userId)
     navigate('/')
   }
 
@@ -19,12 +19,12 @@ export function Login() {
       <div className="auth__card">
         <div className="row gap-3" style={{ marginBottom: 'var(--sp-8)' }}>
           <span className="sidebar__mark" style={{ background: db.agency.accent, width: 36, height: 36, borderRadius: 10 }}>{db.agency.mark}</span>
-          <div className="col">
-            <span className="t-title">{db.agency.name}</span>
-            <span className="t-caption t-tertiary">{db.agency.slug}.visaflow.app</span>
+          <div className="col" style={{ minWidth: 0 }}>
+            <span className="t-title t-truncate">{db.agency.name}</span>
+            <span className="t-caption t-tertiary t-truncate">{db.agency.slug}.visaflow.app</span>
           </div>
           <span className="grow" />
-          <Select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} style={{ width: 'auto', minHeight: 32 }}>
+          <Select aria-label={t('misc.language')} value={locale} onChange={(e) => setLocale(e.target.value as Locale)} style={{ width: 'auto', minHeight: 32 }}>
             {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_META[l].native}</option>)}
           </Select>
         </div>
