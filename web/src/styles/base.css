@@ -1,0 +1,85 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: var(--size-body);
+  font-weight: var(--w-body);
+  line-height: var(--lh-body);
+  letter-spacing: var(--track-tight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: var(--w-title);
+  letter-spacing: var(--track-tighter);
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+
+h1 { font-size: var(--size-h1); }
+h2 { font-size: var(--size-h2); }
+h3 { font-size: var(--size-h3); }
+h4 { font-size: var(--size-h4); }
+p  { margin: 0; }
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { color: var(--blue-hover); }
+
+button { font: inherit; letter-spacing: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-badge);
+}
+
+::selection { background: var(--tint-blue); }
+
+/* Barres de defilement discretes, a la macOS. */
+* { scrollbar-width: thin; scrollbar-color: rgba(0, 0, 0, 0.2) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Utilitaires de texte, volontairement peu nombreux. */
+.t-secondary { color: var(--text-secondary); }
+.t-tertiary  { color: var(--text-tertiary); }
+.t-small     { font-size: var(--size-small); }
+.t-caption   { font-size: var(--size-caption); }
+.t-medium    { font-weight: var(--w-medium); }
+.t-title     { font-weight: var(--w-title); }
+.t-mono      { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.t-num       { font-variant-numeric: tabular-nums; }
+.t-truncate  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.row { display: flex; align-items: center; gap: var(--sp-3); }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+.col { display: flex; flex-direction: column; }
+.gap-1 { gap: var(--sp-1); } .gap-2 { gap: var(--sp-2); } .gap-3 { gap: var(--sp-3); }
+.gap-4 { gap: var(--sp-4); } .gap-6 { gap: var(--sp-6); } .gap-8 { gap: var(--sp-8); }
+.grow { flex: 1 1 auto; min-width: 0; }
+.wrap { flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

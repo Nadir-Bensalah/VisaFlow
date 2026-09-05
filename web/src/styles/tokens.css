@@ -1,0 +1,112 @@
+/* VisaFlow - jetons de design.
+   Source unique de verite. Aucune valeur brute ailleurs dans le CSS. */
+
+:root {
+  /* Fonds */
+  --bg-white: #ffffff;
+  --bg-page: #f5f5f7;
+  --bg-elevated: #fbfbfd;
+  --bg-dark: #1d1d1f;
+  --bg-hover: rgba(0, 0, 0, 0.035);
+  --bg-active: rgba(0, 102, 204, 0.08);
+
+  /* Texte */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #86868b;
+  --text-on-dark: #f5f5f7;
+  --text-white: #ffffff;
+
+  /* Accent et etats */
+  --blue: #0066cc;
+  --blue-hover: #0077ed;
+  --green: #2d8c3c;
+  --orange: #e85d04;
+  --red: #e30000;
+  --violet: #5e5ce6;
+
+  /* Teintes douces des etats (fonds de pastilles) */
+  --tint-blue: rgba(0, 102, 204, 0.1);
+  --tint-green: rgba(45, 140, 60, 0.12);
+  --tint-orange: rgba(232, 93, 4, 0.12);
+  --tint-red: rgba(227, 0, 0, 0.1);
+  --tint-gray: rgba(110, 110, 115, 0.12);
+  --tint-violet: rgba(94, 92, 230, 0.12);
+
+  /* Traits */
+  --hairline: rgba(0, 0, 0, 0.08);
+  --hairline-strong: rgba(0, 0, 0, 0.14);
+
+  /* Rythme */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Rayons */
+  --radius-card: 18px;
+  --radius-card-sm: 12px;
+  --radius-field: 10px;
+  --radius-badge: 8px;
+  --radius-pill: 980px;
+
+  /* Ombres */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 8px 20px rgba(0, 0, 0, 0.08), 0 20px 60px rgba(0, 0, 0, 0.16);
+
+  /* Typographie */
+  --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-text: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --w-body: 400;
+  --w-medium: 500;
+  --w-title: 600;
+  --w-bold: 700;
+
+  --size-caption: 12px;
+  --size-small: 13px;
+  --size-body: 15px;
+  --size-lead: 17px;
+  --size-h4: 19px;
+  --size-h3: 24px;
+  --size-h2: 32px;
+  --size-h1: 40px;
+
+  --track-tight: -0.022em;
+  --track-tighter: -0.03em;
+  --lh-tight: 1.15;
+  --lh-body: 1.5;
+
+  /* Chrome */
+  --sidebar-w: 264px;
+  --topbar-h: 60px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 0.22s;
+}
+
+/* Piles de polices par langue. L'arabe et le chinois ne se contentent pas
+   d'une police latine : sans ces piles, le rendu casse. */
+:root:lang(ar),
+[dir='rtl'] {
+  --font-display: 'SF Arabic', -apple-system, 'Noto Sans Arabic', 'Geeza Pro', sans-serif;
+  --font-text: 'SF Arabic', -apple-system, 'Noto Sans Arabic', 'Geeza Pro', sans-serif;
+}
+
+:root:lang(zh) {
+  --font-display: 'PingFang SC', -apple-system, 'Noto Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-text: 'PingFang SC', -apple-system, 'Noto Sans SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  /* Le chinois a besoin de plus de graisse pour tenir le meme poids optique. */
+  --w-title: 700;
+  --w-bold: 800;
+  --track-tight: 0;
+  --track-tighter: 0;
+}
