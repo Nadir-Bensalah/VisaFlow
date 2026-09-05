@@ -173,6 +173,9 @@
 .card--link:hover { box-shadow: var(--shadow-card); border-color: transparent; transform: translateY(-1px); color: inherit; }
 
 .grid { display: grid; gap: var(--sp-8); }
+/* Cartes empilees : meme respiration verticale que l'ecart horizontal de la
+   grille. Sans cela les cartes se touchent, et rien ne dit ou l'une finit. */
+.stack { display: flex; flex-direction: column; gap: var(--sp-8); }
 .grid--4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid--3 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 .grid--2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
@@ -823,7 +826,7 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   }
   .today__counter { padding: var(--sp-3) var(--sp-4); }
 
-  .grid { gap: var(--sp-5); }
+  .grid, .stack { gap: var(--sp-5); }
   .grid--4, .grid--3, .grid--2 { grid-template-columns: minmax(0, 1fr); }
 
   .stat { padding: var(--sp-4) var(--sp-5); }

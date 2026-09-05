@@ -59,7 +59,7 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid--main">
-        <div className="col gap-6">
+        <div className="stack">
           <Card
             title={t('dash.needsAttention')}
             action={<Link to="/dossiers" className="t-small">{t('action.seeAll')}</Link>}
@@ -104,7 +104,7 @@ export function Dashboard() {
           </Card>
         </div>
 
-        <div className="col gap-6">
+        <div className="stack">
           <Card title={t('dash.todayAppts')} flush>
             {v.appointments.filter((a) => a.status === 'prevu').length === 0 ? (
               <Empty title={t('appts.none')} />

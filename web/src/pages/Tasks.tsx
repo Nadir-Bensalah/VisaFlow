@@ -60,7 +60,7 @@ export function Tasks() {
         subtitle={t('today.toDo')}
         action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('crud.add')}</Button>}
       />
-      <div className="col gap-6">
+      <div className="stack">
         <Card title={t('cases.mine')} flush>
           {mine.length === 0 ? <Empty title={t('dash.noAttention')} /> : render(mine)}
         </Card>

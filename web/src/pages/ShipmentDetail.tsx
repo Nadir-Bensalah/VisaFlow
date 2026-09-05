@@ -55,7 +55,7 @@ export function ShipmentDetail() {
       {editing && <ShipmentEditor shipment={shipment} onClose={() => setEditing(false)} />}
 
       <div className="grid grid--main">
-        <div className="col gap-6">
+        <div className="stack">
           <Card title={t('ship.milestones')}>
             <div className="col gap-5">
               <Progress pct={shipmentProgress(shipment)} tone={shipment.stage === 'livre' ? 'green' : undefined} />
@@ -105,7 +105,7 @@ export function ShipmentDetail() {
           </Card>
         </div>
 
-        <div className="col gap-6">
+        <div className="stack">
           <Card title={t('ship.tracking')}>
             <div className="col gap-4">
               <div className="row-between">

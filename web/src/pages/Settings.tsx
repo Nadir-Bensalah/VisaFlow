@@ -463,7 +463,7 @@ export function Settings() {
           <Button icon="plus" onClick={() => setEditing('nouveau')}>{t('crud.newVisaType')}</Button>
         </div>
 
-        <div className="col gap-5">
+        <div className="stack">
           {db.visaTypes.map((visa) => {
             const checklist = db.checklists.find((c) => c.id === visa.checklistId)
             return (

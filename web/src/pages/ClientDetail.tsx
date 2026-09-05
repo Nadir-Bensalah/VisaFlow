@@ -26,7 +26,7 @@ export function ClientDetail() {
       <PageHead title={`${client.firstName} ${client.lastName}`} subtitle={client.nativeName ?? client.nationality} />
 
       <div className="grid grid--main">
-        <div className="col gap-6">
+        <div className="stack">
           <Card title={t('clients.casesCount')} flush>
             {cases.length === 0 ? <Empty title={t('cases.none')} /> : (
               <div className="list">{cases.map((c) => <CaseRow key={c.id} kase={c} />)}</div>
@@ -65,7 +65,7 @@ export function ClientDetail() {
           </Card>
         </div>
 
-        <div className="col gap-6">
+        <div className="stack">
           <Card>
             <div className="row gap-4" style={{ marginBottom: 'var(--sp-5)' }}>
               <Avatar name={`${client.firstName} ${client.lastName}`} size="lg" />

@@ -52,7 +52,7 @@ export function Appointments() {
       {list.length === 0 ? (
         <Card><Empty title={t('appts.none')} /></Card>
       ) : (
-        <div className="col gap-5">
+        <div className="stack">
           {Object.entries(groups).map(([day, items]) => (
             <Card key={day} title={formatDate(day, { weekday: 'long', day: '2-digit', month: 'long' })} flush>
               <div className="list">

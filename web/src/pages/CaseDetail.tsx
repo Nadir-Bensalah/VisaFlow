@@ -87,7 +87,7 @@ export function CaseDetail() {
       {deciding && <Decision caseId={kase.id} onClose={() => setDeciding(false)} />}
 
       <div className="grid grid--main">
-        <div className="col gap-6">
+        <div className="stack">
           <Card flush>
             <Tabs value={tab} options={tabs} onChange={setTab} />
             <div style={{ padding: 'var(--sp-6)' }}>
@@ -119,7 +119,7 @@ export function CaseDetail() {
           </Card>
         </div>
 
-        <div className="col gap-6">
+        <div className="stack">
           <Card title={t('caseDetail.overview')}>
             <div className="col gap-4">
               <div className="row-between">
@@ -220,7 +220,7 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
   const currentIndex = stages.indexOf(kase.stage)
 
   return (
-    <div className="col gap-6">
+    <div className="stack">
       <ul className="timeline">
         {stages.map((s, i) => (
           <li key={s} className="timeline__item">

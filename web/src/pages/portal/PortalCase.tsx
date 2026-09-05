@@ -62,7 +62,7 @@ export function PortalCase() {
           </div>
         </div>
 
-        <div className="col gap-5">
+        <div className="stack">
           <Card title={t('portal.timeline')}>
             <div className="col gap-4">
               <Progress pct={Math.round(((currentIndex + 1) / stages.length) * 100)} tone={currentIndex + 1 === stages.length ? 'green' : undefined} />

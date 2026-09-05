@@ -47,7 +47,7 @@ export function PortalShipment() {
           </div>
         </div>
 
-        <div className="col gap-5">
+        <div className="stack">
           <Card title={t('ship.tracking')}>
             <div className="col gap-5">
               <Progress pct={shipmentProgress(shipment)} tone={shipment.stage === 'livre' ? 'green' : undefined} />

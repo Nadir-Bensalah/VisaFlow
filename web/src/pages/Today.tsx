@@ -112,7 +112,7 @@ export function Today() {
       ) : (
         <div className="grid grid--2">
           {/* ------------------------- A faire ------------------------- */}
-          <div className="col gap-5">
+          <div className="stack">
             <h2 className="today__section">{t('today.toDo')}</h2>
 
             {tasks.length > 0 && (
@@ -212,7 +212,7 @@ export function Today() {
           </div>
 
           {/* --------------------- Ce qui se passe --------------------- */}
-          <div className="col gap-5">
+          <div className="stack">
             <h2 className="today__section">{t('today.willHappen')}</h2>
 
             <Card title={t('today.agenda')} flush>
