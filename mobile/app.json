@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "VisaFlow",
+    "slug": "visaflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "visaflow",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "app.capmedia.visaflow",
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "NSPhotoLibraryUsageDescription": "Pour envoyer une pièce demandée par l’agence.",
+        "NSCameraUsageDescription": "Pour photographier une pièce demandée par l’agence."
+      }
+    },
+    "android": {
+      "package": "app.capmedia.visaflow",
+      "adaptiveIcon": { "backgroundColor": "#0066CC" }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      ["expo-notifications", { "color": "#0066CC" }]
+    ],
+    "extra": {
+      "apiUrl": "https://tca.visaflow.app"
+    }
+  }
+}
