@@ -24,7 +24,12 @@ import { Automations } from './pages/Automations'
 import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
-import { PortalIndex } from './pages/portal/PortalIndex'
+import { AgencyHome } from './pages/public/AgencyHome'
+import { AskForm } from './pages/public/AskForm'
+import { FindMine } from './pages/public/FindMine'
+import { Signup } from './pages/public/Signup'
+import { PortalRequest } from './pages/portal/PortalRequest'
+import { Inbox } from './pages/Inbox'
 import { PortalCase } from './pages/portal/PortalCase'
 import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
@@ -55,7 +60,12 @@ export default function App() {
     <ToastProvider>
       <Routes>
         <Route path="/connexion" element={<Login />} />
-        <Route path="/portail" element={<PortalIndex />} />
+        <Route path="/inscription" element={<Signup />} />
+        <Route path="/agence" element={<AgencyHome />} />
+        <Route path="/demande" element={<AskForm />} />
+        <Route path="/suivi" element={<FindMine />} />
+        <Route path="/portail" element={<Navigate to="/agence" replace />} />
+        <Route path="/portail/demande/:token" element={<PortalRequest />} />
         <Route path="/portail/cargaison/:token" element={<PortalShipment />} />
         <Route path="/portail/:token" element={<PortalCase />} />
 
@@ -63,6 +73,7 @@ export default function App() {
           <Route path="/" element={<Today />} />
           <Route path="/tableau-de-bord" element={<Dashboard />} />
           <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/demandes" element={<Inbox />} />
           <Route path="/dossiers" element={<Cases />} />
           <Route path="/dossiers/:id" element={<CaseDetail />} />
           <Route path="/cargaisons" element={<Shipments />} />

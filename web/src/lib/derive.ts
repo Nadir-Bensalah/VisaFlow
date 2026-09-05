@@ -130,28 +130,31 @@ export interface Kpis {
   avgDays: number
 }
 
-export function kpis(db: Database): Kpis {
-  const open = db.cases.filter((c) => c.status === 'ouvert')
-  const missingDocs = db.documents.filter(
+/** Les indicateurs se calculent sur ce que la personne a le droit de voir.
+    Passer `db` en entier ferait fuiter les totaux des autres bureaux. */
+export function kpis(db: Database, scope?: Pick<Database, 'cases' | 'documents' | 'payments' | 'appointments'>): Kpis {
+  const source = scope ?? db
+  const open = source.cases.filter((c) => c.status === 'ouvert')
+  const missingDocs = source.documents.filter(
     (d) => d.required && ['manquante', 'demandee'].includes(d.state) && open.some((c) => c.id === d.caseId),
   ).length
   const monthStart = new Date()
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
-  const collected = db.payments
+  const collected = source.payments
     .filter((p) => p.state === 'regle' && p.at && new Date(p.at) >= monthStart)
     .reduce((sum, p) => sum + p.amount, 0)
   const outstanding = open.reduce((sum, c) => sum + (c.amountTotal - c.amountPaid), 0)
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
   const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999)
-  const todayAppointments = db.appointments.filter(
+  const todayAppointments = source.appointments.filter(
     (a) => a.status === 'prevu' && new Date(a.at) >= startOfDay && new Date(a.at) <= endOfDay,
   ).length
-  const decided = db.cases.filter((c) => c.status === 'accepte' || c.status === 'refuse')
+  const decided = source.cases.filter((c) => c.status === 'accepte' || c.status === 'refuse')
   const acceptance = decided.length
     ? Math.round((decided.filter((c) => c.status === 'accepte').length / decided.length) * 100)
     : 0
-  const closed = db.cases.filter((c) => c.decisionAt)
+  const closed = source.cases.filter((c) => c.decisionAt)
   const avgDays = closed.length
     ? Math.round(
         closed.reduce((sum, c) => sum + (new Date(c.decisionAt!).getTime() - new Date(c.openedAt).getTime()) / DAY, 0) /

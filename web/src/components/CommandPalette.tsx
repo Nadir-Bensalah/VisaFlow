@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Icon, type IconName } from './Icon'
 import { clientName } from '@/lib/derive'
@@ -16,6 +17,7 @@ interface Entry {
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   const { db } = useStore()
+  const v = useVisible()
   const { t, tt } = useI18n()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -39,7 +41,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       { id: 'p10', group: t('search.pages'), label: t('nav.reports'), icon: 'reports', to: '/rapports' },
       { id: 'p11', group: t('search.pages'), label: t('nav.settings'), icon: 'settings', to: '/reglages' },
     ]
-    const cases: Entry[] = db.cases.map((c) => ({
+    const cases: Entry[] = v.cases.map((c) => ({
       id: c.id,
       group: t('search.cases'),
       label: `${c.reference} · ${clientName(db, c.clientId)}`,
@@ -47,7 +49,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       icon: 'cases',
       to: `/dossiers/${c.id}`,
     }))
-    const clients: Entry[] = db.clients.map((c) => ({
+    const clients: Entry[] = v.clients.map((c) => ({
       id: c.id,
       group: t('search.clients'),
       label: `${c.firstName} ${c.lastName}`,
@@ -55,7 +57,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       icon: 'clients',
       to: `/clients/${c.id}`,
     }))
-    const shipments: Entry[] = db.shipments.map((x) => ({
+    const shipments: Entry[] = v.shipments.map((x) => ({
       id: x.id,
       group: t('ship.title'),
       label: `${x.reference} · ${clientName(db, x.clientId)}`,
@@ -64,7 +66,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       to: `/cargaisons/${x.id}`,
     }))
     return [...pages, ...cases, ...shipments, ...clients]
-  }, [db, t, tt])
+  }, [db, v, t, tt])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()

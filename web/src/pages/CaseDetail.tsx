@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
+import { CaseEditor } from '@/components/CaseEditor'
 import { blockingDocs, caseBalance, daysSince, progress } from '@/lib/derive'
 import type { AppointmentKind, Channel, DocState, PaymentMethod } from '@/data/types'
 
@@ -22,6 +23,7 @@ export function CaseDetail() {
   const tab = (params.get('onglet') as Tab | null) ?? 'apercu'
   const setTab = (value: Tab) => setParams(value === 'apercu' ? {} : { onglet: value }, { replace: true })
   const [deciding, setDeciding] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   // Hors perimetre, le dossier n'existe pas. On ne confirme meme pas sa reference.
   const kase = v.cases.find((c) => c.id === id)
@@ -39,7 +41,9 @@ export function CaseDetail() {
   const p = progress(db, kase.id)
   const blocking = blockingDocs(db, kase.id)
 
-  const portalUrl = `${window.location.origin}${import.meta.env.BASE_URL}portail/${kase.portalToken}`
+  // Le lien porte l'agence et la langue du client : sans elles, il ouvre la
+  // mauvaise agence et s'affiche dans la mauvaise langue.
+  const portalUrl = `${window.location.origin}${import.meta.env.BASE_URL}portail/${kase.portalToken}?agency=${db.agency.slug}&lang=${client.locale}`
 
   const copyPortal = async () => {
     try {
@@ -71,6 +75,7 @@ export function CaseDetail() {
         subtitle={`${kase.reference} · ${tt(visa.country)} ${tt(visa.label)}`}
         action={
           <div className="row gap-2">
+            {v.can('case:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
             <Button icon="copy" onClick={copyPortal}>{t('caseDetail.portalLink')}</Button>
             {kase.status === 'ouvert' && ['decision', 'consulat', 'depot'].includes(kase.stage) && (
               <Button icon="check" onClick={() => setDeciding(true)}>{t('status.accepte')} / {t('status.refuse')}</Button>
@@ -85,6 +90,7 @@ export function CaseDetail() {
       />
 
       {deciding && <Decision caseId={kase.id} onClose={() => setDeciding(false)} />}
+      {editing && <CaseEditor kase={kase} onClose={() => setEditing(false)} />}
 
       <div className="grid grid--main">
         <div className="stack">
@@ -193,7 +199,7 @@ export function CaseDetail() {
           )}
 
           <Card title={t('caseDetail.notes')}>
-            <NoteBox caseId={kase.id} initial={kase.notes ?? ''} />
+            <NoteBox caseId={kase.id} />
           </Card>
         </div>
       </div>
@@ -290,6 +296,8 @@ function DocsTab({ caseId }: { caseId: string }) {
               {d.fileName ?? t('portal.uploadHint')}
               {d.expiresAt && ` · ${t('docs.expiresOn')} ${formatDate(d.expiresAt)}`}
               {d.reminders > 0 && ` · ${t('docs.reminders')} ${d.reminders}`}
+              {d.validatedAt && ` · ${t('docs.validated')} ${formatDate(d.validatedAt)}`}
+              {d.validatedBy && ` · ${db.users.find((u) => u.id === d.validatedBy)?.name ?? ''}`}
             </span>
             {d.rejectionReason && d.state === 'refusee' && (
               <span className="t-caption" style={{ color: 'var(--red)' }}>{d.rejectionReason}</span>
@@ -297,19 +305,28 @@ function DocsTab({ caseId }: { caseId: string }) {
           </div>
           <DocPill state={d.state} />
           <div className="row gap-1">
-            {d.state === 'manquante' && (
-              <Button size="sm" icon="messages" onClick={() => { actions.setDocState(d.id, 'demandee'); toast(t('msg.sent')) }}>{t('action.request')}</Button>
+            {['manquante', 'demandee'].includes(d.state) && (
+              <>
+                {d.state === 'manquante' && (
+                  <Button size="sm" icon="messages" onClick={() => { actions.setDocState(d.id, 'demandee'); toast(t('msg.sent')) }}>{t('action.request')}</Button>
+                )}
+                {d.state === 'demandee' && (
+                  <Button size="sm" icon="bell" onClick={() => { actions.remindDoc(d.id); toast(t('action.remind')) }}>{t('action.remind')}</Button>
+                )}
+                {/* Le papier posé sur le comptoir : le geste le plus fréquent
+                    de la journée, il lui fallait un bouton. */}
+                <Button size="sm" icon="building" onClick={() => set(d.id, 'recue')}>{t('notes.counter')}</Button>
+              </>
             )}
-            {d.state === 'demandee' && (
-              <Button size="sm" icon="bell" onClick={() => { actions.remindDoc(d.id); toast(t('action.remind')) }}>{t('action.remind')}</Button>
-            )}
-            {['recue', 'expiree'].includes(d.state) && (
+            {['recue', 'expiree', 'refusee'].includes(d.state) && (
               <>
                 <Button size="sm" variant="primary" icon="check" onClick={() => set(d.id, 'validee')}>{t('action.validate')}</Button>
                 <Button size="sm" variant="danger" icon="close" onClick={() => { setRejecting(d.id); setReason('') }}>{t('action.reject')}</Button>
               </>
             )}
-            {d.state === 'validee' && <Icon name="check" size={18} className="t-tertiary" />}
+            {d.state === 'validee' && (
+              <Button size="sm" icon="edit" onClick={() => actions.setDocState(d.id, 'recue')}>{t('crud.edit')}</Button>
+            )}
           </div>
         </div>
       ))}
@@ -420,7 +437,20 @@ function MessagesTab({ caseId }: { caseId: string }) {
         <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('msg.placeholder')} />
         <div className="row-between">
           <span className="t-caption t-tertiary">{t('portal.privacy')}</span>
-          <Button variant="primary" icon="messages" onClick={send} disabled={!body.trim()}>{t('action.send')}</Button>
+          <span className="row gap-2">
+            {/* Tant que l'API n'est pas branchée, on ouvre WhatsApp avec le
+                texte déjà écrit : six manipulations en moins sur sept. */}
+            <a
+              className={`btn btn--secondary btn--sm ${body.trim() ? '' : 'btn--disabled'}`}
+              href={`https://wa.me/${(client.whatsapp ?? client.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(body)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => { if (body.trim()) send() }}
+            >
+              <Icon name="whatsapp" size={16} /> WhatsApp
+            </a>
+            <Button variant="primary" icon="messages" onClick={send} disabled={!body.trim()}>{t('action.send')}</Button>
+          </span>
         </div>
       </div>
     </div>
@@ -618,20 +648,53 @@ function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) 
 
 /* ------------------------------ Notes -------------------------------- */
 
-function NoteBox({ caseId, initial }: { caseId: string; initial: string }) {
-  const { actions } = useStore()
+/* Les notes s'empilent, datees et signees. Un bouton pose l'appel en un geste,
+   parce qu'on ne tape pas cinq champs avec un client au telephone. */
+function NoteBox({ caseId }: { caseId: string }) {
+  const { db, actions } = useStore()
   const { t } = useI18n()
   const toast = useToast()
-  const [text, setText] = useState(initial)
-  const dirty = text !== initial
+  const [text, setText] = useState('')
+  const notes = db.cases.find((c) => c.id === caseId)?.notes ?? []
+
+  const add = (kind: 'note' | 'appel' | 'comptoir', body?: string) => {
+    const content = body ?? text.trim()
+    if (!content) return
+    actions.addNote(caseId, content, kind)
+    setText('')
+    toast(t('crud.created'))
+  }
 
   return (
-    <div className="col gap-3">
+    <div className="col gap-4">
       <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('caseDetail.addNote')} />
-      {dirty && (
-        <Button variant="primary" size="sm" onClick={() => { actions.addNote(caseId, text); toast(t('action.save')) }}>
+      <div className="row gap-2 wrap">
+        <Button variant="primary" size="sm" disabled={!text.trim()} onClick={() => add('note')}>
           {t('action.save')}
         </Button>
+        <Button size="sm" icon="phone" onClick={() => add('appel', text.trim() || t('notes.called'))}>
+          {t('notes.called')}
+        </Button>
+        <Button size="sm" icon="building" onClick={() => add('comptoir', text.trim() || t('notes.counter'))}>
+          {t('notes.counter')}
+        </Button>
+      </div>
+      {notes.length > 0 && (
+        <ul className="timeline" style={{ marginTop: 'var(--sp-2)' }}>
+          {notes.map((note) => (
+            <li key={note.id} className="timeline__item">
+              <span className="timeline__dot" />
+              <div className="col gap-1">
+                <span className="t-small">{note.text}</span>
+                <span className="t-caption t-tertiary">
+                  <Ago iso={note.at} />
+                  {note.authorId && ` · ${db.users.find((u) => u.id === note.authorId)?.name ?? ''}`}
+                  {note.kind !== 'note' && ` · ${note.kind === 'appel' ? t('notes.called') : t('notes.counter')}`}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

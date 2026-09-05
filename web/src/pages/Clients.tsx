@@ -1,15 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Select } from '@/components/ui'
+import { Avatar, Button, Card, Empty, Input, Pill } from '@/components/ui'
+import { ClientEditor } from '@/components/ClientEditor'
 import { PageHead } from '@/components/bits'
 import { daysUntil } from '@/lib/derive'
-import type { Locale } from '@/data/types'
 
 export function Clients() {
-  const { db, actions } = useStore()
   const v = useVisible()
   const { t, formatDate } = useI18n()
   const navigate = useNavigate()
@@ -37,7 +35,12 @@ export function Clients() {
         </div>
 
         {rows.length === 0 ? (
-          <Empty title={t('clients.none')} />
+          <Empty
+            title={t('clients.none')}
+            hint={t('setup.shareHint')}
+            scene="equipe"
+            action={<Button variant="primary" icon="plus" onClick={() => setOpen(true)}>{t('clients.newClient')}</Button>}
+          />
         ) : (
           <div className="tablewrap">
             <table className="table table--clickable">
@@ -54,7 +57,7 @@ export function Clients() {
               </thead>
               <tbody>
                 {rows.map((c) => {
-                  const count = db.cases.filter((k) => k.clientId === c.id).length
+                  const count = v.cases.filter((k) => k.clientId === c.id).length
                   const soon = daysUntil(c.passportExpiry) < 180
                   return (
                     <tr
@@ -93,55 +96,7 @@ export function Clients() {
         )}
       </Card>
 
-      {open && <NewClient onClose={() => setOpen(false)} onCreated={(id) => { setOpen(false); navigate(`/clients/${id}`) }} />}
+      {open && <ClientEditor client={null} onClose={() => setOpen(false)} onSaved={(id) => navigate(`/clients/${id}`)} />}
     </>
   )
-
-  function NewClient({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
-    const [firstName, setFirstName] = useState('')
-    const [lastName, setLastName] = useState('')
-    const [phone, setPhone] = useState('')
-    const [email, setEmail] = useState('')
-    const [nationality, setNationality] = useState('Tunisienne')
-    const [locale, setLocale] = useState<Locale>('fr')
-    const [officeId, setOfficeId] = useState(db.agency.offices[0].id)
-
-    return (
-      <Modal
-        title={t('clients.newClient')}
-        onClose={onClose}
-        footer={
-          <>
-            <Button onClick={onClose}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={!firstName || !lastName || !phone}
-              onClick={() => onCreated(actions.createClient({ firstName, lastName, phone, email, nationality, locale, officeId }))}
-            >
-              {t('action.confirm')}
-            </Button>
-          </>
-        }
-      >
-        <div className="grid grid--2 gap-4">
-          <Field label="Prénom"><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} /></Field>
-          <Field label="Nom"><Input value={lastName} onChange={(e) => setLastName(e.target.value)} /></Field>
-          <Field label={t('clients.contact')}><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+216 ..." /></Field>
-          <Field label={t('login.email')}><Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></Field>
-          <Field label={t('clients.nationality')}><Input value={nationality} onChange={(e) => setNationality(e.target.value)} /></Field>
-          <Field label={t('misc.language')}>
-            <Select value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
-              <option value="fr">Français</option><option value="en">English</option>
-              <option value="ar">العربية</option><option value="zh">中文</option>
-            </Select>
-          </Field>
-          <Field label={t('misc.office')}>
-            <Select value={officeId} onChange={(e) => setOfficeId(e.target.value)}>
-              {db.agency.offices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </Select>
-          </Field>
-        </div>
-      </Modal>
-    )
-  }
 }

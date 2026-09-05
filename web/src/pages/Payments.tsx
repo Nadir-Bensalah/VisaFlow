@@ -15,7 +15,7 @@ export function Payments() {
   const navigate = useNavigate()
   const toast = useToast()
   const [view, setView] = useState<'du' | 'regle' | 'tous'>('du')
-  const k = kpis(db)
+  const k = kpis(db, v)
 
   const rows = useMemo(
     () => v.payments

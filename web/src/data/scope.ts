@@ -53,9 +53,10 @@ export function useVisible(): Visible {
       clients,
       documents: db.documents.filter((d) => caseIds.has(d.caseId)),
       shipmentDocs: db.shipmentDocs.filter((d) => shipmentIds.has(d.shipmentId)),
-      messages: db.messages.filter((m) => caseIds.has(m.caseId)),
-      payments: db.payments.filter((p) => (p.caseId ? caseIds.has(p.caseId) : true)),
-      appointments: db.appointments.filter((a) => caseIds.has(a.caseId)),
+      // Rien qui n'appartienne ni a un dossier ni a une cargaison du perimetre.
+      messages: db.messages.filter((m) => (m.caseId ? caseIds.has(m.caseId) : m.shipmentId ? shipmentIds.has(m.shipmentId) : false)),
+      payments: db.payments.filter((p) => (p.caseId ? caseIds.has(p.caseId) : p.shipmentId ? shipmentIds.has(p.shipmentId) : false)),
+      appointments: db.appointments.filter((a) => (a.caseId ? caseIds.has(a.caseId) : a.shipmentId ? shipmentIds.has(a.shipmentId) : false)),
       tasks: wholeAgency ? db.tasks : db.tasks.filter((t) => t.assigneeId === user.id || (t.caseId ? caseIds.has(t.caseId) : false)),
       // Le journal d'agence, sans dossier rattaché, ne sort pas du cercle des responsables.
       events: db.events.filter((e) => (e.caseId ? caseIds.has(e.caseId) : wholeAgency)),

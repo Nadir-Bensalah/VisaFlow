@@ -1,7 +1,7 @@
 import { CHECKLISTS } from './checklists'
 import type {
   Agency, Appointment, AutomationRule, CaseDocument, CaseSource, ActivityEvent, Client,
-  Database, DocState, Incoterm, Locale, Message, MessageTemplate, Payment, Priority, Shipment,
+  ClientRequest, Database, DocState, Incoterm, Locale, Message, MessageTemplate, Payment, Priority, Shipment,
   ShipmentDocument, ShipmentEvent, ShipmentMode, ShipmentStage, Stage, Task, User,
   VisaCase, VisaType,
 } from './types'
@@ -55,6 +55,9 @@ function buildAgency(slug: string): Agency {
     defaultLocale: 'fr',
     currency: 'TND',
     plan: 'multi_bureaux',
+    services: ['visas', 'fret'],
+    createdAt: d(-900),
+    setupDone: ['offices', 'team', 'catalog', 'firstCase', 'share'],
     inpdpRef: 'À déclarer',
     offices: [
       { id: 'of_tunis', name: 'Tunis', city: 'Tunis', country: 'Tunisie', countryCode: 'TN', phone: '+216 58 746 997', address: '85 rue de Palestine, immeuble Jérusalem, 1002 Tunis', timezone: 'Africa/Tunis' },
@@ -348,6 +351,40 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
   return { shipments, shipmentDocs, shipmentEvents }
 }
 
+/* Demandes arrivees de la page publique, en attente de qualification. */
+function buildRequests(agencyId: string, visaTypes: VisaType[]): ClientRequest[] {
+  const people: [string, string, Locale, string][] = [
+    ['Nabil', 'Ghariani', 'fr', '+216 22 415 003'],
+    ['Sarra', 'Meddeb', 'fr', '+216 98 210 774'],
+    ['Youssef', 'Al Tarhouni', 'ar', '+218 91 774 220'],
+    ['Wang', 'Lei', 'zh', '+86 137 8899 1201'],
+  ]
+  return people.map(([first, last, locale, phone], i) => {
+    const visa = visaTypes[i % visaTypes.length]
+    const fret = i === 3
+    return {
+      id: `rq_${i + 1}`,
+      agencyId,
+      reference: `DEM-2026-${String(80 + i).padStart(4, '0')}`,
+      kind: fret ? 'fret' : 'visa',
+      visaTypeId: fret ? undefined : visa.id,
+      destination: fret ? undefined : visa.country.fr,
+      travelDate: fret ? undefined : d(between(20, 70)),
+      goods: fret ? 'Pièces détachées, deux palettes' : undefined,
+      originCity: fret ? 'Yiwu' : undefined,
+      firstName: first,
+      lastName: last,
+      phone,
+      locale,
+      note: i === 0 ? 'Je pars pour la foire de Canton, c’est ma première demande.' : undefined,
+      phoneVerified: i !== 2,
+      status: i === 0 ? 'nouvelle' : i === 1 ? 'nouvelle' : i === 2 ? 'qualifiee' : 'nouvelle',
+      receivedAt: d(-between(0, 4), between(8, 19)),
+      portalToken: `dem_${i}_${Math.floor(rnd() * 1e9).toString(36)}`,
+    }
+  })
+}
+
 export function buildSeed(slug: string): Database {
   const agency = buildAgency(slug)
   const agencyId = agency.id
@@ -419,7 +456,9 @@ export function buildSeed(slug: string): Database {
       decisionAt: closed ? d(-between(1, 20)) : undefined,
       refusalReason: status === 'refuse' ? 'Justificatifs financiers jugés insuffisants par le consulat.' : undefined,
       amountTotal: total, amountPaid: Math.round(total * paidRatio),
-      notes: chance(0.35) ? pick(NOTES) : undefined,
+      notes: chance(0.35)
+        ? [{ id: `note_${caseId}`, at: d(-between(1, 12), 10), authorId: agent.id, text: pick(NOTES), kind: 'note' as const }]
+        : [],
       portalToken: `tok_${caseId}_${Math.floor(rnd() * 1e9).toString(36)}`,
     })
 
@@ -556,5 +595,6 @@ export function buildSeed(slug: string): Database {
     version: 1, agency, users, clients, visaTypes, checklists, cases, documents,
     messages, templates, appointments, payments, rules, events, tasks,
     shipments, shipmentDocs, shipmentEvents,
+    requests: buildRequests(agencyId, visaTypes),
   }
 }

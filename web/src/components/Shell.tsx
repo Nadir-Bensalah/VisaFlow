@@ -38,7 +38,7 @@ function Count({ value }: { value: number }) {
 }
 
 export function Shell() {
-  const { db, live, setLive } = useStore()
+  const { db, live, setLive, signOut } = useStore()
   const v = useVisible()
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
@@ -75,13 +75,18 @@ export function Shell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const newRequests = db.requests.filter((r) => r.status === 'nouvelle').length
+
   const work: NavEntry[] = [
     { to: '/', labelKey: 'today.title', icon: 'sun' },
+    { to: '/demandes', labelKey: 'inbox.title', icon: 'mail', count: newRequests },
     { to: '/tableau-de-bord', labelKey: 'nav.dashboard', icon: 'dashboard' },
     { to: '/pipeline', labelKey: 'nav.pipeline', icon: 'pipeline' },
     { to: '/dossiers', labelKey: 'nav.cases', icon: 'cases', count: openCases.length },
     { to: '/pieces', labelKey: 'nav.documents', icon: 'documents', count: blocked },
-    { to: '/cargaisons', labelKey: 'nav.shipments', icon: 'ship', count: v.shipments.filter((x) => x.status === 'en_cours').length },
+    ...(db.agency.services.includes('fret')
+      ? [{ to: '/cargaisons', labelKey: 'nav.shipments' as const, icon: 'ship' as const, count: v.shipments.filter((x) => x.status === 'en_cours').length }]
+      : []),
     { to: '/clients', labelKey: 'nav.clients', icon: 'clients' },
   ]
   const flow: NavEntry[] = [
@@ -136,7 +141,7 @@ export function Shell() {
           )}
           <div className="sidebar__group">
             <div className="sidebar__group-label">{t('nav.portal')}</div>
-            <NavLink to="/portail" className="navitem">
+            <NavLink to="/agence" className="navitem">
               <Icon name="portal" className="navitem__icon" />
               <span className="grow t-truncate">{t('nav.portal')}</span>
               <Icon name="arrow" size={14} />
@@ -154,7 +159,7 @@ export function Shell() {
             <IconButton
               icon="logout"
               label={t('action.signOut')}
-              onClick={() => navigate('/connexion')}
+              onClick={() => { signOut(); navigate('/connexion') }}
             />
           </div>
         </div>

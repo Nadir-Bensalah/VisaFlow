@@ -22,6 +22,7 @@ export function Messages() {
   const threads = useMemo(() => {
     const byCase = new Map<string, typeof db.messages>()
     v.messages.forEach((m) => {
+      if (!m.caseId) return
       const list = byCase.get(m.caseId) ?? []
       list.push(m)
       byCase.set(m.caseId, list)

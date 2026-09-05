@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n'
 import { Card, Empty, Pill, useToast } from '@/components/ui'
 import { Icon, type IconName } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
+import { SetupCard } from '@/components/SetupCard'
 import { Ago, Countdown } from '@/components/bits'
 import { blockingDocs, clientName, daysSince, daysUntil, urgency } from '@/lib/derive'
 
@@ -16,7 +17,7 @@ export function Today() {
   const { db, actions } = useStore()
   const now = useNow()
   const v = useVisible()
-  const { t, tt, formatDate } = useI18n()
+  const { t, tt, formatDate, formatMoney } = useI18n()
   const toast = useToast()
 
   const hour = new Date(now).getHours()
@@ -73,6 +74,16 @@ export function Today() {
 
   const doneToday = v.events.filter((e) => inDay(e.at))
 
+  // La caisse du jour : ce que la personne a encaissé depuis ce matin.
+  // Le total de l'agence reste à la direction, celui-ci appartient au comptoir.
+  const cashed = v.payments.filter((p) => p.state === 'regle' && inDay(p.at))
+  const cashedTotal = cashed.reduce((sum, p) => sum + p.amount, 0)
+  const byMethod = cashed.reduce<Record<string, number>>((acc, p) => {
+    const key = p.method ?? 'especes'
+    acc[key] = (acc[key] ?? 0) + p.amount
+    return acc
+  }, {})
+
   const nothing =
     tasks.length === 0 && toChase.length === 0 && toAdvance.length === 0 &&
     toAnswer.length === 0 && appointments.length === 0 && departures.length === 0 && arrivals.length === 0
@@ -94,6 +105,12 @@ export function Today() {
         </div>
         <Illustration scene={nothing ? 'termine' : 'journee'} />
       </header>
+
+      {db.agency.setupDone.length < 5 && !db.agency.setupHidden && (
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
+          <SetupCard />
+        </div>
+      )}
 
       <div className="today__counters">
         {counters.map((c) => (
@@ -269,6 +286,24 @@ export function Today() {
                       <span className="t-caption"><Countdown iso={s.eta} /></span>
                     </Link>
                   ))}
+                </div>
+              </Card>
+            )}
+
+            {v.can('payment:write') && cashed.length > 0 && (
+              <Card title={t('pay.myDay')}>
+                <div className="col gap-3">
+                  <div className="row-between">
+                    <span className="t-small t-secondary">{t('pay.collected')}</span>
+                    <span className="t-medium t-num">{formatMoney(cashedTotal)}</span>
+                  </div>
+                  {Object.entries(byMethod).map(([method, amount]) => (
+                    <div key={method} className="row-between">
+                      <span className="t-small t-secondary">{t(`payment.${method}` as 'payment.especes')}</span>
+                      <span className="t-small t-num">{formatMoney(amount)}</span>
+                    </div>
+                  ))}
+                  <span className="t-caption t-tertiary">{t('pay.myDayHint')}</span>
                 </div>
               </Card>
             )}

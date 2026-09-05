@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Avatar, Button, Field, Input, Select } from '@/components/ui'
@@ -51,7 +51,11 @@ export function Login() {
           ))}
         </div>
 
-        <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-6)' }}>{t('login.clientAccess')}</p>
+        <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-6)' }}>
+          {t('login.clientAccess')}
+          <br />
+          <Link to="/inscription" style={{ fontSize: 'var(--size-caption)' }}>{t('signup.title')}</Link>
+        </p>
       </div>
     </div>
   )

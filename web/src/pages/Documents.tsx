@@ -29,7 +29,9 @@ export function Documents() {
       .filter((d) => openIds.has(d.caseId) && states[view].includes(d.state) && (view === 'toutes' || d.required))
       .map((d) => {
         const kase = v.cases.find((c) => c.id === d.caseId)!
-        return { doc: d, kase, waiting: daysSince(d.requestedAt ?? kase.openedAt) }
+        // On compte depuis la dernière relance, sinon l'écran propose
+        // éternellement les mêmes personnes.
+        return { doc: d, kase, waiting: daysSince(d.lastReminderAt ?? d.requestedAt ?? kase.openedAt) }
       })
       .sort((a, b) => b.waiting - a.waiting)
   }, [db, v, view])

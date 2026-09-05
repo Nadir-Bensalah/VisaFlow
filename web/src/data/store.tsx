@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { buildSeed } from './seed'
+import { samePhone } from './identity'
 import type {
-  ActivityEvent, Appointment, CaseDocument, ChecklistItem, Database, DocState, EventType,
+  ActivityEvent, Appointment, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest, Database, DocState, EventType,
   I18nText, Message, MessageTemplate, Payment, Role, Shipment, ShipmentDocument, ShipmentEvent,
   ShipmentStage, Stage, User, VisaCase, VisaType,
 } from './types'
@@ -65,8 +66,11 @@ interface Actions {
   setDocState: (docId: string, state: DocState, reason?: string) => void
   requestMissingDocs: (caseId: string) => number
   remindDoc: (docId: string) => void
-  sendMessage: (input: { caseId: string; body: string; channel: Message['channel']; templateKey?: string; automated?: boolean }) => void
-  addNote: (caseId: string, text: string) => void
+  sendMessage: (input: { caseId: string; body: string; channel: Message['channel']; templateKey?: string; automated?: boolean; fromClient?: boolean }) => void
+  addNote: (caseId: string, text: string, kind?: CaseNote['kind']) => void
+  updateClient: (clientId: string, patch: Partial<Client>) => void
+  clearAll: () => void
+  stepBackShipment: (shipmentId: string) => void
   markPaymentPaid: (paymentId: string, method: Payment['method']) => void
   addAppointment: (input: Omit<Appointment, 'id' | 'agencyId'>) => void
   toggleRule: (ruleId: string) => void
@@ -77,6 +81,11 @@ interface Actions {
   decideCase: (caseId: string, status: 'accepte' | 'refuse' | 'annule', reason?: string) => void
   updateCase: (caseId: string, patch: Partial<VisaCase>) => void
   createTask: (input: { caseId?: string; assigneeId: string; title: I18nText; dueAt: string }) => void
+  submitRequest: (input: Omit<ClientRequest, 'id' | 'agencyId' | 'reference' | 'status' | 'receivedAt' | 'portalToken'>) => ClientRequest
+  convertRequest: (requestId: string, assigneeId: string) => string | null
+  refuseRequest: (requestId: string, reason: string) => void
+  markSetup: (step: string) => void
+  hideSetup: () => void
   updateAppointment: (id: string, patch: Partial<Appointment>) => void
   saveShipment: (shipment: Omit<Shipment, 'agencyId' | 'id'> & { id?: string }) => void
   advanceShipment: (shipmentId: string) => void
@@ -329,32 +338,38 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return next
       })
 
-    const sendMessage: Actions['sendMessage'] = ({ caseId, body, channel, templateKey, automated }) =>
+    const sendMessage: Actions['sendMessage'] = ({ caseId, body, channel, templateKey, automated, fromClient }) =>
       setDb((prev) => {
         const kase = prev.cases.find((c) => c.id === caseId)
         const client = prev.clients.find((c) => c.id === kase?.clientId)
         const message: Message = {
-          id: rid('ms'), agencyId: prev.agency.id, caseId, channel, direction: 'sortant',
+          id: rid('ms'), agencyId: prev.agency.id, caseId, channel,
+          // Un message ecrit depuis le portail vient du client : il ne doit ni
+          // etre range du cote de l'agence, ni etre signe d'un employe.
+          direction: fromClient ? 'entrant' : 'sortant',
           body, locale: client?.locale ?? prev.agency.defaultLocale,
-          authorId: automated ? undefined : currentUserId, templateKey,
+          authorId: automated || fromClient ? undefined : currentUserId, templateKey,
           at: nowIso(), status: 'file', automated: Boolean(automated),
         }
         let next: Database = { ...prev, messages: [...prev.messages, message] }
         next = touch(next, caseId)
-        next = log(next, 'message_envoye', {
-          fr: `Message ${channel} envoyé au client.`,
+        next = log(next, fromClient ? 'message_recu' : 'message_envoye', {
+          fr: fromClient ? 'Message reçu du client depuis le portail.' : `Message ${channel} envoyé au client.`,
           en: `${channel} message sent to the client.`,
           ar: `أُرسلت رسالة ${channel} إلى العميل.`,
           zh: `已通过 ${channel} 向客户发送消息。`,
-        }, caseId, automated)
+        }, caseId, automated || Boolean(fromClient))
         return next
       })
 
-    const addNote: Actions['addNote'] = (caseId, text) =>
+    /* Une note s'ajoute, elle n'ecrase pas. Un agent qui perd sa note du
+       deuxieme appel n'en ecrit plus jamais. */
+    const addNote: Actions['addNote'] = (caseId, text, kind = 'note') =>
       setDb((prev) => {
+        const note: CaseNote = { id: rid('note'), at: nowIso(), authorId: currentUserId, text, kind }
         let next: Database = {
           ...prev,
-          cases: prev.cases.map((c) => (c.id === caseId ? { ...c, notes: text, updatedAt: nowIso() } : c)),
+          cases: prev.cases.map((c) => (c.id === caseId ? { ...c, notes: [note, ...c.notes], updatedAt: nowIso() } : c)),
         }
         next = log(next, 'note_ajoutee', {
           fr: 'Note interne mise à jour.', en: 'Internal note updated.',
@@ -389,13 +404,93 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       setDb((prev) => {
         const appointment: Appointment = { ...input, id: rid('ap'), agencyId: prev.agency.id }
         let next: Database = { ...prev, appointments: [...prev.appointments, appointment] }
-        next = touch(next, input.caseId)
+        if (input.caseId) next = touch(next, input.caseId)
         next = log(next, 'rendez_vous_cree', {
           fr: 'Rendez-vous ajouté au dossier.', en: 'Appointment added to the application.',
           ar: 'أُضيف موعد إلى الملف.', zh: '已为申请添加预约。',
         }, input.caseId)
         return next
       })
+
+    /* Une demande n'est pas un dossier : c'est quelqu'un qui frappe a la
+       porte. On la garde telle quelle jusqu'a ce qu'un agent decide. */
+    const submitRequest: Actions['submitRequest'] = (input) => {
+      const request: ClientRequest = {
+        ...input,
+        id: rid('rq'),
+        agencyId: db.agency.id,
+        reference: `DEM-2026-${String(80 + db.requests.length + 1).padStart(4, '0')}`,
+        status: 'nouvelle',
+        receivedAt: nowIso(),
+        portalToken: token('dem'),
+      }
+      setDb((prev) => {
+        let next: Database = { ...prev, requests: [request, ...prev.requests] }
+        next = log(next, 'dossier_cree', {
+          fr: `Nouvelle demande ${request.reference} de ${request.firstName} ${request.lastName}.`,
+          en: `New request ${request.reference} from ${request.firstName} ${request.lastName}.`,
+          ar: `مطلب جديد ${request.reference} من ${request.firstName} ${request.lastName}.`,
+          zh: `${request.firstName} ${request.lastName} 的新请求 ${request.reference}。`,
+        }, undefined, true)
+        return next
+      })
+      return request
+    }
+
+    const convertRequest: Actions['convertRequest'] = (requestId, assigneeId) => {
+      const request = db.requests.find((r) => r.id === requestId)
+      if (!request || !request.visaTypeId) return null
+      // Un client existant est reconnu a son numero, pas a son nom.
+      const existing = db.clients.find((c) => samePhone(c.phone, request.phone))
+      const clientId = existing?.id ?? createClient({
+        firstName: request.firstName,
+        lastName: request.lastName,
+        phone: request.phone,
+        email: request.email,
+        nationality: '',
+        locale: request.locale,
+        officeId: db.users.find((u) => u.id === assigneeId)?.officeId ?? db.agency.offices[0].id,
+      })
+      const caseId = createCase({
+        clientId,
+        visaTypeId: request.visaTypeId,
+        assigneeId,
+        travelDate: request.travelDate,
+        source: 'site',
+      })
+      setDb((prev) => ({
+        ...prev,
+        clients: prev.clients.map((c) =>
+          c.id === clientId && request.phoneVerified ? { ...c, phoneVerifiedAt: nowIso() } : c,
+        ),
+        requests: prev.requests.map((r) =>
+          r.id === requestId
+            ? { ...r, status: 'convertie', handledBy: currentUserId, handledAt: nowIso(), clientId, caseId }
+            : r,
+        ),
+      }))
+      return caseId
+    }
+
+    const refuseRequest: Actions['refuseRequest'] = (requestId, reason) =>
+      setDb((prev) => ({
+        ...prev,
+        requests: prev.requests.map((r) =>
+          r.id === requestId
+            ? { ...r, status: 'ecartee', refusalReason: reason, handledBy: currentUserId, handledAt: nowIso() }
+            : r,
+        ),
+      }))
+
+    const markSetup: Actions['markSetup'] = (step) =>
+      setDb((prev) =>
+        prev.agency.setupDone.includes(step)
+          ? prev
+          : { ...prev, agency: { ...prev.agency, setupDone: [...prev.agency.setupDone, step] } },
+      )
+
+    const hideSetup: Actions['hideSetup'] = () =>
+      setDb((prev) => ({ ...prev, agency: { ...prev.agency, setupHidden: true } }))
 
     const updateAppointment: Actions['updateAppointment'] = (id, patch) =>
       setDb((prev) => ({
@@ -545,7 +640,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
           officeId: client.officeId, assigneeId, stage: 'nouveau', status: 'ouvert',
           priority: 'normale', source, openedAt: nowIso(), updatedAt: nowIso(),
           travelDate, dueAt: travelDate, amountTotal: visa.feeAgency + visa.feeConsulate,
-          amountPaid: 0, portalToken: token('tok'),
+          amountPaid: 0, notes: [], portalToken: token('tok'),
         }
         const docs: CaseDocument[] = (checklist?.items ?? []).map((item) => ({
           id: `${id}_${item.key}`, caseId: id, key: item.key, label: item.label,
@@ -726,6 +821,36 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     const removeRule: Actions['removeRule'] = (ruleId) =>
       setDb((prev) => ({ ...prev, rules: prev.rules.filter((r) => r.id !== ruleId) }))
 
+    const updateClient: Actions['updateClient'] = (clientId, patch) =>
+      setDb((prev) => ({
+        ...prev,
+        clients: prev.clients.map((c) => (c.id === clientId ? { ...c, ...patch } : c)),
+      }))
+
+    /* Le symetrique de reset : une base vraiment vide, pour une agence qui a
+       fini de regarder la demonstration. */
+    const clearAll: Actions['clearAll'] = () =>
+      setDb((prev) => ({
+        ...prev,
+        clients: [], cases: [], documents: [], messages: [], appointments: [],
+        payments: [], events: [], tasks: [], shipments: [], shipmentDocs: [],
+        shipmentEvents: [], requests: [],
+      }))
+
+    const stepBackShipment: Actions['stepBackShipment'] = (shipmentId) =>
+      setDb((prev) => {
+        const shipment = prev.shipments.find((x) => x.id === shipmentId)
+        if (!shipment) return prev
+        const idx = SHIPMENT_STAGES.indexOf(shipment.stage)
+        if (idx <= 0) return prev
+        const stage = SHIPMENT_STAGES[idx - 1]
+        return {
+          ...prev,
+          shipments: prev.shipments.map((x) => (x.id === shipmentId ? { ...x, stage, status: 'en_cours' } : x)),
+          shipmentEvents: prev.shipmentEvents.filter((e) => !(e.shipmentId === shipmentId && e.stage === shipment.stage)),
+        }
+      })
+
     const reset: Actions['reset'] = () => setDb(buildSeed(slug))
 
     const exportJson: Actions['exportJson'] = () => JSON.stringify(db, null, 2)
@@ -733,7 +858,8 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     return {
       setStage, advance, setDocState, requestMissingDocs, remindDoc, sendMessage, addNote,
       markPaymentPaid, addAppointment, toggleRule, runRules, toggleTask, createCase,
-      createClient, decideCase, updateCase, createTask, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
+      createClient, decideCase, updateCase, createTask, submitRequest, convertRequest,
+      refuseRequest, markSetup, hideSetup, updateClient, clearAll, stepBackShipment, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
       saveTemplate, removeTemplate, saveVisaType, removeVisaType, saveChecklistItem,
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
     }

@@ -2,7 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Avatar, Card, Empty, Pill } from '@/components/ui'
+import { useState } from 'react'
+import { Avatar, Button, Card, Empty, Pill } from '@/components/ui'
+import { ClientEditor } from '@/components/ClientEditor'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
 import { Icon } from '@/components/Icon'
 import { daysUntil } from '@/lib/derive'
@@ -12,6 +14,7 @@ export function ClientDetail() {
   const { db } = useStore()
   const v = useVisible()
   const { t, tt, formatDate } = useI18n()
+  const [editing, setEditing] = useState(false)
 
   const client = v.clients.find((c) => c.id === id)
   if (!client) return <Empty title={t('clients.none')} action={<Link to="/clients" className="btn btn--secondary">{t('action.back')}</Link>} />
@@ -23,7 +26,13 @@ export function ClientDetail() {
 
   return (
     <>
-      <PageHead title={`${client.firstName} ${client.lastName}`} subtitle={client.nativeName ?? client.nationality} />
+      <PageHead
+        title={`${client.firstName} ${client.lastName}`}
+        subtitle={client.nativeName ?? client.nationality}
+        action={v.can('client:write') ? <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button> : undefined}
+      />
+
+      {editing && <ClientEditor client={client} onClose={() => setEditing(false)} />}
 
       <div className="grid grid--main">
         <div className="stack">

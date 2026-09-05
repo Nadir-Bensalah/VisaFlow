@@ -43,6 +43,11 @@ export function ShipmentDetail() {
             >
               {t('caseDetail.portalLink')}
             </Button>
+            {v.can('shipment:write') && shipment.stage !== 'demande' && (
+              <Button icon="refresh" onClick={() => { actions.stepBackShipment(shipment.id); toast(t('crud.updated')) }}>
+                {t('action.back')}
+              </Button>
+            )}
             {shipment.status === 'en_cours' && v.can('shipment:write') && (
               <Button variant="primary" icon="arrow" onClick={() => { actions.advanceShipment(shipment.id); toast(t('ship.advance')) }}>
                 {t('ship.advance')}

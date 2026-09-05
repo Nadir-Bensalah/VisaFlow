@@ -122,7 +122,7 @@ export function ShipmentEditor({ shipment, onClose }: { shipment: Shipment | nul
         </div>
 
         <div className="grid grid--2">
-          <Field label={t('ship.stage')}>
+          <Field label={t('ship.st.en_cours')}>
             <Select value={draft.status} onChange={(e) => set('status', e.target.value as ShipmentStatus)}>
               {(['en_cours', 'bloquee', 'livree', 'annulee'] as ShipmentStatus[]).map((x) => (
                 <option key={x} value={x}>{t(`ship.st.${x}` as 'ship.st.en_cours')}</option>

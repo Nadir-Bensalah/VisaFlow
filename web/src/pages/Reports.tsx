@@ -9,7 +9,7 @@ export function Reports() {
   const { db } = useStore()
   const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
-  const k = kpis(db)
+  const k = kpis(db, v)
 
   // Volume des six derniers mois, calcule sur les dates d'ouverture reelles.
   const months = Array.from({ length: 6 }, (_, i) => {

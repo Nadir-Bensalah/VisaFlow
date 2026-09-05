@@ -52,6 +52,9 @@ export interface Office {
   timezone: string
 }
 
+/** Ce que l'agence vend. Une agence de visas seule ne doit pas voir le fret. */
+export type Service = 'visas' | 'fret'
+
 export interface Agency {
   id: string
   /** Sous domaine : tca.visaflow.app */
@@ -70,6 +73,13 @@ export interface Agency {
   /** Numero de declaration INPDP, affiche dans le pied du portail client. */
   inpdpRef?: string
   plan: 'essai' | 'standard' | 'multi_bureaux'
+  services: Service[]
+  /** Fin de l'essai. Passe ce jour, l'agence doit choisir une formule. */
+  trialEndsAt?: string
+  createdAt: string
+  /** Etapes d'installation deja faites, pour l'ecran du premier jour. */
+  setupDone: string[]
+  setupHidden?: boolean
 }
 
 export interface User {
@@ -82,6 +92,39 @@ export interface User {
   officeId: string
   locale: Locale
   active: boolean
+}
+
+/** Une demande arrivee de la page publique de l'agence.
+    Elle n'est pas encore un dossier : personne n'a decide de la prendre. */
+export type RequestStatus = 'nouvelle' | 'qualifiee' | 'convertie' | 'ecartee'
+
+export interface ClientRequest {
+  id: string
+  agencyId: string
+  reference: string
+  kind: 'visa' | 'fret'
+  /** Ce que le demandeur a choisi dans le catalogue de l'agence. */
+  visaTypeId?: string
+  destination?: string
+  travelDate?: string
+  goods?: string
+  originCity?: string
+  firstName: string
+  lastName: string
+  phone: string
+  email?: string
+  locale: Locale
+  note?: string
+  /** Le numero a ete confirme par un code a usage unique. */
+  phoneVerified: boolean
+  status: RequestStatus
+  receivedAt: string
+  handledBy?: string
+  handledAt?: string
+  refusalReason?: string
+  clientId?: string
+  caseId?: string
+  portalToken: string
 }
 
 export interface Client {
@@ -102,6 +145,9 @@ export interface Client {
   tags: string[]
   createdAt: string
   officeId: string
+  /** Le numero est l'identite du client dans cette agence, et nulle part
+      ailleurs. Verifie une fois, il ouvre le suivi sur n'importe quel appareil. */
+  phoneVerifiedAt?: string
 }
 
 export interface ChecklistItem {
@@ -154,6 +200,16 @@ export interface CaseDocument {
   lastReminderAt?: string
 }
 
+/** Une note interne, datee et signee. Elle ne remplace jamais la precedente. */
+export interface CaseNote {
+  id: string
+  at: string
+  authorId?: string
+  text: string
+  /** Une note posee en un clic quand le client appelle. */
+  kind: 'note' | 'appel' | 'comptoir'
+}
+
 export interface VisaCase {
   id: string
   agencyId: string
@@ -176,7 +232,7 @@ export interface VisaCase {
   refusalReason?: string
   amountTotal: number
   amountPaid: number
-  notes?: string
+  notes: CaseNote[]
   /** Jeton du lien de suivi client, sans mot de passe. */
   portalToken: string
 }
@@ -184,7 +240,8 @@ export interface VisaCase {
 export interface Message {
   id: string
   agencyId: string
-  caseId: string
+  caseId?: string
+  shipmentId?: string
   channel: Channel
   direction: 'entrant' | 'sortant'
   body: string
@@ -209,7 +266,8 @@ export interface MessageTemplate {
 export interface Appointment {
   id: string
   agencyId: string
-  caseId: string
+  caseId?: string
+  shipmentId?: string
   kind: AppointmentKind
   at: string
   durationMin: number
@@ -221,7 +279,8 @@ export interface Appointment {
 export interface Payment {
   id: string
   agencyId: string
-  caseId: string
+  caseId?: string
+  shipmentId?: string
   label: I18nText
   amount: number
   state: PaymentState
@@ -393,4 +452,5 @@ export interface Database {
   shipments: Shipment[]
   shipmentDocs: ShipmentDocument[]
   shipmentEvents: ShipmentEvent[]
+  requests: ClientRequest[]
 }

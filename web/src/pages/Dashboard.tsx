@@ -11,7 +11,7 @@ export function Dashboard() {
   const { db } = useStore()
   const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
-  const k = kpis(db)
+  const k = kpis(db, v)
   const user = v.user
 
   const attention = v.cases

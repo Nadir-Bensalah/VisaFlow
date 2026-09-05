@@ -169,7 +169,7 @@ export function PortalCase() {
                 <Button
                   variant="primary"
                   disabled={!question.trim()}
-                  onClick={() => { actions.sendMessage({ caseId: kase.id, body: question.trim(), channel: 'portail' }); setQuestion(''); toast(t('msg.sent')) }}
+                  onClick={() => { actions.sendMessage({ caseId: kase.id, body: question.trim(), channel: 'portail', fromClient: true }); setQuestion(''); toast(t('msg.sent')) }}
                 >
                   {t('action.send')}
                 </Button>

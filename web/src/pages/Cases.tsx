@@ -169,11 +169,17 @@ export function Cases() {
 
 function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
   const { db, currentUserId, actions } = useStore()
-  const { t, tt } = useI18n()
+  const v = useVisible()
+  const { t, tt, formatMoney } = useI18n()
   const [clientId, setClientId] = useState(db.clients[0]?.id ?? '')
   const [visaTypeId, setVisaTypeId] = useState(db.visaTypes[0]?.id ?? '')
   const [assigneeId, setAssigneeId] = useState(currentUserId)
   const [travelDate, setTravelDate] = useState('')
+
+  const selected = db.visaTypes.find((x) => x.id === visaTypeId)
+  const pieces = db.checklists.find((c) => c.id === selected?.checklistId)?.items.filter((i) => i.required).length ?? 0
+  const daysToTravel = travelDate ? Math.round((new Date(travelDate).getTime() - Date.now()) / 86400000) : Infinity
+  const tooShort = Boolean(selected) && daysToTravel < (selected?.processingDays ?? 0)
 
   const submit = () => {
     const id = actions.createCase({
@@ -191,14 +197,14 @@ function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: 
       footer={
         <>
           <Button onClick={onClose}>{t('action.cancel')}</Button>
-          <Button variant="primary" onClick={submit}>{t('action.confirm')}</Button>
+          <Button variant="primary" disabled={!clientId || !visaTypeId} onClick={submit}>{t('action.confirm')}</Button>
         </>
       }
     >
       <div className="col gap-4">
         <Field label={t('cases.client')}>
           <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-            {db.clients.map((c) => (
+            {v.clients.map((c) => (
               <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
             ))}
           </Select>
@@ -220,6 +226,28 @@ function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: 
         <Field label={t('caseDetail.travelOn')}>
           <Input type="date" value={travelDate} onChange={(e) => setTravelDate(e.target.value)} />
         </Field>
+        {/* Ce que l'agent doit annoncer au comptoir, sans ouvrir les réglages. */}
+        {selected && (
+          <div style={{ background: 'var(--bg-sunken)', borderRadius: 'var(--radius-card-sm)', padding: 'var(--sp-4)' }}>
+            <div className="col gap-2">
+              <div className="row-between">
+                <span className="t-small t-secondary">{t('pay.amount')}</span>
+                <span className="t-medium">{formatMoney(selected.feeAgency + selected.feeConsulate)}</span>
+              </div>
+              <div className="row-between">
+                <span className="t-small t-secondary">{t('reports.delay')}</span>
+                <span className="t-small">{t('reports.days', { n: selected.processingDays })}</span>
+              </div>
+              <div className="row-between">
+                <span className="t-small t-secondary">{t('cases.progress')}</span>
+                <span className="t-small">{pieces}</span>
+              </div>
+              {tooShort && (
+                <span className="t-small" style={{ color: 'var(--red)' }}>{t('cases.late')}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   )
