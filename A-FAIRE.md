@@ -42,6 +42,18 @@ faire à ta place.
 - [ ] **Les frais et délais** de chaque type de visa dans le jeu de démonstration
       sont plausibles, pas réels. À remplacer par les vrais.
 
+## Ce que les audits ont laissé ouvert
+
+Le détail est dans `docs/11-ce-qui-reste.md`. Les trois qui comptent :
+
+- [ ] **Le téléversement des fichiers.** Aucune pièce ne circule aujourd'hui.
+      Premier chantier après Supabase.
+- [ ] **L'envoi et la réception WhatsApp.** Sans ça, l'outil impose une double
+      saisie et se fait abandonner.
+- [ ] **Le cloisonnement côté serveur.** Les rôles sont étanches à l'écran, pas
+      dans le navigateur. Tant que la base entière y est chargée, la protection
+      est une convention, pas une garantie.
+
 ## Décisions en attente
 
 - [ ] Les **poids du calcul d'urgence** (`web/src/lib/derive.ts`). À ajuster avec
