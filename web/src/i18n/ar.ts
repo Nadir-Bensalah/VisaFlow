@@ -12,7 +12,7 @@ export const ar: Dict = {
   nav: {
     dashboard: 'لوحة القيادة', pipeline: 'مسار الملفات', cases: 'الملفات', clients: 'العملاء',
     documents: 'الوثائق', appointments: 'المواعيد', messages: 'الرسائل', payments: 'المدفوعات',
-    automations: 'الأتمتة', reports: 'التقارير', settings: 'الإعدادات', portal: 'بوابة العميل', shipments: 'الشحنات',
+    automations: 'الأتمتة', reports: 'التقارير', settings: 'الإعدادات', portal: 'بوابة العميل', shipments: 'الشحنات', myTasks: 'مهامي',
     workspace: 'المتابعة', admin: 'الإدارة',
   },
   stage: {

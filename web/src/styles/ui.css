@@ -207,6 +207,11 @@
 .list__row:last-child { border-bottom: 0; }
 a.list__row:hover, button.list__row:hover { background: var(--bg-hover); color: inherit; }
 button.list__row { width: 100%; border: 0; background: transparent; text-align: start; cursor: pointer; }
+/* La colonne souple prend ce qui reste, elle ne reclame pas la largeur de son
+   texte : sans cela, chaque ligne se casse en trois sur telephone. */
+.list__row > .grow,
+.card__head > .grow,
+.today__counter > .grow { flex: 1 1 0; }
 
 /* ------------------------------------------------------------------ */
 /* Pastilles d'etat                                                    */
@@ -616,6 +621,7 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .today__counter {
   display: flex;
   align-items: center;
+  line-height: 1.25;
   gap: var(--sp-3);
   background: var(--bg-white);
   border: 1px solid var(--hairline);
@@ -791,19 +797,30 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
     padding-inline: calc(var(--sp-4) + env(safe-area-inset-left)) calc(var(--sp-4) + env(safe-area-inset-right));
     gap: var(--sp-2);
   }
-  /* Le selecteur d'agent vit deja dans le pied de la barre laterale. */
+  /* Le libelle du temps reel et le raccourci clavier n'ont pas leur place
+     sur un telephone : il reste la pastille et le code de langue. */
   .topbar__user { display: none; }
   .topbar .search kbd { display: none; }
-  .topbar .search { min-width: 0; }
-  .topbar > .row { min-width: 0; flex: 0 1 auto; }
-  .topbar .select { max-width: 104px; }
+  .topbar .search { flex: 1 1 0; min-width: 0; max-width: none; }
+  .topbar > .row { min-width: 0; flex: 0 0 auto; }
+  .topbar .select {
+    width: 78px;
+    max-width: 78px;
+    min-width: 0;
+    padding-inline: var(--sp-2) var(--sp-5);
+    background-position: calc(100% - 7px) center;
+  }
 
   .page-head { margin-bottom: var(--sp-6); }
   .page-head h1 { font-size: var(--size-h3); }
   .today__hero { flex-direction: column; align-items: flex-start; gap: var(--sp-4); margin-bottom: var(--sp-6); }
   .today__hero h1 { font-size: var(--size-h2); }
   .today__hero svg { align-self: center; }
-  .today__counters { margin-bottom: var(--sp-6); gap: var(--sp-3); }
+  .today__counters {
+    margin-bottom: var(--sp-6);
+    gap: var(--sp-3);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
   .today__counter { padding: var(--sp-3) var(--sp-4); }
 
   .grid { gap: var(--sp-5); }

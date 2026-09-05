@@ -100,7 +100,7 @@ export function Today() {
           <div key={c.label} className="today__counter">
             <Icon name={c.icon} size={17} className="t-tertiary" />
             <span className="today__counter-value t-num" style={{ color: c.tone }}>{c.value}</span>
-            <span className="t-caption t-tertiary t-truncate">{c.label}</span>
+            <span className="t-caption t-tertiary">{c.label}</span>
           </div>
         ))}
       </div>

@@ -50,6 +50,7 @@ export const fr = {
     settings: 'Réglages',
     portal: 'Portail client',
     shipments: 'Cargaisons',
+    myTasks: 'Mes tâches',
     workspace: 'Suivi',
     admin: 'Administration',
   },

@@ -12,7 +12,7 @@ export const zh: Dict = {
   nav: {
     dashboard: '工作台', pipeline: '流程看板', cases: '申请', clients: '客户',
     documents: '材料', appointments: '预约', messages: '消息', payments: '收款',
-    automations: '自动化', reports: '报表', settings: '设置', portal: '客户端口', shipments: '货运',
+    automations: '自动化', reports: '报表', settings: '设置', portal: '客户端口', shipments: '货运', myTasks: '我的任务',
     workspace: '业务', admin: '管理',
   },
   stage: {

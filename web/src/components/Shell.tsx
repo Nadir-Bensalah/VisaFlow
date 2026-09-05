@@ -7,7 +7,7 @@ import type { Locale } from '@/data/types'
 import { Icon, type IconName } from './Icon'
 import { Avatar, IconButton, Select } from './ui'
 import { CommandPalette } from './CommandPalette'
-import { blockingDocs, daysUntil } from '@/lib/derive'
+import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
 
@@ -47,7 +47,11 @@ export function Shell() {
   const location = useLocation()
 
   const openCases = v.cases.filter((c) => c.status === 'ouvert')
-  const blocked = openCases.filter((c) => blockingDocs(db, c.id).length > 0).length
+  // Le meme nombre que l'ecran Pieces : des pieces, pas des dossiers.
+  const openIds = new Set(openCases.map((c) => c.id))
+  const blocked = v.documents.filter(
+    (d) => d.required && openIds.has(d.caseId) && ['manquante', 'refusee', 'expiree'].includes(d.state),
+  ).length
   const todayAppointments = v.appointments.filter((a) => a.status === 'prevu' && daysUntil(a.at) === 0).length
   const pendingTasks = v.tasks.filter((x) => !x.done && x.assigneeId === v.user.id).length
   const unanswered = v.messages.filter((m) => m.direction === 'entrant' && daysUntil(m.at) >= -2).length
@@ -84,7 +88,7 @@ export function Shell() {
     { to: '/messages', labelKey: 'nav.messages', icon: 'messages', count: unanswered },
     { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
     { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
-    { to: '/taches', labelKey: 'nav.workspace', icon: 'tasks', count: pendingTasks },
+    { to: '/taches', labelKey: 'nav.myTasks', icon: 'tasks', count: pendingTasks },
   ]
   const admin: NavEntry[] = [
     { to: '/automatisations', labelKey: 'nav.automations', icon: 'automations', need: 'automation:manage' },

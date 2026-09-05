@@ -12,7 +12,7 @@ export const en: Dict = {
   nav: {
     dashboard: 'Dashboard', pipeline: 'Pipeline', cases: 'Applications', clients: 'Clients',
     documents: 'Documents', appointments: 'Appointments', messages: 'Messages', payments: 'Payments',
-    automations: 'Automations', reports: 'Reports', settings: 'Settings', portal: 'Client portal', shipments: 'Shipments',
+    automations: 'Automations', reports: 'Reports', settings: 'Settings', portal: 'Client portal', shipments: 'Shipments', myTasks: 'My tasks',
     workspace: 'Workspace', admin: 'Administration',
   },
   stage: {
