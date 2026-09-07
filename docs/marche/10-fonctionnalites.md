@@ -49,11 +49,11 @@ Statut : **[F]** fait · **[P]** partiel, existe mais incomplet · **[À]** à f
 | C2 | **Checklist par couple (consulat, statut professionnel)** | **[P]** | Une checklist « France » n'existe pas. Il faut France+salarié, France+indépendant, France+étudiant, France+retraité, France+sans emploi, France+mineur |
 | C3 | Versionnage des checklists | **[F]** | Un dossier ouvert avant un changement de règle garde son ancienne liste |
 | C4 | Reprise après refus, rattachée au dossier d'origine | **[F]** | Le retry est un acte commercial distinct |
-| C5 | **Catégorie PRIMO ou VISE** | **[À]** | Pièces, délais et taux de refus différents |
-| C6 | **Biométrie : date de prise, validité 59 mois, alerte d'expiration** | **[À]** | Une biométrie valide dispense du déplacement. Change le prix, le délai et le créneau |
+| C5 | **Catégorie PRIMO ou VISE** | **[F]** | Pièces, délais et taux de refus différents |
+| C6 | **Biométrie : date de prise, validité 59 mois, alerte d'expiration** | **[F]** | Une biométrie valide dispense du déplacement. Change le prix, le délai et le créneau |
 | C7 | **Compteur 90 jours sur 180** par client | **[À]** | Avec l'EES au 10 avril 2026, c'est la question client la plus fréquente. Personne ne l'offre en Tunisie |
-| C8 | Motif de refus codé, pas en texte libre | **[À]** | Sans code, aucune statistique de refus exploitable |
-| C9 | **Recours CRRV : délai en paramètre par consulat, avec source et date de vérification** | **[À]** | Les sources se contredisent, 30 jours contre 2 mois. Ne pas coder en dur |
+| C8 | Motif de refus codé, pas en texte libre | **[F]** | Sans code, aucune statistique de refus exploitable |
+| C9 | **Recours CRRV : délai en paramètre par consulat, avec source et date de vérification** | **[F]** | Les sources se contredisent, 30 jours contre 2 mois. Ne pas coder en dur |
 | C10 | Journal de notes horodaté et attribué | **[F]** | Un champ notes unique s'écrasait |
 | C11 | Registre de garde des passeports, avec blocage de restitution sur solde impayé | **[F]** | Remplacer un passeport libyen coûte vingt fois sa délivrance |
 | C12 | Journal d'accès aux pièces : qui a ouvert quoi, quand | **[F]** | Conformité, et seul moyen de tracer une fuite |
@@ -68,26 +68,26 @@ C'est le module qui porte l'essentiel de la marge. Il est aujourd'hui le plus fa
 | # | Fonctionnalité | Statut | Pourquoi |
 |---|---|---|---|
 | D1 | Rendez-vous rattaché à un dossier | **[F]** | |
-| D2 | **File d'attente de créneaux par consulat** | **[À]** | Sur un ticket de 550 TND, 200 à 350 TND viennent de l'obtention du rendez-vous |
-| D3 | **Rang du client dans la file, visible du client** | **[À]** | « Vous êtes 4e sur la liste Italie ». Une agence qui ne sait pas le dire perd le client |
-| D4 | Priorité de file paramétrable (ancienneté, urgence, prix payé) | **[À]** | |
-| D5 | **Registre des tentatives de prise de créneau** : qui a essayé, quand, sur quel centre, résultat | **[À]** | C'est le travail réel de l'agent, aujourd'hui invisible |
-| D6 | Capacité et fenêtre d'ouverture par centre (Tunis, Sfax) | **[À]** | Deux centres seulement pour tout le pays |
+| D2 | **File d'attente de créneaux par consulat** | **[F]** | Sur un ticket de 550 TND, 200 à 350 TND viennent de l'obtention du rendez-vous |
+| D3 | **Rang du client dans la file, visible du client** | **[F]** | « Vous êtes 4e sur la liste Italie ». Une agence qui ne sait pas le dire perd le client |
+| D4 | Priorité de file paramétrable (ancienneté, urgence, prix payé) | **[F]** | |
+| D5 | **Registre des tentatives de prise de créneau** : qui a essayé, quand, sur quel centre, résultat | **[F]** | C'est le travail réel de l'agent, aujourd'hui invisible |
+| D6 | Capacité et fenêtre d'ouverture par centre (Tunis, Sfax) | **[F]** | Deux centres seulement pour tout le pays |
 | D7 | Alerte de créneau libéré | **[À]** | C'est le produit entier de tls-visa.com |
-| D8 | Délai moyen d'obtention par consulat, calculé sur l'historique de l'agence | **[À]** | Permet enfin de répondre honnêtement « combien de temps » |
+| D8 | Délai moyen d'obtention par consulat, calculé sur l'historique de l'agence | **[F]** | Permet enfin de répondre honnêtement « combien de temps » |
 | D9 | Rappel automatique au client avant le rendez-vous | **[P]** | Existe via les automatisations, pas spécialisé |
-| D10 | Absence au rendez-vous tracée, avec conséquence commerciale | **[À]** | Un créneau perdu coûte à l'agence |
+| D10 | Absence au rendez-vous tracée, avec conséquence commerciale | **[F]** | Un créneau perdu coûte à l'agence |
 
 ## E. Les statistiques qui n'existent nulle part ailleurs
 
 | # | Fonctionnalité | Statut | Pourquoi |
 |---|---|---|---|
-| E1 | **Taux de refus par couple (consulat, type de visa, profil)** | **[À]** | La moyenne nationale ment. Tchéquie 46,3 %, France 15,4 % |
-| E2 | Part de multi-entrées obtenues par consulat | **[À]** | Varie de 12,6 % à 99,1 % selon le poste |
-| E3 | Délai réel de traitement par consulat, mesuré | **[À]** | |
-| E4 | Comparaison de l'agence à la moyenne nationale officielle | **[À]** | Données publiques de la Commission européenne, par consulat, depuis 2009 |
+| E1 | **Taux de refus par couple (consulat, type de visa, profil)** | **[F]** | La moyenne nationale ment. Tchéquie 46,3 %, France 15,4 % |
+| E2 | Part de multi-entrées obtenues par consulat | **[F]** | Varie de 12,6 % à 99,1 % selon le poste |
+| E3 | Délai réel de traitement par consulat, mesuré | **[F]** | |
+| E4 | Comparaison de l'agence à la moyenne nationale officielle | **[F]** | Données publiques de la Commission européenne, par consulat, depuis 2009 |
 | E5 | Taux de succès par agent | **[P]** | Existe partiellement dans les rapports |
-| E6 | Motifs de refus les plus fréquents, classés | **[À]** | Nourrit directement la checklist |
+| E6 | Motifs de refus les plus fréquents, classés | **[F]** | Nourrit directement la checklist |
 | E7 | Prévision de charge par mois et par consulat | **[À]** | La saisonnalité est forte |
 
 **Pourquoi c'est stratégique.** Au bout de six mois d'usage, l'agence possède une statistique que personne d'autre n'a : son propre taux de refus par profil. C'est ce qui rend le changement de logiciel douloureux, donc c'est ce qui retient l'abonnement.
