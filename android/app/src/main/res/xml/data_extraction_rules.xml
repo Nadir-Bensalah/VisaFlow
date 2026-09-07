@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="visaflow.secure.xml" />
+        <exclude domain="sharedpref" path="visaflow.fallback.xml" />
+    </cloud-backup>
+    <!-- Le transfert d'appareil à appareil non plus : c'est le même jeton. -->
+    <device-transfer>
+        <exclude domain="sharedpref" path="visaflow.secure.xml" />
+        <exclude domain="sharedpref" path="visaflow.fallback.xml" />
+    </device-transfer>
+</data-extraction-rules>

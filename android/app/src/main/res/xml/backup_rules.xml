@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Le jeton d'appareil ouvre tous les dossiers du client pendant quatre-vingt-dix
+     jours. Il n'a rien à faire dans une sauvegarde restaurée sur un autre
+     téléphone : on l'exclut explicitement. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="visaflow.secure.xml" />
+    <exclude domain="sharedpref" path="visaflow.fallback.xml" />
+</full-backup-content>

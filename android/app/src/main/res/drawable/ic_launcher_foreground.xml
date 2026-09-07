@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La marque : un passeport ouvert, réduit à deux traits. Un logo d'icône
+     doit rester lisible à 48 pixels sur un écran sale. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0066CC"
+        android:pathData="M38,30h32a6,6 0 0 1 6,6v36a6,6 0 0 1 -6,6h-32a6,6 0 0 1 -6,-6v-36a6,6 0 0 1 6,-6z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,40m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,62h24v4h-24z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,54h16v4h-16z" />
+</vector>

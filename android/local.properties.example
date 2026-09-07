@@ -1,0 +1,3 @@
+# Chemin du SDK Android. Ce fichier ne se commite jamais : copiez-le en
+# local.properties et corrigez le chemin si besoin.
+sdk.dir=/Users/izicode/Library/Android/sdk

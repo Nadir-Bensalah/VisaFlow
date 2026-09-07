@@ -123,3 +123,47 @@ même chose côté Android, avec un `Intent` extra.
 
 Rien : le dépôt Android n'existe pas encore. Quand il naîtra, il reprendra ce
 carnet depuis cette entrée.
+
+---
+
+## 7 septembre 2026 · L'application Android existe
+
+**Ce qui a été fait.** La réplique complète, en Kotlin et Jetpack Compose.
+Même modèle, mêmes jetons, mêmes quatre langues, même contrat de serveur.
+`./gradlew :app:assembleRelease` sort un APK de 1,3 Mo, et les huit tests
+unitaires passent.
+
+**Où.** `android/`, découpé en `design`, `model`, `data`, `feature`.
+
+**Pourquoi maintenant.** Android représente 84,7 % des terminaux en Libye et
+82,5 % en Tunisie. L'iOS, fini le premier, servait la minorité.
+
+### Les six pièges rencontrés, et leur correction
+
+| Piège | Ce qui se passe | Correction |
+|---|---|---|
+| `var language` plus `fun setLanguage` | Kotlin génère déjà `setLanguage` pour la propriété : collision de signature JVM, le compilateur refuse | Les fonctions s'appellent `chooseLanguage`, `chooseAgency`, `chooseNotifications` |
+| `androidx.core 1.17` | Exige `compileSdk 36`, sinon la vérification des métadonnées AAR arrête la compilation | `compileSdk = 36`, `targetSdk = 36` |
+| R8 et Tink | `EncryptedSharedPreferences` tire Tink, qui s'annote avec errorprone, absent en production. R8 s'arrête sur les classes manquantes | `-dontwarn com.google.errorprone.annotations.**` |
+| kotlinx.serialization en release | Compile, puis échoue au décodage à l'exécution | Règles `-keepclasseswithmembers` sur `model.**` |
+| Le jeton d'appareil dans les sauvegardes | Restauré sur un autre téléphone, il ouvre les dossiers de quelqu'un d'autre | `backup_rules.xml` et `data_extraction_rules.xml` l'excluent |
+| Un canal de notification unique | Couper les nouvelles commerciales couperait « votre passeport est prêt » | Deux canaux, `dossier` en importance haute et `info` en basse |
+
+### Les équivalences de composants
+
+| iOS | Android |
+|---|---|
+| `Token.Palette` (Swift) | `Token.Palette` (Kotlin), mêmes hex, même ordre |
+| `cardSurface()` | `CardSurface { }` : un filet, jamais une ombre |
+| `Animation.timingCurve(0.28, 0.11, 0.32, 1)` | `CubicBezierEasing(0.28f, 0.11f, 0.32f, 1f)` |
+| `Keychain` | `EncryptedSharedPreferences`, avec repli en clair si le magasin de clés est cassé |
+| `PhotosPicker` | `ActivityResultContracts.GetContent()` |
+| `@Observable` + `Session` | `ViewModel` + `mutableStateOf`, même machine à trois états |
+| Chevrons SF Symbols | `Icons.AutoMirrored`, obligatoire pour l'arabe |
+
+### La règle qui ne bouge pas
+
+Les libellés d'étape viennent du serveur **sous forme de clés**, jamais de
+texte. `Labels.kt` les résout dans la langue du téléphone. Traduire côté
+serveur obligerait à connaître la langue de l'appareil, et un client qui
+change de langue verrait la moitié de l'écran figée.

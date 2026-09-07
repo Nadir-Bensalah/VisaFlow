@@ -181,11 +181,11 @@ C'est le module qui porte l'essentiel de la marge. Il est aujourd'hui le plus fa
 | # | Fonctionnalité | Statut | Pourquoi |
 |---|---|---|---|
 | K1 | Application iOS native | **[F]** | Swift 6, zéro dépendance externe |
-| K2 | **Application Android native** | **[À]** | **Android représente 84,7 % en Libye et 82,5 % en Tunisie.** C'est la plateforme majoritaire, de loin |
+| K2 | **Application Android native** | **[F]** | **Android représente 84,7 % en Libye et 82,5 % en Tunisie.** C'est la plateforme majoritaire, de loin |
 | K3 | Quatre langues, RTL natif | **[F]** | Pas seulement traduit : ordre des colonnes, sens des flèches, alignement des montants |
 | K4 | Dépôt de pièce depuis l'appareil photo | **[F]** | Le geste naturel du client |
 | K5 | Notification à chaque changement d'étape | **[P]** | |
-| K6 | Test prioritaire sur Chrome mobile Android | **[À]** | 71,9 % des navigateurs mobiles en Libye |
+| K6 | Test prioritaire sur Chrome mobile Android | **[P]** | 71,9 % des navigateurs mobiles en Libye |
 
 ---
 
