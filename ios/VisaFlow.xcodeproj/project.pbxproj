@@ -1,0 +1,637 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0AC1C358D02ED10B0FA50075 /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09530D31BB25723B52859277 /* ModelTests.swift */; };
+		16BBE6CCE34AEF28E32553A9 /* ShipmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38FFBFF042C64221A5DCFA1 /* ShipmentDetailView.swift */; };
+		17B4294664BD0C91A510B725 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2130AB4A2643581D7DBAEF /* Components.swift */; };
+		1B059EF993523E5BC3B56F8F /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AFBF751AC8F954D8A90AA2 /* API.swift */; };
+		1EBA1934730015361563801C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DA89D2D58FF3ACC642E6D9 /* HomeView.swift */; };
+		22CDB1CA2E6CA4FAF03C7AFE /* RequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A39BF842A6016906ACD619 /* RequestView.swift */; };
+		267A8104E679466DC05D340A /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1CE99992C4677E89A7934E /* Tokens.swift */; };
+		2F29EEA8B9A2B5FF495B9559 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDAE794D2FCD41C28ECE501A /* Keychain.swift */; };
+		4909BB21DE4C54FD4E2EB4D1 /* PushRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F351EF6145F4F93F8A38007 /* PushRegistrar.swift */; };
+		49AA4080101B84B84AE5837A /* CaseDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5576383025328C9BFFC50188 /* CaseDetailView.swift */; };
+		5ABE5213EEBF08E39A2E89FD /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E3D5640F87EE218F3AF628 /* Models.swift */; };
+		5DD773FAFDB6915F1BBF14F7 /* PhoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8AAA029123EF8F60C0A6E5E /* PhoneView.swift */; };
+		6339434BAA985D6CADB821F8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A53C02F39BBB86879FF62E2 /* AppDelegate.swift */; };
+		80AD460B8B439CF8F4EDF5DF /* VisaFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F4BC01FF742469A717851C /* VisaFlowApp.swift */; };
+		877B41AD5768429B609A7899 /* DemoAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62AA41ED6462F6A094B45D1D /* DemoAPI.swift */; };
+		8B0E5290FEBFA6D42B5A8256 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B6B04F606370FFD9DDA303 /* SettingsView.swift */; };
+		917B38149C110F626C3AF1A8 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08833CF768F77C26F7B2CCD1 /* LocalizationTests.swift */; };
+		A94793F6A0742B859F1D53EA /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6FC1359DF3DDE6BB342990D /* Session.swift */; };
+		B53D7DC23AB8E9EE01B1A036 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F09C338B45B97C3DEC9917 /* MessagesView.swift */; };
+		C84E79AA0FC32E38288310B5 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A221BCCF9D12DE8E5CA65B19 /* Localizable.strings */; };
+		D1B330E921FECD7CB0258BEF /* CodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DEA0DC7194B3A7D2FC54D9 /* CodeView.swift */; };
+		F317C0C54EBD4BB4B67D756C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135B44F69259AC54E9E67ED2 /* RootView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		671D6E48B81E158A623EAEDB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 86F3E5C11D079EEF4BDE2031 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E244D47288804F2BD7BAE0F3;
+			remoteInfo = VisaFlow;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		08833CF768F77C26F7B2CCD1 /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
+		09530D31BB25723B52859277 /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		12F4BC01FF742469A717851C /* VisaFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisaFlowApp.swift; sourceTree = "<group>"; };
+		135B44F69259AC54E9E67ED2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		15E3D5640F87EE218F3AF628 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		2A53C02F39BBB86879FF62E2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		34D0858DFAFCCBB7E6E8889E /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		3CFF3A5681292C4809888B85 /* VisaFlow.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VisaFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		42AD78DBDF56909F5180FEDC /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
+		5576383025328C9BFFC50188 /* CaseDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaseDetailView.swift; sourceTree = "<group>"; };
+		62AA41ED6462F6A094B45D1D /* DemoAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAPI.swift; sourceTree = "<group>"; };
+		689E288C23BD9C0C25721EA6 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		6F351EF6145F4F93F8A38007 /* PushRegistrar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRegistrar.swift; sourceTree = "<group>"; };
+		74F09C338B45B97C3DEC9917 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
+		77AFBF751AC8F954D8A90AA2 /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
+		7C1CE99992C4677E89A7934E /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
+		84B6B04F606370FFD9DDA303 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		91A39BF842A6016906ACD619 /* RequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestView.swift; sourceTree = "<group>"; };
+		A3DA89D2D58FF3ACC642E6D9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AB9791776D28A73865DFF680 /* VisaFlowTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VisaFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE2130AB4A2643581D7DBAEF /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		D1DEA0DC7194B3A7D2FC54D9 /* CodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeView.swift; sourceTree = "<group>"; };
+		D8AAA029123EF8F60C0A6E5E /* PhoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneView.swift; sourceTree = "<group>"; };
+		E6FC1359DF3DDE6BB342990D /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
+		EDAE794D2FCD41C28ECE501A /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		EDF47C4EAAC521DB83CE8617 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		F38FFBFF042C64221A5DCFA1 /* ShipmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipmentDetailView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1FA48F6E063642F85392B071 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				A3DA89D2D58FF3ACC642E6D9 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		26DCFF0BEACE83BC29F8C7BF /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2A53C02F39BBB86879FF62E2 /* AppDelegate.swift */,
+				135B44F69259AC54E9E67ED2 /* RootView.swift */,
+				12F4BC01FF742469A717851C /* VisaFlowApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		3634F4F2B50E3A6D1E0BCF04 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3CFF3A5681292C4809888B85 /* VisaFlow.app */,
+				AB9791776D28A73865DFF680 /* VisaFlowTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3A678EEE008845D20A1074D9 /* Request */ = {
+			isa = PBXGroup;
+			children = (
+				91A39BF842A6016906ACD619 /* RequestView.swift */,
+			);
+			path = Request;
+			sourceTree = "<group>";
+		};
+		6B59CA9D10E41BDC909D87D6 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				84B6B04F606370FFD9DDA303 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		6C400F9A2067D69A3A9BC16C /* VisaFlowTests */ = {
+			isa = PBXGroup;
+			children = (
+				08833CF768F77C26F7B2CCD1 /* LocalizationTests.swift */,
+				09530D31BB25723B52859277 /* ModelTests.swift */,
+			);
+			path = VisaFlowTests;
+			sourceTree = "<group>";
+		};
+		83D7D0EB79AC896213AE738C /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				26DCFF0BEACE83BC29F8C7BF /* App */,
+				C09D583251FBEB19A651C36D /* Data */,
+				AE5BCB4365963CC81114770E /* Design */,
+				F08B1AB6C384444D27823AF2 /* Features */,
+				CDB91841D9E1B5DD677B6005 /* Model */,
+				B027024EB94057B792E7D5CF /* Notifications */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		8A5448EE954562927974A911 /* Messages */ = {
+			isa = PBXGroup;
+			children = (
+				74F09C338B45B97C3DEC9917 /* MessagesView.swift */,
+			);
+			path = Messages;
+			sourceTree = "<group>";
+		};
+		9DFC5C5DEA0386D25987EEFB /* Access */ = {
+			isa = PBXGroup;
+			children = (
+				D1DEA0DC7194B3A7D2FC54D9 /* CodeView.swift */,
+				D8AAA029123EF8F60C0A6E5E /* PhoneView.swift */,
+			);
+			path = Access;
+			sourceTree = "<group>";
+		};
+		A6CCE45EE1799ED406D56A54 /* Shipment */ = {
+			isa = PBXGroup;
+			children = (
+				F38FFBFF042C64221A5DCFA1 /* ShipmentDetailView.swift */,
+			);
+			path = Shipment;
+			sourceTree = "<group>";
+		};
+		AE5BCB4365963CC81114770E /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				CE2130AB4A2643581D7DBAEF /* Components.swift */,
+				7C1CE99992C4677E89A7934E /* Tokens.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		B027024EB94057B792E7D5CF /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				6F351EF6145F4F93F8A38007 /* PushRegistrar.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		B2FBB3659D54E3D4349CB192 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				6C400F9A2067D69A3A9BC16C /* VisaFlowTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		BF5A55F803601CF46B594FED /* Case */ = {
+			isa = PBXGroup;
+			children = (
+				5576383025328C9BFFC50188 /* CaseDetailView.swift */,
+			);
+			path = Case;
+			sourceTree = "<group>";
+		};
+		C09D583251FBEB19A651C36D /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				77AFBF751AC8F954D8A90AA2 /* API.swift */,
+				62AA41ED6462F6A094B45D1D /* DemoAPI.swift */,
+				EDAE794D2FCD41C28ECE501A /* Keychain.swift */,
+				E6FC1359DF3DDE6BB342990D /* Session.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		C78641814C8D5DF909F3EA6F = {
+			isa = PBXGroup;
+			children = (
+				FA88D3A8DA66589914EF0052 /* Resources */,
+				83D7D0EB79AC896213AE738C /* Sources */,
+				B2FBB3659D54E3D4349CB192 /* Tests */,
+				3634F4F2B50E3A6D1E0BCF04 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CDB91841D9E1B5DD677B6005 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				15E3D5640F87EE218F3AF628 /* Models.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		F08B1AB6C384444D27823AF2 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				9DFC5C5DEA0386D25987EEFB /* Access */,
+				BF5A55F803601CF46B594FED /* Case */,
+				1FA48F6E063642F85392B071 /* Home */,
+				8A5448EE954562927974A911 /* Messages */,
+				3A678EEE008845D20A1074D9 /* Request */,
+				6B59CA9D10E41BDC909D87D6 /* Settings */,
+				A6CCE45EE1799ED406D56A54 /* Shipment */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		FA88D3A8DA66589914EF0052 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A221BCCF9D12DE8E5CA65B19 /* Localizable.strings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9CE9C709668692FDFC12CF15 /* VisaFlowTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BFE844DCD1F15C5B6F4455D1 /* Build configuration list for PBXNativeTarget "VisaFlowTests" */;
+			buildPhases = (
+				0B339B3B937C30213F44B010 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4EB4E1D589F92F0DA05F7DB4 /* PBXTargetDependency */,
+			);
+			name = VisaFlowTests;
+			packageProductDependencies = (
+			);
+			productName = VisaFlowTests;
+			productReference = AB9791776D28A73865DFF680 /* VisaFlowTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E244D47288804F2BD7BAE0F3 /* VisaFlow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F7796C6AB678374918C689CB /* Build configuration list for PBXNativeTarget "VisaFlow" */;
+			buildPhases = (
+				12593F94537289CE9132E660 /* Sources */,
+				ECD8C065744A84E4223A89DB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VisaFlow;
+			packageProductDependencies = (
+			);
+			productName = VisaFlow;
+			productReference = 3CFF3A5681292C4809888B85 /* VisaFlow.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		86F3E5C11D079EEF4BDE2031 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9CE9C709668692FDFC12CF15 = {
+						DevelopmentTeam = ZJ9M4ZSGKT;
+					};
+					E244D47288804F2BD7BAE0F3 = {
+						DevelopmentTeam = ZJ9M4ZSGKT;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 69CFDA187DA1843720A4FFDF /* Build configuration list for PBXProject "VisaFlow" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ar,
+				en,
+				fr,
+				"zh-Hans",
+			);
+			mainGroup = C78641814C8D5DF909F3EA6F;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3634F4F2B50E3A6D1E0BCF04 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E244D47288804F2BD7BAE0F3 /* VisaFlow */,
+				9CE9C709668692FDFC12CF15 /* VisaFlowTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		ECD8C065744A84E4223A89DB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C84E79AA0FC32E38288310B5 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0B339B3B937C30213F44B010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				917B38149C110F626C3AF1A8 /* LocalizationTests.swift in Sources */,
+				0AC1C358D02ED10B0FA50075 /* ModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		12593F94537289CE9132E660 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B059EF993523E5BC3B56F8F /* API.swift in Sources */,
+				6339434BAA985D6CADB821F8 /* AppDelegate.swift in Sources */,
+				49AA4080101B84B84AE5837A /* CaseDetailView.swift in Sources */,
+				D1B330E921FECD7CB0258BEF /* CodeView.swift in Sources */,
+				17B4294664BD0C91A510B725 /* Components.swift in Sources */,
+				877B41AD5768429B609A7899 /* DemoAPI.swift in Sources */,
+				1EBA1934730015361563801C /* HomeView.swift in Sources */,
+				2F29EEA8B9A2B5FF495B9559 /* Keychain.swift in Sources */,
+				B53D7DC23AB8E9EE01B1A036 /* MessagesView.swift in Sources */,
+				5ABE5213EEBF08E39A2E89FD /* Models.swift in Sources */,
+				5DD773FAFDB6915F1BBF14F7 /* PhoneView.swift in Sources */,
+				4909BB21DE4C54FD4E2EB4D1 /* PushRegistrar.swift in Sources */,
+				22CDB1CA2E6CA4FAF03C7AFE /* RequestView.swift in Sources */,
+				F317C0C54EBD4BB4B67D756C /* RootView.swift in Sources */,
+				A94793F6A0742B859F1D53EA /* Session.swift in Sources */,
+				8B0E5290FEBFA6D42B5A8256 /* SettingsView.swift in Sources */,
+				16BBE6CCE34AEF28E32553A9 /* ShipmentDetailView.swift in Sources */,
+				267A8104E679466DC05D340A /* Tokens.swift in Sources */,
+				80AD460B8B439CF8F4EDF5DF /* VisaFlowApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4EB4E1D589F92F0DA05F7DB4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E244D47288804F2BD7BAE0F3 /* VisaFlow */;
+			targetProxy = 671D6E48B81E158A623EAEDB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		A221BCCF9D12DE8E5CA65B19 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				42AD78DBDF56909F5180FEDC /* ar */,
+				689E288C23BD9C0C25721EA6 /* en */,
+				34D0858DFAFCCBB7E6E8889E /* fr */,
+				EDF47C4EAAC521DB83CE8617 /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		08358F817DDA5F7EE1BF80A7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.capmedia.visaflow.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VisaFlow.app/VisaFlow";
+			};
+			name = Release;
+		};
+		221CF0E118401557A80EA153 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.capmedia.visaflow;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		32C5ACF251F1833F3432CE2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.capmedia.visaflow.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VisaFlow.app/VisaFlow";
+			};
+			name = Debug;
+		};
+		3CDF79D1629A050AAD1C6150 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ZJ9M4ZSGKT;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		9405A3A05986BA55443B1A74 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ZJ9M4ZSGKT;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		F88C981512D59A99EF317653 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.capmedia.visaflow;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		69CFDA187DA1843720A4FFDF /* Build configuration list for PBXProject "VisaFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CDF79D1629A050AAD1C6150 /* Debug */,
+				9405A3A05986BA55443B1A74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BFE844DCD1F15C5B6F4455D1 /* Build configuration list for PBXNativeTarget "VisaFlowTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				32C5ACF251F1833F3432CE2B /* Debug */,
+				08358F817DDA5F7EE1BF80A7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F7796C6AB678374918C689CB /* Build configuration list for PBXNativeTarget "VisaFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F88C981512D59A99EF317653 /* Debug */,
+				221CF0E118401557A80EA153 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 86F3E5C11D079EEF4BDE2031 /* Project object */;
+}

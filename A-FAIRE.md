@@ -13,6 +13,17 @@ faire à ta place.
 - [ ] **Décider du modèle.** Ma recommandation : licence mensuelle fixe par agence,
       400 à 800 DT, plutôt qu'une commission par dossier chez un membre de la famille.
 
+## Ce que j'attends de toi pour brancher le backend
+
+- [ ] **Supabase.** Créer le projet, choisir la région, et me donner l'URL et la
+      clé publique (`anon`). Jamais la clé de service.
+- [ ] Une fois le projet créé, appliquer les douze migrations (`supabase db push`)
+      et déclarer le hook de jeton d'accès. Tout est expliqué dans
+      `supabase/README.md`.
+- [ ] **Le compte développeur Apple.** L'app iOS est prête à être signée :
+      identifiant `app.capmedia.visaflow`, équipe `ZJ9M4ZSGKT`. Il faut créer la
+      fiche dans App Store Connect et la clé APNs pour les notifications.
+
 ## Comptes et accès à ouvrir
 
 - [ ] **Supabase.** Créer le projet, choisir la région, me donner l'URL et la clé
