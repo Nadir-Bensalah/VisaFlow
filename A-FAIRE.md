@@ -17,9 +17,18 @@ faire à ta place.
 
 - [ ] **Supabase.** Créer le projet, choisir la région, et me donner l'URL et la
       clé publique (`anon`). Jamais la clé de service.
-- [ ] Une fois le projet créé, appliquer les douze migrations (`supabase db push`)
+- [ ] Une fois le projet créé, appliquer les quatorze migrations (`supabase db push`)
       et déclarer le hook de jeton d'accès. Tout est expliqué dans
       `supabase/README.md`.
+- [ ] **Le coffre, pour WhatsApp.** Une fois le jeton Meta obtenu, le poser dans
+      le coffre Supabase et non dans une table :
+      `select vault.create_secret('EAAG…', 'wa_token_tca');`
+      Puis déployer les deux fonctions de bord (`supabase/functions/README.md`).
+- [ ] **Le compte Google Play.** L'app Android est prête : identifiant
+      `app.capmedia.visaflow`, APK de production à 1,3 Mo. Il faut le compte
+      développeur (25 dollars une fois), la clé de signature, et la fiche.
+      Android représente 84,7 % des terminaux en Libye et 82,5 % en Tunisie :
+      c'est la plateforme qui compte le plus ici.
 - [ ] **Le compte développeur Apple.** L'app iOS est prête à être signée :
       identifiant `app.capmedia.visaflow`, équipe `ZJ9M4ZSGKT`. Il faut créer la
       fiche dans App Store Connect et la clé APNs pour les notifications.
@@ -75,3 +84,30 @@ Le détail est dans `docs/11-ce-qui-reste.md`. Les trois qui comptent :
       numéro de l'agence.
 - [ ] Le **portail client** doit-il montrer le solde restant à payer ? C'est utile
       pour encaisser, gênant si le client est mal à l'aise. À trancher avec l'agence.
+
+## Ce que l'étude de marché a fait remonter, et qui te revient
+
+- [ ] **Les vraies listes de pièces par statut professionnel.** L'étude a établi
+      qu'une checklist « France » n'existe pas : il faut France plus salarié,
+      France plus indépendant, France plus étudiant, France plus retraité, France
+      plus mineur. Le champ existe dans le logiciel, les listes sont à rapporter
+      de l'agence.
+- [ ] **Vérifier le délai de recours devant la CRRV.** Les sources publiques se
+      contredisent, 30 jours contre 2 mois. Le logiciel le stocke comme un
+      paramètre par consulat, avec sa source et sa date de vérification : il faut
+      la bonne valeur, poste par poste.
+- [ ] **Confirmer que ta société tunisienne porte bien le projet.** L'article 22
+      de la loi 2004-63 exige que le sous-traitant soit tunisien et résident. Tu
+      remplis la condition, mais fais-le confirmer par un avocat avant de signer
+      avec une agence qui n'est pas de la famille.
+- [ ] **L'audit de sécurité annuel.** Le décret-loi 2023-17 l'impose tous les
+      12 mois à qui traite des données personnelles via les réseaux de télécoms,
+      sous peine de 50 000 à 100 000 DT. À budgéter, et l'INPDP en réclame une
+      copie au dossier de déclaration.
+- [ ] **La grille tarifaire par unité d'œuvre.** L'article 3 de la circulaire BCT
+      2016-09 fait refuser par la banque le transfert d'un forfait annuel sec.
+      « 45 DT par utilisateur et par mois, pour 6 utilisateurs » passe ;
+      « 2 490 DT par an » est refusable. À décider avant la première facture.
+- [ ] **L'adhésion TTN.** La facture électronique est obligatoire pour les
+      prestataires de services depuis le 1er janvier 2026, mais l'obligation ne
+      mord qu'à l'adhésion effective au réseau. Déposer la demande.
