@@ -1,0 +1,14 @@
+# Le projet, décrit dans le dépôt plutôt que dans le cache de la CLI.
+# `supabase link --project-ref ppzjkvgfgoxmdbbsphbr` suffit ensuite.
+project_id = "ppzjkvgfgoxmdbbsphbr"
+
+[db]
+major_version = 17
+
+[functions.whatsapp-webhook]
+# Meta n'a pas de jeton Supabase à présenter. C'est la signature
+# X-Hub-Signature-256 qui protège cette adresse, pas le JWT.
+verify_jwt = false
+
+[functions.whatsapp-send]
+verify_jwt = true

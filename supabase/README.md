@@ -1,6 +1,28 @@
 # Le backend
 
-Quatorze migrations, trois bancs d'essai, cinquante-huit assertions, deux fonctions de bord, et rien qui ne soit vérifié.
+Seize migrations, quatre bancs d'essai, soixante-sept assertions, deux fonctions de bord, et rien qui ne soit vérifié.
+
+## La leçon des migrations 0015 et 0016
+
+Le schéma a d'abord été poussé sur la vraie base le 8 septembre 2026. Trois
+fautes sont apparues aussitôt, qu'aucun banc ne voyait :
+
+1. **`authenticated` n'avait aucun droit sur les 45 tables.** Les 148
+   politiques n'étaient jamais atteintes : PostgreSQL refusait avant. L'espace
+   agence n'aurait rien affiché. Le banc local posait un `grant all` que
+   Supabase ne pose pas.
+2. **`anon` et `authenticated` détenaient TRUNCATE** sur tout le schéma, par
+   les droits par défaut de Supabase. La sécurité au niveau des lignes ne
+   s'applique pas à TRUNCATE : une politique qui filtre ligne par ligne ne
+   sert à rien face à un ordre qui vide la table.
+3. **`purge_expired` et `run_automations` étaient appelables par un anonyme**,
+   toutes deux SECURITY DEFINER et sans garde interne. PostgreSQL accorde
+   EXECUTE à PUBLIC par défaut, sur toute fonction.
+
+Le harness a été rendu aussi strict que la production, et `tests/droits.sql`
+vérifie désormais les deux couches : le droit de toucher la table, puis la
+politique qui filtre. La première fois qu'il a tourné, il a trouvé une
+signature de plus, `release_passport(uuid, boolean)`, restée sans droit.
 
 ## Appliquer
 

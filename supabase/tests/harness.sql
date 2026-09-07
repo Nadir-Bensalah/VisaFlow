@@ -33,9 +33,19 @@ do $$ begin
 end $$;
 
 grant usage on schema public, auth, storage to authenticated, anon, service_role;
-alter default privileges in schema public grant all on tables to authenticated, anon, service_role;
-alter default privileges in schema public grant all on sequences to authenticated, anon, service_role;
-alter default privileges in schema public grant execute on functions to authenticated, anon, service_role;
+
+-- Ce banc accordait autrefois `grant all` par défaut à tout le monde. Il était
+-- donc plus permissif que la production, et il a masqué pendant des semaines
+-- le fait que `authenticated` n'avait AUCUN droit sur les 45 tables : les
+-- politiques n'étaient jamais atteintes, PostgreSQL refusait avant.
+--
+-- La règle tient maintenant : le banc n'accorde rien que la production
+-- n'accorde. C'est la migration 0015 qui distribue les droits, ici comme
+-- là-bas, et le banc les vérifie (voir droits.sql).
+--
+-- La clé de service contourne tout, elle, et c'est sa raison d'être.
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
 
 -- Se faire passer pour quelqu'un, le temps d'un test.
 create or replace function test_login(p_user uuid, p_agency uuid, p_role text, p_office uuid)
