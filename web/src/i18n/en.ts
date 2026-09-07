@@ -390,4 +390,16 @@ export const en: Dict = {
     announced: 'Announced processing (days)',
     none: 'No consulate registered.',
   },
+  file: {
+    drop: 'Add a file',
+    busy: 'Saving…',
+    limits: 'JPG, PNG, HEIC or PDF, 12 MB max.',
+    trop_gros: 'File too large. Crop the photo or lower the resolution.',
+    type_refuse: 'Format refused. A photo or a PDF, nothing else.',
+    vide: 'Empty file.',
+    stockage: 'Could not save the file on this device.',
+    uploaded: 'Document added.',
+    removed: 'Document removed.',
+    byClient: 'Uploaded by the client',
+  },
 }

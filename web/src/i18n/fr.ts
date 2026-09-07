@@ -742,6 +742,18 @@ export const fr = {
     announced: 'Délai annoncé (jours)',
     none: 'Aucun consulat enregistré.',
   },
+  file: {
+    drop: 'Déposer un fichier',
+    busy: 'Enregistrement…',
+    limits: 'JPG, PNG, HEIC ou PDF, 12 Mo au plus.',
+    trop_gros: 'Fichier trop lourd. Recadrez la photo ou réduisez la définition.',
+    type_refuse: 'Format refusé. Une photo ou un PDF, rien d’autre.',
+    vide: 'Fichier vide.',
+    stockage: 'Impossible d’enregistrer le fichier sur cet appareil.',
+    uploaded: 'Pièce déposée.',
+    removed: 'Pièce retirée.',
+    byClient: 'Déposé par le client',
+  },
 } as const
 
 /** Meme forme que le francais, mais chaque feuille est un simple string :

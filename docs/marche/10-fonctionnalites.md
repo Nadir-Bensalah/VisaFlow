@@ -58,8 +58,8 @@ Statut : **[F]** fait · **[P]** partiel, existe mais incomplet · **[À]** à f
 | C11 | Registre de garde des passeports, avec blocage de restitution sur solde impayé | **[F]** | Remplacer un passeport libyen coûte vingt fois sa délivrance |
 | C12 | Journal d'accès aux pièces : qui a ouvert quoi, quand | **[F]** | Conformité, et seul moyen de tracer une fuite |
 | C13 | Purge automatique par politique de rétention et par type de pièce | **[F]** | Un passeport scanné n'a pas la durée de vie d'une facture |
-| C14 | **Téléversement réel des pièces** | **[À]** | Les seaux et les règles existent, l'interface de dépôt non |
-| C15 | **Contrôle automatique de la pièce déposée** (lisibilité, format, taille, expiration du document) | **[À]** | Une pièce refusée par le consulat est un dossier perdu et un client furieux |
+| C14 | **Téléversement réel des pièces** | **[F]** | Les seaux et les règles existent, l'interface de dépôt non |
+| C15 | **Contrôle automatique de la pièce déposée** (format, taille, fichier vide) | **[P]** | Une pièce refusée par le consulat est un dossier perdu et un client furieux |
 
 ## D. Le rendez-vous, le vrai produit
 
@@ -183,7 +183,7 @@ C'est le module qui porte l'essentiel de la marge. Il est aujourd'hui le plus fa
 | K1 | Application iOS native | **[F]** | Swift 6, zéro dépendance externe |
 | K2 | **Application Android native** | **[À]** | **Android représente 84,7 % en Libye et 82,5 % en Tunisie.** C'est la plateforme majoritaire, de loin |
 | K3 | Quatre langues, RTL natif | **[F]** | Pas seulement traduit : ordre des colonnes, sens des flèches, alignement des montants |
-| K4 | Dépôt de pièce depuis l'appareil photo | **[À]** | Le geste naturel du client |
+| K4 | Dépôt de pièce depuis l'appareil photo | **[F]** | Le geste naturel du client |
 | K5 | Notification à chaque changement d'étape | **[P]** | |
 | K6 | Test prioritaire sur Chrome mobile Android | **[À]** | 71,9 % des navigateurs mobiles en Libye |
 

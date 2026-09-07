@@ -111,6 +111,11 @@ interface Actions {
   saveRule: (rule: Database['rules'][number]) => void
   removeRule: (ruleId: string) => void
   updateAgency: (patch: Partial<Database['agency']>) => void
+  /** Rattache un fichier déposé à une pièce. La pièce passe reçue d'office :
+      déposer, c'est remettre. */
+  attachFile: (docId: string, file: { key: string; name: string; size: number; type: string }, byClient?: boolean) => void
+  detachFile: (docId: string) => void
+  attachShipmentFile: (docId: string, file: { key: string; name: string; size: number; type: string }) => void
   /* Creneaux */
   joinQueue: (input: { caseId: string; consulateId: string; priority?: Priority; note?: string }) => void
   leaveQueue: (entryId: string) => void
@@ -1016,6 +1021,54 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return next
       })
 
+    const attachFile: Actions['attachFile'] = (docId, file, byClient) =>
+      setDb((prev) => {
+        const doc = prev.documents.find((d) => d.id === docId)
+        if (!doc) return prev
+        let next: Database = {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === docId
+              ? {
+                  ...d,
+                  fileKey: file.key, fileName: file.name, fileSize: file.size, fileType: file.type,
+                  uploadedAt: nowIso(), uploadedBy: byClient ? undefined : currentUserId,
+                  // Déposer, c'est remettre. Une pièce refusée qu'on redépose
+                  // repart de « reçue », pas de « refusée ».
+                  state: 'recue', receivedAt: nowIso(), rejectionReason: undefined,
+                }
+              : d,
+          ),
+        }
+        next = log(next, 'piece_recue', {
+          fr: `${doc.label.fr} déposée.`,
+          en: `${doc.label.en ?? doc.label.fr} uploaded.`,
+          ar: `${doc.label.ar ?? doc.label.fr} تم إيداعها.`,
+          zh: `${doc.label.zh ?? doc.label.fr} 已上传。`,
+        }, doc.caseId, byClient)
+        return next
+      })
+
+    const detachFile: Actions['detachFile'] = (docId) =>
+      setDb((prev) => ({
+        ...prev,
+        documents: prev.documents.map((d) =>
+          d.id === docId
+            ? { ...d, fileKey: undefined, fileName: undefined, fileSize: undefined, fileType: undefined, uploadedAt: undefined, uploadedBy: undefined, state: 'demandee' }
+            : d,
+        ),
+      }))
+
+    const attachShipmentFile: Actions['attachShipmentFile'] = (docId, file) =>
+      setDb((prev) => ({
+        ...prev,
+        shipmentDocs: prev.shipmentDocs.map((d) =>
+          d.id === docId
+            ? { ...d, fileKey: file.key, fileName: file.name, fileSize: file.size, fileType: file.type, state: 'recue', receivedAt: nowIso() }
+            : d,
+        ),
+      }))
+
     const reset: Actions['reset'] = () => setDb(buildSeed(slug))
 
     const exportJson: Actions['exportJson'] = () => JSON.stringify(db, null, 2)
@@ -1027,6 +1080,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       refuseRequest, markSetup, hideSetup, updateClient, clearAll, stepBackShipment, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
       saveTemplate, removeTemplate, saveVisaType, removeVisaType, saveChecklistItem,
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
+      attachFile, detachFile, attachShipmentFile,
       joinQueue, leaveQueue, setQueuePriority, serveQueue, logAttempt, saveConsulate,
       removeConsulate, recordDecision,
     }

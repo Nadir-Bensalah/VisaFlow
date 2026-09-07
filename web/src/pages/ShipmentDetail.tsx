@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Avatar, Button, Card, Empty, Pill, Progress, useToast } from '@/components/ui'
 import { ShipmentEditor } from '@/components/ShipmentEditor'
 import { Icon } from '@/components/Icon'
+import { FileDrop } from '@/components/FileDrop'
 import { Ago, Countdown, DocPill, PageHead } from '@/components/bits'
 import { SHIPMENT_STAGES, SHIPMENT_TONE, clientName, shipmentLate, shipmentProgress } from '@/lib/derive'
 
@@ -91,9 +92,17 @@ export function ShipmentDetail() {
               {docs.map((d) => (
                 <div key={d.id} className="list__row">
                   <Icon name="documents" size={18} className="t-tertiary" />
-                  <span className="col grow" style={{ minWidth: 0 }}>
+                  <span className="col grow gap-2" style={{ minWidth: 0 }}>
                     <span className="t-small t-medium">{tt(d.label)}</span>
-                    <span className="t-caption t-tertiary">{d.fileName ?? t('portal.uploadHint')}</span>
+                    {/* Le connaissement et la facture arrivent en PDF : ils
+                        doivent vivre dans le dossier, pas dans une boîte mail. */}
+                    <FileDrop
+                      scope="cargaison"
+                      id={d.id}
+                      current={d.fileKey ? { key: d.fileKey, name: d.fileName, size: d.fileSize, type: d.fileType } : undefined}
+                      onAttach={(f) => { actions.attachShipmentFile(d.id, f); toast(t('file.uploaded')) }}
+                      compact
+                    />
                   </span>
                   <DocPill state={d.state} />
                   {d.state !== 'validee' && (

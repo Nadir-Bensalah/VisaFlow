@@ -924,3 +924,75 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   [dir='rtl'] .switch[aria-checked='true']::after { transform: translateX(-20px); }
   .input, .select, .textarea { min-height: 44px; font-size: 16px; }
 }
+
+/* ---------------------------- Dépôt de pièce ------------------------- */
+
+.filedrop {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4);
+  border: 1px dashed var(--hairline-strong, var(--hairline));
+  border-radius: var(--r-md);
+  background: var(--surface-sunken, transparent);
+  color: var(--text-secondary);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.filedrop--compact { padding: var(--sp-3); }
+.filedrop:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.filedrop--over { border-color: var(--accent); background: var(--tint-blue); color: var(--accent); }
+.filedrop:disabled { opacity: 0.5; cursor: default; }
+.filedrop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.filecard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.filecard--compact { padding: var(--sp-1) var(--sp-2); }
+
+.filecard__thumb {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  background: var(--fill);
+}
+
+.filecard__thumb--doc {
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+}
+
+.filecard__act {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.filecard__act:hover { background: var(--fill); color: var(--text); }
+.filecard__act:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+@media (pointer: coarse) {
+  .filecard__act { width: 44px; height: 44px; }
+  .filedrop { padding: var(--sp-5); }
+}

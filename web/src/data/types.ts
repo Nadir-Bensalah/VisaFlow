@@ -318,6 +318,15 @@ export interface CaseDocument {
   rejectionReason?: string
   expiresAt?: string
   fileName?: string
+  /** Clé opaque du fichier déposé. Jamais le nom d'origine : deux clients
+      déposent deux « passeport.pdf », et un nom d'origine contient parfois
+      n'importe quoi. */
+  fileKey?: string
+  fileSize?: number
+  fileType?: string
+  uploadedAt?: string
+  /** Qui a déposé : un employé, ou le client depuis son portail. */
+  uploadedBy?: string
   reminders: number
   lastReminderAt?: string
 }
@@ -515,6 +524,9 @@ export interface ShipmentDocument {
   state: DocState
   required: boolean
   fileName?: string
+  fileKey?: string
+  fileSize?: number
+  fileType?: string
   receivedAt?: string
   reminders: number
 }

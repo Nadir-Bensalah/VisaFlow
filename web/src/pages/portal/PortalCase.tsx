@@ -4,6 +4,7 @@ import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Card, Empty, Pill, Progress, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
+import { FileDrop } from '@/components/FileDrop'
 import { progress, queueRank, realWaitDays } from '@/lib/derive'
 import type { Locale } from '@/data/types'
 
@@ -99,14 +100,18 @@ export function PortalCase() {
                         <span className="t-caption" style={{ color: 'var(--red)' }}>{d.rejectionReason}</span>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      icon="upload"
-                      onClick={() => { actions.setDocState(d.id, 'recue'); toast(t('action.upload')) }}
-                    >
-                      {t('action.upload')}
-                    </Button>
+                    {/* Le geste naturel du client est la photo prise avec son
+                        téléphone. Elle arrive ici, pas dans un fil WhatsApp. */}
+                    <div style={{ minWidth: 200, flex: '1 1 200px' }}>
+                      <FileDrop
+                        scope="dossier"
+                        id={d.id}
+                        current={d.fileKey ? { key: d.fileKey, name: d.fileName, size: d.fileSize, type: d.fileType } : undefined}
+                        onAttach={(f) => { actions.attachFile(d.id, f, true); toast(t('file.uploaded')) }}
+                        onDetach={() => { actions.detachFile(d.id); toast(t('file.removed')) }}
+                        compact
+                      />
+                    </div>
                   </div>
                 ))}
                 <span className="t-caption t-tertiary">{t('caseDetail.completion', { done: p.done, total: p.total })}</span>

@@ -7,6 +7,7 @@ import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Selec
 import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { CaseEditor } from '@/components/CaseEditor'
+import { FileDrop } from '@/components/FileDrop'
 import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank } from '@/lib/derive'
 import type { AppointmentKind, Channel, DocState, PaymentMethod, RefusalCode } from '@/data/types'
 
@@ -368,10 +369,23 @@ function DocsTab({ caseId }: { caseId: string }) {
               {d.reminders > 0 && ` · ${t('docs.reminders')} ${d.reminders}`}
               {d.validatedAt && ` · ${t('docs.validated')} ${formatDate(d.validatedAt)}`}
               {d.validatedBy && ` · ${db.users.find((u) => u.id === d.validatedBy)?.name ?? ''}`}
+              {d.uploadedAt && !d.uploadedBy && ` · ${t('file.byClient')}`}
             </span>
             {d.rejectionReason && d.state === 'refusee' && (
               <span className="t-caption" style={{ color: 'var(--red)' }}>{d.rejectionReason}</span>
             )}
+            {/* Le dépôt réel. Sans lui, le logiciel restait un cahier de suivi
+                et la pièce vivait dans un fil WhatsApp. */}
+            <div style={{ marginTop: 'var(--sp-2)', maxWidth: 360 }}>
+              <FileDrop
+                scope="dossier"
+                id={d.id}
+                current={d.fileKey ? { key: d.fileKey, name: d.fileName, size: d.fileSize, type: d.fileType } : undefined}
+                onAttach={(f) => { actions.attachFile(d.id, f); toast(t('file.uploaded')) }}
+                onDetach={() => { actions.detachFile(d.id); toast(t('file.removed')) }}
+                compact
+              />
+            </div>
           </div>
           <DocPill state={d.state} />
           <div className="row gap-1">

@@ -389,4 +389,16 @@ export const zh: Dict = {
     announced: '公布处理时长（天）',
     none: '尚未登记领事馆。',
   },
+  file: {
+    drop: '添加文件',
+    busy: '保存中…',
+    limits: 'JPG、PNG、HEIC 或 PDF，最大 12 MB。',
+    trop_gros: '文件过大。请裁剪照片或降低分辨率。',
+    type_refuse: '格式不接受。只收照片或 PDF。',
+    vide: '空文件。',
+    stockage: '无法在此设备上保存文件。',
+    uploaded: '材料已上传。',
+    removed: '材料已移除。',
+    byClient: '由客户上传',
+  },
 }
