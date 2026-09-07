@@ -189,6 +189,33 @@ C'est le module qui porte l'essentiel de la marge. Il est aujourd'hui le plus fa
 
 ---
 
+## L. La conformité, ce que le droit impose au produit
+
+Tirée du relevé légal (`04-cadre-legal.md`). Ces lignes ne sont pas négociables : elles portent des amendes chiffrées.
+
+| # | Fonctionnalité | Statut | Pourquoi |
+|---|---|---|---|
+| L1 | **Alerte dès qu'un encaissement en espèces atteint 5 000 DT**, avec proposition de fractionnement | **[À]** | Article 83 ter du CDPF : **amende de 20 % du montant, minimum 2 000 DT**. Un dossier Omra à 6 000 DT en liquide coûte 1 200 DT à l'agence |
+| L2 | **Timbre fiscal de 1,000 DT par facture**, avec la mention « droit de timbre payé sur déclaration » | **[À]** | Depuis le 1er janvier 2023. Le tarif progressif de la LF 2026 ne vise que les grandes surfaces |
+| L3 | Numérotation en **série ininterrompue**, matricule fiscal des deux parties, tribunal et numéro RC, forme sociale et capital | **[À]** | Art. 18 II du code TVA, art. 25 de la loi 91-64, art. 67 de la loi 95-44 |
+| L4 | Émission TTN : signature électronique et **référence unique**, copie papier portant la mention réglementaire | **[À]** | L'obligation ne mord qu'à l'adhésion effective au réseau. Sanction : 100 à 500 DT par facture, plafond 50 000 DT |
+| L5 | **La purge produit un rapport de destruction horodaté et exportable** | **[P]** | Article 45 de la loi 2004-63 : la destruction suppose un **procès-verbal d'huissier** en présence d'un expert désigné par l'Instance. Effacer en silence ne suffit pas |
+| L6 | Durée de conservation **paramétrée par type de pièce**, 10 ans pour le comptable, courte et déclarée pour les passeports | **[F]** | C'est l'agence qui fixe la durée dans sa déclaration, et elle est tenue par elle |
+| L7 | **Le contrat client refuse** les clauses exonératoires, celles modifiant les modes de preuve, et celles attribuant compétence à un tribunal étranger | **[À]** | Art. 28 du décret-loi 73-13 et art. 10 et 17 de la loi 92-117 : nullité de plein droit |
+| L8 | **Politique de remboursement en cas de refus de visa, en paramètre de l'agence** | **[À]** | Aucun texte tunisien ne la fixe, et aucune source ne dit que les frais consulaires sont non remboursables. Jamais une valeur par défaut de l'éditeur |
+| L9 | Vente en ligne : rétractation **10 jours ouvrables avant** la prestation, remboursement **sous 10 jours** | **[À]** | Arrêté du 9 août 2007, le seul délai chiffré du droit tunisien des agences. Ne vaut que pour l'internet |
+| L10 | Mentions obligatoires sur la page publique de l'agence, dont **catégorie et numéro de déclaration** | **[P]** | Art. 6 de l'arrêté de 2007, et art. 19 du décret-loi 73-13 pour tous les imprimés et toute publicité |
+| L11 | Blocage des promesses de délai dans les modèles de messages | **[À]** | Art. 13 de la loi 92-117, publicité trompeuse sur **les résultats attendus** : 1 000 à 20 000 DT. Un « visa en 24 heures » a déjà valu une intervention du commissariat à Sousse en octobre 2025 |
+| L12 | Champ **catégorie de licence A ou B** sur l'agence, avec restriction des fonctions | **[À]** | Une agence B ne peut ni organiser de circuit, ni faire de la réception, **ni de l'Omra**. La catégorie C n'existe pas |
+| L13 | Omra : garantie de **3 000 DT par pèlerin au Ramadan**, 1 500 DT hors saison, ou 300 000 DT global, et **interdiction de vendre le visa seul** | **[À]** | Note d'orientation 1448 signée le 13 juillet 2026 |
+| L14 | Rappels d'échéances ONTT : changement de siège ou de représentant **sous 30 jours**, états financiers **sous 3 mois** | **[À]** | Art. 19 du décret-loi 73-13 |
+| L15 | **Grille tarifaire de l'abonnement par unité d'œuvre**, jamais un forfait annuel sec | **[À]** | Art. 3 de la circulaire BCT 2016-09 : la banque refuse le transfert d'un forfait sans unité d'œuvre quantifiable |
+| L16 | **Pas de module KYC, pas de déclaration de soupçon, pas de scoring PPE** | **[F]** | Article 107 de la loi 2015-26 : **les agences de voyages ne sont pas assujetties**. Ce serait du travail inutile |
+
+**Deux contraintes qui pèsent sur l'éditeur, pas sur le produit.** L'article 22 de la loi 2004-63 exige que le **sous-traitant et ses agents soient de nationalité tunisienne et résidents en Tunisie** : VisaFlow doit être porté par une entité tunisienne. Et le décret-loi 2023-17 impose un **audit de sécurité tous les 12 mois**, sous peine de 50 000 à 100 000 DT.
+
+---
+
 ## Les dix chantiers, par ordre de valeur
 
 1. **La file de rendez-vous** (D2 à D8). C'est là qu'est la marge, et personne ne le fait.

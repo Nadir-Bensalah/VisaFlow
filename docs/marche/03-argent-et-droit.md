@@ -56,9 +56,9 @@ Le précédent du tourisme médical dit la même chose autrement : les cliniques
 
 **Et voici le problème.** Au 7 septembre 2026, **inpdp.tn, inpdp.nat.tn et inpdp.gov.tn ne résolvent plus en DNS**. Le site de l'autorité n'existe plus. Nawaat décrit le 1er septembre 2026 une instance **gelée depuis 2023**. Le portail de la présidence du gouvernement pointe toujours vers l'ancienne adresse.
 
-Le délai légal d'un mois existe donc sur le papier, mais l'autorité censée le tenir est décrite comme gelée et son site a disparu. **Aucun délai réel ne peut être promis à une agence.**
+Le délai légal d'un mois existe donc sur le papier, mais l'autorité censée le tenir est décrite comme gelée et son site a disparu. **Aucun délai réel ne peut être promis à une agence.** Et ce n'est pas nouveau : dans son propre rapport d'activité 2018-2021, l'INPDP reconnaît que **279 dossiers ont dépassé 90 jours**, certains ajournements atteignant **537 jours**. Le relevé complet du cadre légal est dans [04-cadre-legal.md](04-cadre-legal.md), avec deux découvertes majeures : l'**article 22** impose que le sous-traitant soit de **nationalité tunisienne et résident en Tunisie**, et le décret-loi 2023-17 impose un **audit de sécurité tous les 12 mois**.
 
-Une réforme existe : **proposition de loi organique n° 095/2025**, déposée le 14 juillet 2025, commission des droits et libertés, auditions jusqu'au 3 juin 2026, **plénière non commencée**. Point à surveiller : son **article 51 dispenserait le responsable de traitement d'obtenir l'autorisation de l'instance pour transférer des données vers l'étranger**. Si ce texte passe, la contrainte d'hébergement s'allège considérablement. Tant qu'il n'est pas voté, elle reste entière.
+Une réforme est déposée : **proposition de loi organique n° 095/2025**, déposée le 14 juillet 2025, commission des droits et libertés, auditions jusqu'au 3 juin 2026, **plénière non commencée**. Point à surveiller : son **article 51 dispenserait le responsable de traitement d'obtenir l'autorisation de l'instance pour transférer des données vers l'étranger**. Si ce texte passe, la contrainte d'hébergement s'allège considérablement. Tant qu'il n'est pas voté, elle reste entière.
 
 **Ce que cela impose au produit, aujourd'hui :**
 
