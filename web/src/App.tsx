@@ -17,6 +17,7 @@ import { Clients } from './pages/Clients'
 import { ClientDetail } from './pages/ClientDetail'
 import { Documents } from './pages/Documents'
 import { Appointments } from './pages/Appointments'
+import { Slots } from './pages/Slots'
 import { Messages } from './pages/Messages'
 import { Payments } from './pages/Payments'
 import { Tasks } from './pages/Tasks'
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/pieces" element={<Documents />} />
           <Route path="/rendez-vous" element={<Appointments />} />
+          <Route path="/creneaux" element={<Slots />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/taches" element={<Tasks />} />
           <Route path="/paiements" element={<Require capability="finance:global"><Payments /></Require>} />

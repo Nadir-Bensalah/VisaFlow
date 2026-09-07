@@ -1,9 +1,9 @@
 import { CHECKLISTS } from './checklists'
 import type {
-  Agency, Appointment, AutomationRule, CaseDocument, CaseSource, ActivityEvent, Client,
-  ClientRequest, Database, DocState, Incoterm, Locale, Message, MessageTemplate, Payment, Priority, Shipment,
-  ShipmentDocument, ShipmentEvent, ShipmentMode, ShipmentStage, Stage, Task, User,
-  VisaCase, VisaType,
+  Agency, Appointment, AttemptResult, AutomationRule, CaseDocument, CaseSource, ActivityEvent, Client,
+  ClientRequest, Consulate, Database, DocState, Incoterm, Locale, Message, MessageTemplate, Payment, Priority,
+  ProfessionalStatus, QueueEntry, RefusalCode, Shipment, ShipmentDocument, ShipmentEvent, ShipmentMode,
+  ShipmentStage, SlotAttempt, Stage, Task, Track, User, VisaCase, VisaType,
 } from './types'
 import { findTenant } from '@/tenant'
 
@@ -92,6 +92,94 @@ const VISA_TYPES: Omit<VisaType, 'agencyId'>[] = [
   { id: 'vt_nl_aff', countryCode: 'NL', country: { fr: 'Pays-Bas', en: 'Netherlands', ar: 'هولندا', zh: '荷兰' }, label: { fr: 'Schengen affaires', en: 'Schengen business', ar: 'شنغن أعمال', zh: '申根商务' }, category: 'affaires', processingDays: 15, feeAgency: 390, feeConsulate: 300, checklistId: 'cl_schengen_affaires', active: true, stages: STAGES },
   { id: 'vt_ma', countryCode: 'MA', country: { fr: 'Maroc', en: 'Morocco', ar: 'المغرب', zh: '摩洛哥' }, label: { fr: 'Court séjour', en: 'Short stay', ar: 'إقامة قصيرة', zh: '短期停留' }, category: 'tourisme', processingDays: 10, feeAgency: 220, feeConsulate: 120, checklistId: 'cl_maroc', active: true, stages: STAGES },
   { id: 'vt_th', countryCode: 'TH', country: { fr: 'Thaïlande', en: 'Thailand', ar: 'تايلندا', zh: '泰国' }, label: { fr: 'Tourisme', en: 'Tourism', ar: 'سياحة', zh: '旅游' }, category: 'tourisme', processingDays: 9, feeAgency: 300, feeConsulate: 180, checklistId: 'cl_thailande', active: true, stages: STAGES },
+]
+
+/* ------------------------------------------------------------------ */
+/* Consulats                                                           */
+/* ------------------------------------------------------------------ */
+
+/* Les taux de reference viennent des statistiques publiees par la Commission
+   europeenne, par consulat, pour 2025. Ils ne servent qu'a se comparer : le
+   taux qui compte est celui que l'agence mesure sur ses propres dossiers.
+   Voir docs/marche/01-acteurs-et-terrain.md. */
+const CONSULATES: Omit<Consulate, 'agencyId'>[] = [
+  {
+    id: 'cs_fr', countryCode: 'FR', country: { fr: 'France', en: 'France', ar: 'فرنسا', zh: '法国' },
+    city: 'Tunis', centre: 'tls_tunis', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND',
+    appealDays: 30, appealSource: 'CRRV, à revérifier : les sources donnent 30 jours ou 2 mois', appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 15.4, refMultiEntryShare: 61.2, announcedDays: 15, active: true,
+    notes: 'Instruit aussi les dossiers des résidents en Libye.',
+  },
+  {
+    id: 'cs_it', countryCode: 'IT', country: { fr: 'Italie', en: 'Italy', ar: 'إيطاليا', zh: '意大利' },
+    city: 'Tunis', centre: 'tls_tunis', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND',
+    appealDays: 60, appealSource: 'TAR Lazio', appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 32.0, refMultiEntryShare: 28.4, announcedDays: 21, active: true,
+  },
+  {
+    id: 'cs_be', countryCode: 'BE', country: { fr: 'Belgique', en: 'Belgium', ar: 'بلجيكا', zh: '比利时' },
+    city: 'Tunis', centre: 'vfs_tunis', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND',
+    appealDays: 30, appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 40.8, refMultiEntryShare: 12.6, announcedDays: 25, active: true,
+  },
+  {
+    id: 'cs_nl', countryCode: 'NL', country: { fr: 'Pays-Bas', en: 'Netherlands', ar: 'هولندا', zh: '荷兰' },
+    city: 'Tunis', centre: 'vfs_tunis', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND', appealDays: 28, appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 24.1, refMultiEntryShare: 44.0, announcedDays: 15, active: true,
+  },
+  {
+    id: 'cs_cz', countryCode: 'CZ', country: { fr: 'Tchéquie', en: 'Czechia', ar: 'التشيك', zh: '捷克' },
+    city: 'Tunis', centre: 'vfs_tunis', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND', appealDays: 15, appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 46.3, refMultiEntryShare: 15.8, announcedDays: 30, active: true,
+    notes: 'Le taux de refus le plus élevé du terrain. À déconseiller sauf profil très solide.',
+  },
+  {
+    id: 'cs_fr_sfax', countryCode: 'FR', country: { fr: 'France', en: 'France', ar: 'فرنسا', zh: '法国' },
+    city: 'Sfax', centre: 'tls_sfax', requiresResidence: false,
+    feeConsulate: 300, currency: 'TND', appealDays: 30, appealCheckedAt: '2026-09-07',
+    refYear: 2025, refRefusalRate: 18.9, refMultiEntryShare: 52.6, announcedDays: 18, active: true,
+  },
+  {
+    id: 'cs_cn', countryCode: 'CN', country: { fr: 'Chine', en: 'China', ar: 'الصين', zh: '中国' },
+    city: 'Tunis', centre: 'consulat', requiresResidence: false,
+    feeConsulate: 260, currency: 'TND', announcedDays: 4, active: true,
+    notes: 'Visa affaires catégorie M obligatoire : ni la Tunisie ni la Libye ne sont exemptées.',
+  },
+  {
+    id: 'cs_ma', countryCode: 'MA', country: { fr: 'Maroc', en: 'Morocco', ar: 'المغرب', zh: '摩洛哥' },
+    city: 'Tunis', centre: 'consulat', requiresResidence: false,
+    feeConsulate: 120, currency: 'TND', announcedDays: 10, active: true,
+  },
+  {
+    id: 'cs_th', countryCode: 'TH', country: { fr: 'Thaïlande', en: 'Thailand', ar: 'تايلندا', zh: '泰国' },
+    city: 'Tunis', centre: 'consulat', requiresResidence: false,
+    feeConsulate: 180, currency: 'TND', announcedDays: 9, active: true,
+  },
+]
+
+/** Le poste par defaut d'un type de visa. Un pays peut avoir deux postes :
+    la France instruit a Tunis et a Sfax. */
+const CONSULATE_BY_VISA: Record<string, string> = {
+  vt_cn_aff: 'cs_cn', vt_cn_tour: 'cs_cn', vt_canton: 'cs_cn',
+  vt_fr_tour: 'cs_fr', vt_nl_aff: 'cs_nl', vt_ma: 'cs_ma', vt_th: 'cs_th',
+}
+
+const STATUSES: ProfessionalStatus[] = [
+  'salarie', 'salarie', 'salarie', 'independant', 'independant',
+  'fonctionnaire', 'etudiant', 'retraite', 'sans_emploi',
+]
+
+/* Repartition realiste : la volonte de sortie non etablie domine partout. */
+const REFUSAL_CODES: RefusalCode[] = [
+  'sortie_non_etablie', 'sortie_non_etablie', 'sortie_non_etablie', 'sortie_non_etablie',
+  'moyens_insuffisants', 'moyens_insuffisants', 'moyens_insuffisants',
+  'justificatifs_non_fiables', 'justificatifs_non_fiables',
+  'objet_non_justifie', 'assurance_absente', 'sejours_epuises',
 ]
 
 /* ------------------------------------------------------------------ */
@@ -385,11 +473,75 @@ function buildRequests(agencyId: string, visaTypes: VisaType[]): ClientRequest[]
   })
 }
 
+/* ------------------------------------------------------------------ */
+/* File d'attente des creneaux                                         */
+/* ------------------------------------------------------------------ */
+
+/* Le vrai travail de l'agence, celui qui n'apparait nulle part aujourd'hui :
+   qui attend un creneau, depuis quand, et combien de fois on a essaye. */
+function buildQueue(
+  agencyId: string,
+  cases: VisaCase[],
+  users: User[],
+  consulates: Consulate[],
+): { queue: QueueEntry[]; attempts: SlotAttempt[] } {
+  const queue: QueueEntry[] = []
+  const attempts: SlotAttempt[] = []
+
+  // Attendent un creneau : les dossiers dont les pieces sont pretes.
+  const waiting = cases.filter((c) => c.status === 'ouvert' && ['verification', 'rendez_vous'].includes(c.stage) && c.consulateId)
+  waiting.forEach((c, i) => {
+    queue.push({
+      id: `q_${i + 1}`, agencyId, caseId: c.id, consulateId: c.consulateId!,
+      joinedAt: d(-between(2, 38)), priority: c.priority, status: 'attente',
+    })
+  })
+
+  // Files deja servies : c'est ce qui donne le delai reel d'obtention, celui
+  // qu'on peut enfin annoncer a la place du delai affiche par le poste.
+  const served = cases.filter((c) => c.consulateId && ['depot', 'consulat', 'decision', 'retrait', 'clos'].includes(c.stage))
+  served.forEach((c, i) => {
+    const joined = between(9, 52)
+    queue.push({
+      id: `qs_${i + 1}`, agencyId, caseId: c.id, consulateId: c.consulateId!,
+      joinedAt: d(-joined), priority: 'normale', status: 'servi',
+      servedAt: d(-between(1, Math.max(joined - 6, 2))), servedBy: users[2].id,
+    })
+  })
+
+  // Registre des tentatives des dix derniers jours. Le resultat dominant est
+  // « aucun creneau » : c'est exactement le probleme du terrain.
+  const results: AttemptResult[] = [
+    'aucun_creneau', 'aucun_creneau', 'aucun_creneau', 'aucun_creneau', 'aucun_creneau',
+    'aucun_creneau', 'aucun_creneau', 'site_indisponible', 'site_indisponible', 'creneau_pris',
+  ]
+  const agents = users.filter((u) => u.role === 'agent' || u.role === 'manager')
+  const scanned = consulates.filter((c) => c.centre !== 'consulat')
+  let n = 0
+  for (let day = 0; day < 10; day++) {
+    for (const consulate of scanned) {
+      const tries = between(0, 4)
+      for (let k = 0; k < tries; k++) {
+        const result = pick(results)
+        attempts.push({
+          id: `at_${++n}`, agencyId, consulateId: consulate.id,
+          at: d(-day, between(8, 19)), byId: (agents[n % agents.length] ?? users[2]).id,
+          centre: consulate.centre, result,
+          slotAt: result === 'creneau_pris' ? d(between(5, 40), between(8, 15)) : undefined,
+        })
+      }
+    }
+  }
+  attempts.sort((a, b) => b.at.localeCompare(a.at))
+  return { queue, attempts }
+}
+
 export function buildSeed(slug: string): Database {
   const agency = buildAgency(slug)
   const agencyId = agency.id
   const users: User[] = USERS.map((u) => ({ ...u, agencyId }))
   const visaTypes: VisaType[] = VISA_TYPES.map((v) => ({ ...v, agencyId }))
+  const consulates: Consulate[] = CONSULATES.map((c) => ({ ...c, agencyId }))
   const checklists = CHECKLISTS.map((c) => ({ ...c, agencyId }))
   const templates: MessageTemplate[] = TEMPLATES.map((t) => ({ ...t, agencyId }))
   const rules: AutomationRule[] = RULES.map((r) => ({ ...r, agencyId }))
@@ -412,6 +564,11 @@ export function buildSeed(slug: string): Database {
     tags: chance(0.25) ? ['fidèle'] : [],
     createdAt: d(-between(20, 900)),
     officeId: p.office,
+    professionalStatus: STATUSES[i % STATUSES.length],
+    employer: STATUSES[i % STATUSES.length] === 'salarie' ? pick(['Poulina Group', 'Délice Danone', 'Tunisie Telecom', 'One Tech', 'STEG']) : undefined,
+    // Deux clients sur trois ont deja donne leurs empreintes : elles restent
+    // valables 59 mois, ce qui leur evite un deplacement et un creneau.
+    biometricsAt: chance(0.62) ? d(-between(30, 2200)) : undefined,
   }))
   clients.forEach((c) => { c.whatsapp = c.phone })
 
@@ -453,7 +610,13 @@ export function buildSeed(slug: string): Database {
       openedAt, updatedAt: d(-between(0, Math.min(ageDays, 12))),
       travelDate: d(travelIn), dueAt: d(travelIn - 7),
       consulateRef: STAGES.indexOf(stage) >= 5 ? `${visa.countryCode}${between(100000, 999999)}` : undefined,
+      // Le poste, pas seulement le pays : Sfax et Tunis n'ont pas le même taux.
+      consulateId: client.officeId === 'of_tunis' && visa.id === 'vt_fr_tour' && chance(0.3)
+        ? 'cs_fr_sfax'
+        : CONSULATE_BY_VISA[visa.id],
+      track: chance(0.42) ? ('vise' as Track) : ('primo' as Track),
       decisionAt: closed ? d(-between(1, 20)) : undefined,
+      refusalCode: status === 'refuse' ? pick(REFUSAL_CODES) : undefined,
       refusalReason: status === 'refuse' ? 'Justificatifs financiers jugés insuffisants par le consulat.' : undefined,
       amountTotal: total, amountPaid: Math.round(total * paidRatio),
       notes: chance(0.35)
@@ -590,11 +753,13 @@ export function buildSeed(slug: string): Database {
   messages.sort((a, b) => a.at.localeCompare(b.at))
 
   const { shipments, shipmentDocs, shipmentEvents } = buildShipments(agencyId, clients, users, cases)
+  const { queue, attempts } = buildQueue(agencyId, cases, users, consulates)
 
   return {
-    version: 1, agency, users, clients, visaTypes, checklists, cases, documents,
+    version: 2, agency, users, clients, visaTypes, consulates, checklists, cases, documents,
     messages, templates, appointments, payments, rules, events, tasks,
     shipments, shipmentDocs, shipmentEvents,
     requests: buildRequests(agencyId, visaTypes),
+    queue, attempts,
   }
 }

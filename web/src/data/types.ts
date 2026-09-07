@@ -39,6 +39,46 @@ export type AppointmentKind = 'agence' | 'consulat' | 'biometrie' | 'retrait'
 export type AppointmentStatus = 'prevu' | 'fait' | 'manque' | 'reporte'
 export type CaseSource = 'comptoir' | 'whatsapp' | 'site' | 'recommandation' | 'partenaire'
 
+/** Le troisieme axe de la liste de pieces. Une checklist « France » n'existe
+    pas : il faut France + salarie, France + etudiant, France + retraite.
+    Les pieces de revenu et d'autorisation parentale changent completement. */
+export type ProfessionalStatus =
+  | 'salarie'
+  | 'independant'
+  | 'fonctionnaire'
+  | 'etudiant'
+  | 'retraite'
+  | 'sans_emploi'
+  | 'mineur'
+
+/** Premiere demande ou deja vise. Ni les memes pieces, ni les memes delais,
+    ni le meme taux de refus. */
+export type Track = 'primo' | 'vise'
+
+/** Motifs de refus, liste fermee. Un champ libre ne produit aucune
+    statistique : c'est le code qui permet de dire « nos refus viennent a 60 %
+    de la volonte de sortie non etablie ». Repris des motifs du code des visas. */
+export type RefusalCode =
+  | 'document_faux'
+  | 'objet_non_justifie'
+  | 'moyens_insuffisants'
+  | 'sejours_epuises'
+  | 'signalement'
+  | 'ordre_public'
+  | 'assurance_absente'
+  | 'justificatifs_non_fiables'
+  | 'sortie_non_etablie'
+  | 'autre'
+
+/** Ou le dossier se depose reellement. Il n'y a que deux centres TLScontact
+    pour toute la Tunisie, et c'est la que se joue la rarete. */
+export type DepositCentre = 'tls_tunis' | 'tls_sfax' | 'vfs_tunis' | 'consulat' | 'autre'
+
+/** Ce qu'un agent a obtenu en essayant de prendre un creneau. */
+export type AttemptResult = 'aucun_creneau' | 'creneau_pris' | 'site_indisponible' | 'compte_bloque' | 'erreur'
+
+export type QueueStatus = 'attente' | 'servi' | 'abandonne'
+
 /* ------------------------------------------------------------------ */
 
 export interface Office {
@@ -145,6 +185,14 @@ export interface Client {
   tags: string[]
   createdAt: string
   officeId: string
+  /** Le troisieme axe de la liste de pieces. Sans lui, la checklist est fausse
+      des le premier dossier reel. */
+  professionalStatus?: ProfessionalStatus
+  employer?: string
+  /** Date de prise des empreintes. Elles restent valables 59 mois : un client
+      encore couvert n'a pas a se deplacer, ce qui change le prix, le delai et
+      le besoin de creneau. */
+  biometricsAt?: string
   /** Le numero est l'identite du client dans cette agence, et nulle part
       ailleurs. Verifie une fois, il ouvre le suivi sur n'importe quel appareil. */
   phoneVerifiedAt?: string
@@ -180,6 +228,80 @@ export interface VisaType {
   active: boolean
   /** Etapes reellement utilisees pour ce visa, dans l'ordre. */
   stages: Stage[]
+}
+
+/** Le poste ou le dossier part vraiment.
+    Le taux de refus est une propriete du consulat, pas du pays : 15,4 % chez
+    la France et 46,3 % chez la Tchequie sur le meme terrain la meme annee.
+    Une moyenne nationale affichee dans un logiciel ment a l'agence. */
+export interface Consulate {
+  id: string
+  agencyId: string
+  countryCode: string
+  country: I18nText
+  /** Ville de representation : Tunis, Le Caire. */
+  city: string
+  centre: DepositCentre
+  /** Presque toujours faux. Le rendre obligatoire eliminerait la clientele
+      libyenne : en 2015, 530 Libyens seulement avaient une carte de sejour
+      tunisienne, alors que la France, l'Autriche et la Suisse instruisent
+      officiellement leurs dossiers depuis Tunis. */
+  requiresResidence: boolean
+  feeConsulate: number
+  currency: string
+  /** Delai de recours apres refus, en jours. Les sources se contredisent
+      (30 jours contre 2 mois) : c'est un parametre, jamais une constante. */
+  appealDays?: number
+  appealSource?: string
+  appealCheckedAt?: string
+  /** Reference officielle publiee par la Commission europeenne, par consulat.
+      Sert a comparer le resultat de l'agence a celui du poste. */
+  refYear?: number
+  refRefusalRate?: number
+  refMultiEntryShare?: number
+  /** Delai annonce par le poste, en jours. Le delai reel se mesure. */
+  announcedDays?: number
+  notes?: string
+  active: boolean
+}
+
+/** La file d'attente de creneau.
+    C'est le vrai produit. Sur un ticket d'environ 550 dinars, 200 a 350
+    viennent de l'obtention du rendez-vous, et aucun logiciel tunisien ne sait
+    dire a un client « vous etes 4e sur la liste Italie ». */
+export interface QueueEntry {
+  id: string
+  agencyId: string
+  caseId: string
+  consulateId: string
+  joinedAt: string
+  /** Remonte l'entree dans la file a rang egal d'anciennete. */
+  priority: Priority
+  status: QueueStatus
+  servedAt?: string
+  servedBy?: string
+  /** Le rendez-vous cree quand la file a ete servie. */
+  appointmentId?: string
+  leftAt?: string
+  note?: string
+}
+
+/** Chaque essai de prise de creneau, reussi ou non.
+    C'est le travail reel de l'agent, aujourd'hui totalement invisible : il
+    ouvre le site, il n'y a rien, il recommence une heure plus tard. */
+export interface SlotAttempt {
+  id: string
+  agencyId: string
+  consulateId: string
+  /** Une tentative peut viser un dossier precis, ou balayer la file entiere. */
+  caseId?: string
+  at: string
+  byId: string
+  centre: DepositCentre
+  result: AttemptResult
+  /** Date du creneau decroche, quand il y en a un. */
+  slotAt?: string
+  note?: string
 }
 
 export interface CaseDocument {
@@ -228,8 +350,16 @@ export interface VisaCase {
   travelDate?: string
   dueAt?: string
   consulateRef?: string
+  /** Le poste, pas seulement le pays. C'est lui qui porte le taux de refus. */
+  consulateId?: string
+  track?: Track
   decisionAt?: string
+  /** Code ferme. Le texte libre ne produit aucune statistique exploitable. */
+  refusalCode?: RefusalCode
   refusalReason?: string
+  /** Echeance calculee depuis le delai de recours du consulat. */
+  appealDueAt?: string
+  appealFiledAt?: string
   amountTotal: number
   amountPaid: number
   notes: CaseNote[]
@@ -325,6 +455,9 @@ export type EventType =
   | 'paiement_encaisse'
   | 'decision_recue'
   | 'note_ajoutee'
+  | 'creneau_attente'
+  | 'creneau_obtenu'
+  | 'creneau_tentative'
   | 'automatisation'
   | 'connexion_portail'
 
@@ -439,6 +572,7 @@ export interface Database {
   users: User[]
   clients: Client[]
   visaTypes: VisaType[]
+  consulates: Consulate[]
   checklists: ChecklistTemplate[]
   cases: VisaCase[]
   documents: CaseDocument[]
@@ -453,4 +587,6 @@ export interface Database {
   shipmentDocs: ShipmentDocument[]
   shipmentEvents: ShipmentEvent[]
   requests: ClientRequest[]
+  queue: QueueEntry[]
+  attempts: SlotAttempt[]
 }

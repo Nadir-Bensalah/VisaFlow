@@ -1,4 +1,7 @@
-import type { Database, DocState, Priority, Shipment, ShipmentStage, Stage, VisaCase } from '@/data/types'
+import type {
+  AttemptResult, Client, Consulate, Database, DocState, Priority, ProfessionalStatus, QueueEntry,
+  RefusalCode, Shipment, ShipmentStage, Stage, VisaCase,
+} from '@/data/types'
 
 /* Toutes les lectures calculees vivent ici. Les pages ne recalculent rien
    dans leur JSX : elles appellent ces fonctions. */
@@ -217,4 +220,131 @@ export function shipmentDocsPending(db: Database, shipmentId: string) {
   return db.shipmentDocs.filter(
     (d) => d.shipmentId === shipmentId && d.required && ['manquante', 'demandee', 'refusee', 'expiree'].includes(d.state),
   )
+}
+
+/* ------------------------------------------------------------------ */
+/* Creneaux, biometrie, refus                                          */
+/* ------------------------------------------------------------------ */
+
+/** Les empreintes restent valables 59 mois. Un client encore couvert n'a pas
+    a se deplacer : cela change le prix, le delai et le besoin de creneau. */
+export const BIOMETRICS_MONTHS = 59
+
+export function biometricsValidUntil(iso?: string): string | undefined {
+  if (!iso) return undefined
+  const t = new Date(iso)
+  t.setMonth(t.getMonth() + BIOMETRICS_MONTHS)
+  return t.toISOString()
+}
+
+export function biometricsValid(iso?: string): boolean {
+  const until = biometricsValidUntil(iso)
+  return until ? new Date(until).getTime() > Date.now() : false
+}
+
+const PRIORITY_WEIGHT: Record<Priority, number> = { urgente: 3, haute: 2, normale: 1, basse: 0 }
+
+/** La file d'un consulat, triee. La priorite passe devant l'anciennete, et
+    l'anciennete departage a priorite egale. C'est ce classement que le client
+    voit dans son portail : « vous etes 4e sur la liste Italie ». */
+export function queueOf(db: Database, consulateId: string, entries?: QueueEntry[]): QueueEntry[] {
+  return (entries ?? db.queue)
+    .filter((q) => q.consulateId === consulateId && q.status === 'attente')
+    .sort((a, b) => {
+      const p = PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority]
+      return p !== 0 ? p : a.joinedAt.localeCompare(b.joinedAt)
+    })
+}
+
+/** Rang d'un dossier dans sa file, a partir de 1. Zero s'il n'y est pas. */
+export function queueRank(db: Database, caseId: string, entries?: QueueEntry[]): { rank: number; total: number; entry?: QueueEntry } {
+  const mine = (entries ?? db.queue).find((q) => q.caseId === caseId && q.status === 'attente')
+  if (!mine) return { rank: 0, total: 0 }
+  const line = queueOf(db, mine.consulateId, entries)
+  return { rank: line.findIndex((q) => q.id === mine.id) + 1, total: line.length, entry: mine }
+}
+
+/** Delai reel d'obtention d'un creneau, mesure sur les files deja servies.
+    C'est ce chiffre qui permet enfin de repondre honnetement « combien de
+    temps », au lieu du delai annonce par le poste. */
+export function realWaitDays(db: Database, consulateId: string): number | undefined {
+  const served = db.queue.filter((q) => q.consulateId === consulateId && q.status === 'servi' && q.servedAt)
+  if (served.length === 0) return undefined
+  const total = served.reduce((sum, q) => sum + (new Date(q.servedAt!).getTime() - new Date(q.joinedAt).getTime()) / DAY, 0)
+  return Math.round(total / served.length)
+}
+
+export const ATTEMPT_TONE: Record<AttemptResult, Tone> = {
+  creneau_pris: 'green',
+  aucun_creneau: 'gray',
+  site_indisponible: 'orange',
+  compte_bloque: 'red',
+  erreur: 'red',
+}
+
+export interface RefusalRow {
+  key: string
+  consulateId?: string
+  visaTypeId?: string
+  status?: ProfessionalStatus
+  decided: number
+  refused: number
+  rate: number
+}
+
+/** Taux de refus par croisement. C'est la statistique que l'agence ne trouve
+    nulle part ailleurs, et la raison pour laquelle elle ne change plus de
+    logiciel au bout de six mois. Le taux national ne sert qu'a se comparer. */
+export function refusalStats(
+  cases: VisaCase[],
+  by: 'consulate' | 'visaType' | 'status',
+  clients?: Client[],
+): RefusalRow[] {
+  const decided = cases.filter((c) => c.status === 'accepte' || c.status === 'refuse')
+  const rows = new Map<string, RefusalRow>()
+  for (const c of decided) {
+    let key: string | undefined
+    if (by === 'consulate') key = c.consulateId
+    else if (by === 'visaType') key = c.visaTypeId
+    else key = clients?.find((x) => x.id === c.clientId)?.professionalStatus
+    if (!key) continue
+    const row = rows.get(key) ?? {
+      key,
+      consulateId: by === 'consulate' ? key : undefined,
+      visaTypeId: by === 'visaType' ? key : undefined,
+      status: by === 'status' ? (key as ProfessionalStatus) : undefined,
+      decided: 0, refused: 0, rate: 0,
+    }
+    row.decided += 1
+    if (c.status === 'refuse') row.refused += 1
+    rows.set(key, row)
+  }
+  return [...rows.values()]
+    .map((r) => ({ ...r, rate: r.decided ? Math.round((r.refused / r.decided) * 1000) / 10 : 0 }))
+    .sort((a, b) => b.decided - a.decided)
+}
+
+/** Repartition des motifs de refus, du plus frequent au moins frequent.
+    C'est ce qui nourrit la liste de pieces : si la sortie non etablie domine,
+    ce sont les justificatifs d'attache qu'il faut renforcer. */
+export function refusalReasons(cases: VisaCase[]): { code: RefusalCode; n: number; pct: number }[] {
+  const refused = cases.filter((c) => c.status === 'refuse')
+  const counts = new Map<RefusalCode, number>()
+  for (const c of refused) {
+    const code = c.refusalCode ?? 'autre'
+    counts.set(code, (counts.get(code) ?? 0) + 1)
+  }
+  const total = refused.length || 1
+  return [...counts.entries()]
+    .map(([code, n]) => ({ code, n, pct: Math.round((n / total) * 100) }))
+    .sort((a, b) => b.n - a.n)
+}
+
+/** Echeance de recours, calculee depuis le delai du consulat. Jamais une
+    constante : les sources donnent 30 jours ici et 2 mois la. */
+export function appealDue(consulate: Consulate | undefined, decisionAt?: string): string | undefined {
+  if (!consulate?.appealDays || !decisionAt) return undefined
+  const t = new Date(decisionAt)
+  t.setDate(t.getDate() + consulate.appealDays)
+  return t.toISOString()
 }

@@ -7,8 +7,8 @@ import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Selec
 import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { CaseEditor } from '@/components/CaseEditor'
-import { blockingDocs, caseBalance, daysSince, progress } from '@/lib/derive'
-import type { AppointmentKind, Channel, DocState, PaymentMethod } from '@/data/types'
+import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank } from '@/lib/derive'
+import type { AppointmentKind, Channel, DocState, PaymentMethod, RefusalCode } from '@/data/types'
 
 type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'historique'
 
@@ -219,10 +219,17 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
 /* ------------------------------ Apercu ------------------------------- */
 
 function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
-  const { db } = useStore()
+  const { db, actions } = useStore()
   const { t, tt, formatDate } = useI18n()
+  const toast = useToast()
   const visa = db.visaTypes.find((v) => v.id === kase.visaTypeId)!
   const stages = visa.stages
+  const consulate = db.consulates.find((c) => c.id === kase.consulateId)
+  const client = db.clients.find((c) => c.id === kase.clientId)
+  // Le rang dans la file, c'est ce que le client verra dans son portail.
+  const place = queueRank(db, kase.id)
+  const bioUntil = biometricsValidUntil(client?.biometricsAt)
+  const bioOk = biometricsValid(client?.biometricsAt)
   const currentIndex = stages.indexOf(kase.stage)
 
   return (
@@ -259,9 +266,72 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
         </div>
       </div>
 
-      {kase.refusalReason && (
+      {/* Le créneau : le poste, le rang dans la file, et la biométrie qui
+          dispense ou non du déplacement. C'est ce qui manque partout ailleurs. */}
+      {kase.status === 'ouvert' && (consulate || client?.biometricsAt || place.rank > 0) && (
+        <div className="grid grid--2">
+          {consulate && (
+            <div className="col gap-2">
+              <span className="t-caption t-tertiary">{t('slots.consulate')}</span>
+              <span className="t-medium">{tt(consulate.country)} · {consulate.city}</span>
+              <span className="t-small t-secondary">{t(`centre.${consulate.centre}` as 'centre.tls_tunis')}</span>
+            </div>
+          )}
+          <div className="col gap-2">
+            <span className="t-caption t-tertiary">{t('slots.inQueue')}</span>
+            {place.rank > 0 ? (
+              <>
+                <span className="t-medium">{t('slots.rank', { rank: place.rank, total: place.total })}</span>
+                <span className="t-small t-secondary">{t('slots.since', { n: daysSince(place.entry!.joinedAt) })}</span>
+              </>
+            ) : (
+              <>
+                <span className="t-medium t-tertiary">—</span>
+                {consulate && (
+                  <button
+                    type="button"
+                    className="linkish t-small"
+                    onClick={() => { actions.joinQueue({ caseId: kase.id, consulateId: consulate.id }); toast(t('slots.joined')) }}
+                  >
+                    {t('slots.join')}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          {client?.biometricsAt && (
+            <div className="col gap-2">
+              <span className="t-caption t-tertiary">{t('bio.label')}</span>
+              <span className="t-medium" style={{ color: bioOk ? 'var(--green)' : 'var(--orange)' }}>
+                {bioOk ? t('bio.valid', { date: formatDate(bioUntil) }) : t('bio.expired')}
+              </span>
+              <span className="t-small t-secondary">{t('bio.hint')}</span>
+            </div>
+          )}
+          {kase.track && (
+            <div className="col gap-2">
+              <span className="t-caption t-tertiary">{t('track.label')}</span>
+              <span className="t-medium">{t(`track.${kase.track}` as 'track.primo')}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(kase.refusalCode || kase.refusalReason) && (
         <div className="card" style={{ boxShadow: 'none', background: 'var(--tint-red)', padding: 'var(--sp-4)' }}>
-          <span className="t-small" style={{ color: 'var(--red)' }}>{kase.refusalReason}</span>
+          <div className="col gap-1">
+            {kase.refusalCode && (
+              <span className="t-medium t-small" style={{ color: 'var(--red)' }}>
+                {t(`refusal.${kase.refusalCode}` as 'refusal.autre')}
+              </span>
+            )}
+            {kase.refusalReason && <span className="t-small" style={{ color: 'var(--red)' }}>{kase.refusalReason}</span>}
+            {kase.appealDueAt && (
+              <span className="t-caption" style={{ color: 'var(--red)' }}>
+                {t('refusal.appealDue', { date: formatDate(kase.appealDueAt) })}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -601,11 +671,17 @@ function PaymentsTab({ caseId }: { caseId: string }) {
 
 /* ----------------------------- Decision ------------------------------ */
 
+const REFUSAL_CODES: RefusalCode[] = [
+  'sortie_non_etablie', 'moyens_insuffisants', 'justificatifs_non_fiables', 'objet_non_justifie',
+  'assurance_absente', 'sejours_epuises', 'document_faux', 'signalement', 'ordre_public', 'autre',
+]
+
 function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) {
   const { actions } = useStore()
   const { t } = useI18n()
   const toast = useToast()
   const [status, setStatus] = useState<'accepte' | 'refuse' | 'annule'>('accepte')
+  const [code, setCode] = useState<RefusalCode>('sortie_non_etablie')
   const [reason, setReason] = useState('')
 
   return (
@@ -618,7 +694,7 @@ function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) 
           <Button
             variant="primary"
             onClick={() => {
-              actions.decideCase(caseId, status, reason || undefined)
+              actions.recordDecision(caseId, status, { code, reason: reason || undefined })
               onClose()
               toast(t('crud.updated'))
             }}
@@ -637,9 +713,21 @@ function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) 
           </Select>
         </Field>
         {status === 'refuse' && (
-          <Field label={t('docs.reason')}>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
-          </Field>
+          <>
+            {/* Le code ferme, pas le texte libre : c'est lui qui produit la
+                statistique « nos refus viennent a 60 % de la sortie non
+                etablie », et donc la liste de pieces a renforcer. */}
+            <Field label={t('refusal.label')}>
+              <Select value={code} onChange={(e) => setCode(e.target.value as RefusalCode)}>
+                {REFUSAL_CODES.map((x) => (
+                  <option key={x} value={x}>{t(`refusal.${x}` as 'refusal.autre')}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t('docs.reason')}>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
+            </Field>
+          </>
         )}
       </div>
     </Modal>

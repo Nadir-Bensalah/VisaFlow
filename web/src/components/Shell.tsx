@@ -53,6 +53,9 @@ export function Shell() {
     (d) => d.required && openIds.has(d.caseId) && ['manquante', 'refusee', 'expiree'].includes(d.state),
   ).length
   const todayAppointments = v.appointments.filter((a) => a.status === 'prevu' && daysUntil(a.at) === 0).length
+  // Le badge le plus utile de la barre : combien de clients attendent encore
+  // un créneau, tous postes confondus.
+  const waitingSlots = v.queue.filter((q) => q.status === 'attente').length
   const pendingTasks = v.tasks.filter((x) => !x.done && x.assigneeId === v.user.id).length
   const unanswered = v.messages.filter((m) => m.direction === 'entrant' && daysUntil(m.at) >= -2).length
 
@@ -92,6 +95,9 @@ export function Shell() {
   const flow: NavEntry[] = [
     { to: '/messages', labelKey: 'nav.messages', icon: 'messages', count: unanswered },
     { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
+    // La file de creneaux passe avant les rendez-vous : c'est le travail
+    // d'avant, celui qui porte l'essentiel de la marge.
+    { to: '/creneaux', labelKey: 'nav.slots', icon: 'clock', count: waitingSlots },
     { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
     { to: '/taches', labelKey: 'nav.myTasks', icon: 'tasks', count: pendingTasks },
   ]

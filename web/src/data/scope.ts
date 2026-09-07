@@ -3,8 +3,8 @@ import { useStore } from './store'
 import { can, scopeOf } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
 import type {
-  ActivityEvent, Appointment, CaseDocument, Client, Message, Payment,
-  Shipment, ShipmentDocument, Task, User, VisaCase,
+  ActivityEvent, Appointment, CaseDocument, Client, Message, Payment, QueueEntry,
+  Shipment, ShipmentDocument, SlotAttempt, Task, User, VisaCase,
 } from './types'
 
 /* Le filtre étanche.
@@ -27,6 +27,8 @@ export interface Visible {
   appointments: Appointment[]
   tasks: Task[]
   events: ActivityEvent[]
+  queue: QueueEntry[]
+  attempts: SlotAttempt[]
 }
 
 export function useVisible(): Visible {
@@ -60,6 +62,10 @@ export function useVisible(): Visible {
       tasks: wholeAgency ? db.tasks : db.tasks.filter((t) => t.assigneeId === user.id || (t.caseId ? caseIds.has(t.caseId) : false)),
       // Le journal d'agence, sans dossier rattaché, ne sort pas du cercle des responsables.
       events: db.events.filter((e) => (e.caseId ? caseIds.has(e.caseId) : wholeAgency)),
+      queue: db.queue.filter((q) => caseIds.has(q.caseId)),
+      // Une tentative sans dossier vise la file entière : elle reste visible,
+      // sinon le registre du jour serait vide pour un agent de bureau.
+      attempts: db.attempts.filter((a) => (a.caseId ? caseIds.has(a.caseId) : true)),
     }
   }, [db, currentUserId])
 }

@@ -890,6 +890,26 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 }
 
 /* Au doigt, toute cible atteint 44 px sans changer le dessin. */
+/* Action textuelle discrète, à l'intérieur d'un bloc d'information.
+   Ce n'est pas un bouton : elle ne doit pas concurrencer l'action principale
+   de la carte, mais elle reste une cible de 44 px au doigt. */
+.linkish {
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.linkish::before { content: ''; position: absolute; inset: -12px -8px; }
+.linkish:hover { opacity: 0.7; }
+.linkish:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
 @media (pointer: coarse) {
   .btn { min-height: 44px; }
   .btn--sm { min-height: 40px; }

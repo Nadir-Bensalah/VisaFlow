@@ -3,16 +3,17 @@ import type { ReactNode } from 'react'
 import { buildSeed } from './seed'
 import { samePhone } from './identity'
 import type {
-  ActivityEvent, Appointment, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest, Database, DocState, EventType,
-  I18nText, Message, MessageTemplate, Payment, Role, Shipment, ShipmentDocument, ShipmentEvent,
-  ShipmentStage, Stage, User, VisaCase, VisaType,
+  ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
+  Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
+  RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
+  VisaCase, VisaType,
 } from './types'
 
 /* Magasin local. Toute l'application passe par ici, jamais par le stockage
    directement. Le jour ou Supabase arrive, seul ce fichier change. */
 
 const STORAGE_PREFIX = 'visaflow.db.'
-const CURRENT_VERSION = 1
+const CURRENT_VERSION = 2
 
 function load(slug: string): Database {
   try {
@@ -36,6 +37,15 @@ function save(slug: string, db: Database) {
 }
 
 const nowIso = () => new Date().toISOString()
+
+/** Adresse par defaut d'un rendez-vous consulaire. Il n'y a que deux centres
+    TLScontact pour toute la Tunisie, autant les nommer. */
+function centreLabel(centre?: Consulate['centre']): string | undefined {
+  if (centre === 'tls_tunis') return 'TLScontact, Les Berges du Lac, Tunis'
+  if (centre === 'tls_sfax') return 'TLScontact, Sfax'
+  if (centre === 'vfs_tunis') return 'VFS Global, Tunis'
+  return undefined
+}
 const rid = (p: string) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 
 /** Jeton de suivi client : imprevisible, pas seulement unique. */
@@ -101,6 +111,17 @@ interface Actions {
   saveRule: (rule: Database['rules'][number]) => void
   removeRule: (ruleId: string) => void
   updateAgency: (patch: Partial<Database['agency']>) => void
+  /* Creneaux */
+  joinQueue: (input: { caseId: string; consulateId: string; priority?: Priority; note?: string }) => void
+  leaveQueue: (entryId: string) => void
+  setQueuePriority: (entryId: string, priority: Priority) => void
+  /** Sert la file : cree le rendez-vous, sort le dossier de la file, avance l'etape. */
+  serveQueue: (entryId: string, slotAt: string, location?: string) => void
+  logAttempt: (input: { consulateId: string; centre: Consulate['centre']; result: AttemptResult; caseId?: string; slotAt?: string; note?: string }) => void
+  saveConsulate: (consulate: Omit<Consulate, 'agencyId' | 'id'> & { id?: string }) => void
+  removeConsulate: (consulateId: string) => void
+  /** Enregistre la decision avec un code ferme, et arme l'echeance de recours. */
+  recordDecision: (caseId: string, status: 'accepte' | 'refuse' | 'annule', input?: { code?: RefusalCode; reason?: string }) => void
   reset: () => void
   exportJson: () => string
 }
@@ -851,6 +872,150 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         }
       })
 
+    /* ---------------------------------------------------------------- */
+    /* Creneaux                                                          */
+    /* ---------------------------------------------------------------- */
+
+    const joinQueue: Actions['joinQueue'] = ({ caseId, consulateId, priority, note }) =>
+      setDb((prev) => {
+        // Un dossier n'attend qu'une fois. Reprendre une place perdue ne doit
+        // pas doubler la ligne.
+        if (prev.queue.some((q) => q.caseId === caseId && q.status === 'attente')) return prev
+        const target = prev.cases.find((c) => c.id === caseId)
+        const consulate = prev.consulates.find((c) => c.id === consulateId)
+        const entry: QueueEntry = {
+          id: rid('q'), agencyId: prev.agency.id, caseId, consulateId,
+          joinedAt: nowIso(), priority: priority ?? target?.priority ?? 'normale',
+          status: 'attente', note,
+        }
+        let next: Database = {
+          ...prev,
+          queue: [entry, ...prev.queue],
+          cases: prev.cases.map((c) => (c.id === caseId ? { ...c, consulateId, updatedAt: nowIso() } : c)),
+        }
+        next = log(next, 'creneau_attente', {
+          fr: `${target?.reference ?? ''} entre dans la file ${consulate?.city ?? ''}.`,
+          en: `${target?.reference ?? ''} joined the ${consulate?.city ?? ''} queue.`,
+          ar: `${target?.reference ?? ''} انضم إلى قائمة انتظار ${consulate?.city ?? ''}.`,
+          zh: `${target?.reference ?? ''} 加入 ${consulate?.city ?? ''} 队列。`,
+        }, caseId)
+        return next
+      })
+
+    const leaveQueue: Actions['leaveQueue'] = (entryId) =>
+      setDb((prev) => ({
+        ...prev,
+        queue: prev.queue.map((q) => (q.id === entryId ? { ...q, status: 'abandonne', leftAt: nowIso() } : q)),
+      }))
+
+    const setQueuePriority: Actions['setQueuePriority'] = (entryId, priority) =>
+      setDb((prev) => ({ ...prev, queue: prev.queue.map((q) => (q.id === entryId ? { ...q, priority } : q)) }))
+
+    const serveQueue: Actions['serveQueue'] = (entryId, slotAt, location) =>
+      setDb((prev) => {
+        const entry = prev.queue.find((q) => q.id === entryId)
+        if (!entry || entry.status !== 'attente') return prev
+        const target = prev.cases.find((c) => c.id === entry.caseId)
+        const consulate = prev.consulates.find((c) => c.id === entry.consulateId)
+        const appointment: Appointment = {
+          id: rid('ap'), agencyId: prev.agency.id, caseId: entry.caseId, kind: 'consulat',
+          at: slotAt, durationMin: 30,
+          location: location ?? centreLabel(consulate?.centre) ?? consulate?.city ?? '',
+          status: 'prevu',
+        }
+        let next: Database = {
+          ...prev,
+          appointments: [appointment, ...prev.appointments],
+          queue: prev.queue.map((q) =>
+            q.id === entryId
+              ? { ...q, status: 'servi', servedAt: nowIso(), servedBy: currentUserId, appointmentId: appointment.id }
+              : q,
+          ),
+          // La file servie fait avancer le dossier : c'etait l'etape bloquante.
+          cases: prev.cases.map((c) =>
+            c.id === entry.caseId && c.stage === 'rendez_vous' ? { ...c, stage: 'depot', updatedAt: nowIso() } : c,
+          ),
+        }
+        next = log(next, 'creneau_obtenu', {
+          fr: `Créneau obtenu pour ${target?.reference ?? ''}.`,
+          en: `Slot secured for ${target?.reference ?? ''}.`,
+          ar: `تم الحصول على موعد لـ ${target?.reference ?? ''}.`,
+          zh: `已为 ${target?.reference ?? ''} 取得名额。`,
+        }, entry.caseId)
+        return next
+      })
+
+    const logAttempt: Actions['logAttempt'] = ({ consulateId, centre, result, caseId, slotAt, note }) =>
+      setDb((prev) => {
+        const attempt: SlotAttempt = {
+          id: rid('at'), agencyId: prev.agency.id, consulateId, caseId,
+          at: nowIso(), byId: currentUserId, centre, result, slotAt, note,
+        }
+        // On garde un an de tentatives : au dela, la statistique ne sert plus
+        // et le stockage local sature.
+        const cutoff = Date.now() - 365 * 86400000
+        return {
+          ...prev,
+          attempts: [attempt, ...prev.attempts.filter((a) => new Date(a.at).getTime() > cutoff)],
+        }
+      })
+
+    const saveConsulate: Actions['saveConsulate'] = (consulate) =>
+      setDb((prev) => {
+        if (consulate.id) {
+          return { ...prev, consulates: prev.consulates.map((c) => (c.id === consulate.id ? { ...c, ...consulate, id: c.id } : c)) }
+        }
+        const created: Consulate = { ...consulate, id: rid('cs'), agencyId: prev.agency.id }
+        return { ...prev, consulates: [...prev.consulates, created] }
+      })
+
+    const removeConsulate: Actions['removeConsulate'] = (consulateId) =>
+      setDb((prev) => {
+        // On ne supprime jamais un poste encore attache a un dossier : on le
+        // desactive, sinon l'historique de refus perd sa reference.
+        const used = prev.cases.some((c) => c.consulateId === consulateId)
+        if (used) return { ...prev, consulates: prev.consulates.map((c) => (c.id === consulateId ? { ...c, active: false } : c)) }
+        return { ...prev, consulates: prev.consulates.filter((c) => c.id !== consulateId) }
+      })
+
+    const recordDecision: Actions['recordDecision'] = (caseId, status, input) =>
+      setDb((prev) => {
+        const target = prev.cases.find((c) => c.id === caseId)
+        if (!target) return prev
+        const consulate = prev.consulates.find((c) => c.id === target.consulateId)
+        const decisionAt = nowIso()
+        let appealDueAt: string | undefined
+        if (status === 'refuse' && consulate?.appealDays) {
+          const t = new Date(decisionAt)
+          t.setDate(t.getDate() + consulate.appealDays)
+          appealDueAt = t.toISOString()
+        }
+        let next: Database = {
+          ...prev,
+          cases: prev.cases.map((c) =>
+            c.id === caseId
+              ? {
+                  ...c, status, stage: status === 'accepte' ? 'retrait' : 'clos', decisionAt,
+                  refusalCode: status === 'refuse' ? (input?.code ?? 'autre') : undefined,
+                  refusalReason: status === 'refuse' ? input?.reason : undefined,
+                  appealDueAt, updatedAt: decisionAt,
+                }
+              : c,
+          ),
+          // Une decision sort le dossier de toute file encore ouverte.
+          queue: prev.queue.map((q) =>
+            q.caseId === caseId && q.status === 'attente' ? { ...q, status: 'abandonne', leftAt: decisionAt } : q,
+          ),
+        }
+        next = log(next, 'decision_recue', {
+          fr: `${target.reference} : ${status}.`,
+          en: `${target.reference}: ${status}.`,
+          ar: `${target.reference}: ${status}.`,
+          zh: `${target.reference}：${status}。`,
+        }, caseId)
+        return next
+      })
+
     const reset: Actions['reset'] = () => setDb(buildSeed(slug))
 
     const exportJson: Actions['exportJson'] = () => JSON.stringify(db, null, 2)
@@ -862,6 +1027,8 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       refuseRequest, markSetup, hideSetup, updateClient, clearAll, stepBackShipment, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
       saveTemplate, removeTemplate, saveVisaType, removeVisaType, saveChecklistItem,
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
+      joinQueue, leaveQueue, setQueuePriority, serveQueue, logAttempt, saveConsulate,
+      removeConsulate, recordDecision,
     }
     // db n'entre pas dans les dependances : toutes les mutations passent par
     // setDb(prev => ...) et lisent donc toujours l'etat le plus recent.

@@ -39,7 +39,14 @@ function starterCatalogue(agencyId: string, services: Service[]) {
   const visaTypes = services.includes('visas')
     ? demo.visaTypes.map((v) => ({ ...v, agencyId }))
     : []
-  return { checklists, visaTypes, templates: demo.templates.map((t) => ({ ...t, agencyId })), rules: demo.rules.map((r) => ({ ...r, agencyId, runs: 0, lastRunAt: undefined })) }
+  // Les postes consulaires arrivent avec leurs taux de référence officiels :
+  // une agence neuve peut déjà se comparer avant d'avoir ses propres chiffres.
+  const consulates = services.includes('visas') ? demo.consulates.map((c) => ({ ...c, agencyId })) : []
+  return {
+    checklists, visaTypes, consulates,
+    templates: demo.templates.map((t) => ({ ...t, agencyId })),
+    rules: demo.rules.map((r) => ({ ...r, agencyId, runs: 0, lastRunAt: undefined })),
+  }
 }
 
 export function provisionAgency(input: SignupInput): { slug: string; ownerId: string } {
@@ -94,14 +101,15 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
     active: true,
   }
 
-  const { checklists, visaTypes, templates, rules } = starterCatalogue(agencyId, input.services)
+  const { checklists, visaTypes, consulates, templates, rules } = starterCatalogue(agencyId, input.services)
 
   let db: Database = {
-    version: 1,
+    version: 2,
     agency,
     users: [owner],
     clients: [],
     visaTypes,
+    consulates,
     checklists,
     cases: [],
     documents: [],
@@ -112,6 +120,8 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
     rules,
     events: [],
     tasks: [],
+    queue: [],
+    attempts: [],
     shipments: [],
     shipmentDocs: [],
     shipmentEvents: [],
