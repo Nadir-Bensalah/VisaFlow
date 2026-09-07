@@ -4,7 +4,7 @@ import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Card, Empty, Pill, Progress, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
-import { progress } from '@/lib/derive'
+import { progress, queueRank, realWaitDays } from '@/lib/derive'
 import type { Locale } from '@/data/types'
 
 export function PortalCase() {
@@ -40,6 +40,9 @@ export function PortalCase() {
     .slice(-6)
   const stages = visa.stages
   const currentIndex = stages.indexOf(kase.stage)
+  const place = queueRank(db, kase.id)
+  const consulate = db.consulates.find((c) => c.id === kase.consulateId)
+  const wait = consulate ? realWaitDays(db, consulate.id) : undefined
   const p = progress(db, kase.id)
 
   return (
@@ -110,6 +113,20 @@ export function PortalCase() {
               </div>
             )}
           </Card>
+
+          {/* Le rang dans la file. Aucune agence tunisienne ne sait dire ça
+              aujourd'hui, et c'est la première question du client. */}
+          {!appt && place.rank > 0 && consulate && (
+            <Card title={t('slots.inQueue')}>
+              <div className="col gap-2">
+                <span className="t-display t-num">{place.rank}</span>
+                <span className="t-medium">
+                  {t('slots.yourRank', { rank: place.rank, total: place.total, place: `${tt(consulate.country)} · ${consulate.city}` })}
+                </span>
+                {wait !== undefined && <span className="t-small t-secondary">{t('slots.realWait', { n: wait })}</span>}
+              </div>
+            </Card>
+          )}
 
           {appt && (
             <Card title={t('portal.yourAppointment')}>

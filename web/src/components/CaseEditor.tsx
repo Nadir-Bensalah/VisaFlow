@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useStore } from '@/data/store'
 import { useI18n } from '@/i18n'
 import { Button, Field, Input, Modal, Select, useToast } from './ui'
-import type { Priority, VisaCase } from '@/data/types'
+import type { Priority, Track, VisaCase } from '@/data/types'
 
 /* Corriger un dossier. Sans cet écran, une faute de frappe est définitive et
    la référence du consulat ne peut jamais être saisie. */
 export function CaseEditor({ kase, onClose }: { kase: VisaCase; onClose: () => void }) {
   const { db, actions } = useStore()
-  const { t } = useI18n()
+  const { t, tt } = useI18n()
   const toast = useToast()
 
   const [assigneeId, setAssigneeId] = useState(kase.assigneeId)
@@ -17,6 +17,11 @@ export function CaseEditor({ kase, onClose }: { kase: VisaCase; onClose: () => v
   const [travelDate, setTravelDate] = useState(kase.travelDate?.slice(0, 10) ?? '')
   const [consulateRef, setConsulateRef] = useState(kase.consulateRef ?? '')
   const [source, setSource] = useState(kase.source)
+  // Le poste, pas seulement le pays : la France instruit à Tunis et à Sfax,
+  // et les deux n'ont pas le même taux de refus.
+  const [consulateId, setConsulateId] = useState(kase.consulateId ?? '')
+  const [track, setTrack] = useState<Track>(kase.track ?? 'primo')
+  const consulates = db.consulates.filter((c) => c.active)
 
   return (
     <Modal
@@ -32,6 +37,8 @@ export function CaseEditor({ kase, onClose }: { kase: VisaCase; onClose: () => v
                 assigneeId, priority, officeId, source,
                 travelDate: travelDate ? new Date(travelDate).toISOString() : undefined,
                 consulateRef: consulateRef.trim() || undefined,
+                consulateId: consulateId || undefined,
+                track,
               })
               onClose()
               toast(t('crud.updated'))
@@ -64,6 +71,20 @@ export function CaseEditor({ kase, onClose }: { kase: VisaCase; onClose: () => v
         <Field label={t('misc.office')}>
           <Select value={officeId} onChange={(e) => setOfficeId(e.target.value)}>
             {db.agency.offices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </Select>
+        </Field>
+        <Field label={t('slots.consulate')}>
+          <Select value={consulateId} onChange={(e) => setConsulateId(e.target.value)}>
+            <option value="">—</option>
+            {consulates.map((c) => (
+              <option key={c.id} value={c.id}>{tt(c.country)} · {c.city}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t('track.label')}>
+          <Select value={track} onChange={(e) => setTrack(e.target.value as Track)}>
+            <option value="primo">{t('track.primo')}</option>
+            <option value="vise">{t('track.vise')}</option>
           </Select>
         </Field>
         <Field label={t('caseDetail.source')}>

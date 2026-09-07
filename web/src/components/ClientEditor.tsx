@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Field, Input, Modal, Select, useToast } from './ui'
-import type { Client, Locale } from '@/data/types'
+import { biometricsValid, biometricsValidUntil } from '@/lib/derive'
+import type { Client, Locale, ProfessionalStatus } from '@/data/types'
 
 /* La fiche client, modifiable. Le passeport et sa date d'expiration sont ici :
    sans eux, l'alerte « passeport trop court » ne se declenche jamais, et c'est
@@ -30,6 +31,13 @@ export function ClientEditor({ client, onClose, onSaved }: {
     address: client?.address ?? '',
     locale: (client?.locale ?? 'fr') as Locale,
     officeId: client?.officeId ?? db.agency.offices[0].id,
+    // Le troisieme axe de la liste de pieces. Une checklist « France » n'existe
+    // pas : il faut France + salarie, France + etudiant, France + retraite.
+    professionalStatus: (client?.professionalStatus ?? 'salarie') as ProfessionalStatus,
+    employer: client?.employer ?? '',
+    // Les empreintes restent valables 59 mois. Encore valables, elles evitent
+    // le deplacement, donc changent le prix, le delai et le besoin de creneau.
+    biometricsAt: client?.biometricsAt?.slice(0, 10) ?? '',
   })
   const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
 
@@ -38,6 +46,8 @@ export function ClientEditor({ client, onClose, onSaved }: {
       ...draft,
       passportExpiry: draft.passportExpiry ? new Date(draft.passportExpiry).toISOString() : undefined,
       birthDate: draft.birthDate ? new Date(draft.birthDate).toISOString() : undefined,
+      biometricsAt: draft.biometricsAt ? new Date(draft.biometricsAt).toISOString() : undefined,
+      employer: draft.employer.trim() || undefined,
       whatsapp: draft.whatsapp || draft.phone,
     }
     if (client) {
@@ -87,6 +97,31 @@ export function ClientEditor({ client, onClose, onSaved }: {
           <Input type="date" value={draft.passportExpiry} onChange={(e) => set('passportExpiry', e.target.value)} />
         </Field>
         <Field label={t('ask.travelWhen')}><Input type="date" value={draft.birthDate} onChange={(e) => set('birthDate', e.target.value)} /></Field>
+        <Field label={t('pro.label')} hint={t('pro.hint')}>
+          <Select
+            value={draft.professionalStatus}
+            onChange={(e) => set('professionalStatus', e.target.value as ProfessionalStatus)}
+          >
+            {(['salarie', 'independant', 'fonctionnaire', 'etudiant', 'retraite', 'sans_emploi', 'mineur'] as ProfessionalStatus[]).map((x) => (
+              <option key={x} value={x}>{t(`pro.${x}` as 'pro.salarie')}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t('pro.employer')}>
+          <Input value={draft.employer} onChange={(e) => set('employer', e.target.value)} />
+        </Field>
+        <Field
+          label={t('bio.label')}
+          hint={
+            draft.biometricsAt
+              ? biometricsValid(draft.biometricsAt)
+                ? t('bio.valid', { date: new Date(biometricsValidUntil(draft.biometricsAt)!).toLocaleDateString() })
+                : t('bio.expired')
+              : t('bio.hint')
+          }
+        >
+          <Input type="date" value={draft.biometricsAt} onChange={(e) => set('biometricsAt', e.target.value)} />
+        </Field>
         <Field label={t('misc.language')}>
           <Select value={draft.locale} onChange={(e) => set('locale', e.target.value as Locale)}>
             {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_META[l].native}</option>)}

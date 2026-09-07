@@ -1,15 +1,17 @@
+import { useState } from 'react'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Card } from '@/components/ui'
+import { Card, Empty, Pill, Segmented } from '@/components/ui'
 import { PageHead } from '@/components/bits'
-import { kpis } from '@/lib/derive'
+import { kpis, refusalReasons, refusalStats } from '@/lib/derive'
 
 export function Reports() {
   const { db } = useStore()
   const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
   const k = kpis(db, v)
+  const [axis, setAxis] = useState<'consulate' | 'visaType' | 'status'>('consulate')
 
   // Volume des six derniers mois, calcule sur les dates d'ouverture reelles.
   const months = Array.from({ length: 6 }, (_, i) => {
@@ -43,6 +45,25 @@ export function Reports() {
   }).filter((a) => a.total > 0).sort((a, b) => b.total - a.total)
 
   const revenue = v.payments.filter((p) => p.state === 'regle').reduce((sum, p) => sum + p.amount, 0)
+
+  /* Le taux de refus est une propriété du poste, pas du pays : 15,4 % chez la
+     France et 46,3 % chez la Tchéquie sur le même terrain la même année. Une
+     moyenne nationale affichée ici mentirait à l'agence. Ce tableau est la
+     seule statistique qu'elle ne trouvera nulle part ailleurs. */
+  const rows = refusalStats(v.cases, axis, db.clients)
+  const reasons = refusalReasons(v.cases)
+
+  const rowLabel = (row: (typeof rows)[number]): string => {
+    if (row.consulateId) {
+      const c = db.consulates.find((x) => x.id === row.consulateId)
+      return c ? `${tt(c.country)} · ${c.city}` : row.key
+    }
+    if (row.visaTypeId) {
+      const x = db.visaTypes.find((y) => y.id === row.visaTypeId)
+      return x ? `${tt(x.country)} · ${tt(x.label)}` : row.key
+    }
+    return t(`pro.${row.key}` as 'pro.salarie')
+  }
 
   return (
     <>
@@ -104,6 +125,93 @@ export function Reports() {
             </table>
           </div>
         </Card>
+
+        <Card
+          title={t('refstats.title')}
+          action={
+            <Segmented
+              value={axis}
+              onChange={setAxis}
+              label={t('refstats.title')}
+              options={[
+                { value: 'consulate', label: t('refstats.byConsulate') },
+                { value: 'visaType', label: t('refstats.byVisa') },
+                { value: 'status', label: t('refstats.byStatus') },
+              ]}
+            />
+          }
+          flush
+          className="grid__wide"
+        >
+          {rows.length === 0 ? (
+            <div style={{ padding: 'var(--sp-5)' }}><Empty title={t('refstats.none')} /></div>
+          ) : (
+            <div className="tablewrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>{t('refstats.subtitle')}</th>
+                    <th className="num">{t('refstats.decided')}</th>
+                    <th className="num">{t('refstats.refused')}</th>
+                    <th className="num">{t('refstats.rate')}</th>
+                    {axis === 'consulate' && <th className="num">{t('refstats.official')}</th>}
+                    {axis === 'consulate' && <th className="num">{t('refstats.gap')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const consulate = row.consulateId ? db.consulates.find((c) => c.id === row.consulateId) : undefined
+                    const official = consulate?.refRefusalRate
+                    // L'écart est le vrai signal : faire mieux que le poste,
+                    // c'est ce que l'agence vend.
+                    const gap = official !== undefined ? Math.round((row.rate - official) * 10) / 10 : undefined
+                    return (
+                      <tr key={row.key}>
+                        <td className="t-small t-medium">{rowLabel(row)}</td>
+                        <td className="num t-small">{row.decided}</td>
+                        <td className="num t-small">{row.refused}</td>
+                        <td className="num t-small t-medium">{row.rate}%</td>
+                        {axis === 'consulate' && (
+                          <td className="num t-small t-tertiary">
+                            {official !== undefined ? `${official}%` : '—'}
+                          </td>
+                        )}
+                        {axis === 'consulate' && (
+                          <td className="num t-small">
+                            {gap === undefined ? '—' : (
+                              <Pill tone={gap <= 0 ? 'green' : 'red'}>{gap > 0 ? `+${gap}` : gap}</Pill>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {axis === 'consulate' && rows.length > 0 && (
+            <p className="t-caption t-tertiary" style={{ padding: 'var(--sp-4) var(--sp-5)' }}>{t('refstats.hint')}</p>
+          )}
+        </Card>
+
+        {reasons.length > 0 && (
+          <Card title={t('refstats.reasons')} className="grid__wide">
+            <div className="col gap-3">
+              {reasons.map((r) => (
+                <div key={r.code} className="col gap-2">
+                  <div className="row-between">
+                    <span className="t-small">{t(`refusal.${r.code}` as 'refusal.autre')}</span>
+                    <span className="t-small t-num t-medium">{r.n} · {r.pct}%</span>
+                  </div>
+                  <div className="progress">
+                    <div className="progress__bar" style={{ width: `${Math.max(r.pct, 2)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </>
   )
