@@ -348,3 +348,38 @@ export function appealDue(consulate: Consulate | undefined, decisionAt?: string)
   t.setDate(t.getDate() + consulate.appealDays)
   return t.toISOString()
 }
+
+/* ------------------------------------------------------------------ */
+/* WhatsApp : la fenêtre de 24 heures                                   */
+/* ------------------------------------------------------------------ */
+
+/** Depuis juillet 2025, Meta facture au message modèle envoyé. Les messages
+    de service envoyés dans les 24 heures qui suivent un message du client
+    restent gratuits. Répondre coûte donc moins cher que relancer à froid, et
+    c'est une règle de conception, pas un détail comptable. */
+export function waWindowOpen(db: Database, clientId: string): boolean {
+  const since = Date.now() - 24 * 3600 * 1000
+  return db.messages.some(
+    (m) =>
+      m.channel === 'whatsapp' &&
+      m.direction === 'entrant' &&
+      new Date(m.at).getTime() > since &&
+      db.cases.some((c) => c.id === m.caseId && c.clientId === clientId),
+  )
+}
+
+/** Minutes restantes avant la fermeture de la fenêtre. Zéro si elle est déjà
+    fermée. Sert à dire « répondez dans les 3 h et c'est gratuit ». */
+export function waWindowLeft(db: Database, clientId: string): number {
+  const last = db.messages
+    .filter(
+      (m) =>
+        m.channel === 'whatsapp' &&
+        m.direction === 'entrant' &&
+        db.cases.some((c) => c.id === m.caseId && c.clientId === clientId),
+    )
+    .sort((a, b) => b.at.localeCompare(a.at))[0]
+  if (!last) return 0
+  const closes = new Date(last.at).getTime() + 24 * 3600 * 1000
+  return Math.max(0, Math.round((closes - Date.now()) / 60000))
+}

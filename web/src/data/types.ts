@@ -95,6 +95,21 @@ export interface Office {
 /** Ce que l'agence vend. Une agence de visas seule ne doit pas voir le fret. */
 export type Service = 'visas' | 'fret'
 
+/** Le raccordement WhatsApp d'une agence.
+    Le jeton d'accès n'est PAS ici, et ne doit jamais y être : il vit dans le
+    coffre Supabase, et on n'en garde que le nom. Une table lisible qui
+    contiendrait le jeton permettrait d'écrire au nom de l'agence de partout. */
+export interface WhatsAppAccount {
+  phoneNumberId: string
+  wabaId?: string
+  displayNumber?: string
+  tokenSecret: string
+  verifyToken: string
+  active: boolean
+  linkedAt?: string
+  lastError?: string
+}
+
 export interface Agency {
   id: string
   /** Sous domaine : tca.visaflow.app */
@@ -112,6 +127,7 @@ export interface Agency {
   offices: Office[]
   /** Numero de declaration INPDP, affiche dans le pied du portail client. */
   inpdpRef?: string
+  whatsapp?: WhatsAppAccount
   plan: 'essai' | 'standard' | 'multi_bureaux'
   services: Service[]
   /** Fin de l'essai. Passe ce jour, l'agence doit choisir une formule. */

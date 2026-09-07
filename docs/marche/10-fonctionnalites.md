@@ -153,7 +153,7 @@ C'est le module qui porte l'essentiel de la marge. Il est aujourd'hui le plus fa
 |---|---|---|---|
 | I1 | Modèles de messages cliquables et configurables | **[F]** | Demande explicite |
 | I2 | Pré-remplissage WhatsApp | **[F]** | |
-| I3 | **Envoi et réception WhatsApp réels (Cloud API)** | **[À]** | Facturation par message modèle depuis juillet 2025, fenêtre de service de 24 h gratuite |
+| I3 | **Envoi et réception WhatsApp réels (Cloud API)** | **[P]** | Facturation par message modèle depuis juillet 2025, fenêtre de service de 24 h gratuite |
 | I4 | Fenêtre de 24 h calculée et affichée | **[F]** | Évite de payer un message modèle pour rien |
 | I5 | **Messenger comme second canal** | **[À]** | En Libye, Messenger touche 4,9 millions de personnes sur 7,5 millions d'habitants. Facebook 50 % du trafic social |
 | I6 | Modèles en quatre langues | **[F]** | |

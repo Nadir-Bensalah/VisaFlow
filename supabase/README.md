@@ -1,6 +1,6 @@
 # Le backend
 
-Treize migrations, deux bancs d'essai, cinquante assertions, et rien qui ne soit vérifié.
+Quatorze migrations, trois bancs d'essai, cinquante-huit assertions, deux fonctions de bord, et rien qui ne soit vérifié.
 
 ## Appliquer
 

@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { CaseEditor } from '@/components/CaseEditor'
 import { FileDrop } from '@/components/FileDrop'
-import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank } from '@/lib/derive'
+import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank, waWindowLeft, waWindowOpen } from '@/lib/derive'
 import type { AppointmentKind, Channel, DocState, PaymentMethod, RefusalCode } from '@/data/types'
 
 type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'historique'
@@ -465,6 +465,12 @@ function MessagesTab({ caseId }: { caseId: string }) {
     )
   }
 
+  // La fenêtre de 24 heures : dans la fenêtre, le message est libre et
+  // gratuit ; hors fenêtre, il faut un modèle approuvé et Meta facture.
+  const open = waWindowOpen(db, client.id)
+  const left = waWindowLeft(db, client.id)
+  const usingTemplate = Boolean(templateId)
+
   const send = () => {
     if (!body.trim()) return
     actions.sendMessage({ caseId, body: body.trim(), channel, templateKey: db.templates.find((x) => x.id === templateId)?.key })
@@ -518,6 +524,17 @@ function MessagesTab({ caseId }: { caseId: string }) {
             <Icon name="language" size={14} /> {t('msg.languageAuto')} ({client.locale.toUpperCase()})
           </span>
         </div>
+        {/* Ce que l'envoi va coûter, dit avant l'envoi. Une agence qui relance
+            cinq fois à froid paie cinq messages modèles ; répondre dans la
+            fenêtre est gratuit. */}
+        {channel === 'whatsapp' && (
+          <div className={`wawindow ${open ? 'wawindow--open' : ''}`}>
+            <Icon name={open ? 'clock' : 'alert'} size={15} />
+            <span className="t-caption grow">
+              {open ? t('wa.openFor', { n: Math.round(left / 60) }) : usingTemplate ? t('wa.closedTemplate') : t('wa.closedFree')}
+            </span>
+          </div>
+        )}
         <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('msg.placeholder')} />
         <div className="row-between">
           <span className="t-caption t-tertiary">{t('portal.privacy')}</span>

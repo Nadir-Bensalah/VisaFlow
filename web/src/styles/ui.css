@@ -996,3 +996,17 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   .filecard__act { width: 44px; height: 44px; }
   .filedrop { padding: var(--sp-5); }
 }
+
+/* Le coût d'un envoi, dit avant l'envoi. Une agence qui relance cinq fois à
+   froid paie cinq messages modèles. */
+.wawindow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--tint-orange, var(--fill));
+  color: var(--orange);
+}
+
+.wawindow--open { background: var(--tint-green, var(--fill)); color: var(--green); }
