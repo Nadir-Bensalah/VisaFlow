@@ -1,6 +1,7 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  support: { banner: '支持模式 — 只读 — {agency}', exit: '退出' },
   notif: {
     title: '通知',
     none: '暂无新消息。',

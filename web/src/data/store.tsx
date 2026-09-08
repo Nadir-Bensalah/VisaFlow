@@ -6,6 +6,7 @@ import { useAuth } from './auth'
 import { loadSnapshot, currentAgencyId } from './remote'
 import { mirror } from './mirror'
 import { samePhone } from './identity'
+import { scopeOf } from '@/lib/permissions'
 import { AppSkeleton } from '@/components/AppSkeleton'
 import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
@@ -77,6 +78,14 @@ interface StoreValue {
   retry: () => void
   live: boolean
   setLive: (v: boolean) => void
+  /** Vue support active (super-admin dans une agence, en lecture seule), ou null. */
+  support: { agencyId: string; agencyName: string } | null
+  /** Vrai en vue support : aucune écriture n'est possible. */
+  readOnly: boolean
+  /** Ouvre une agence en vue support (lecture seule). */
+  enterSupport: (agencyId: string) => void
+  /** Quitte la vue support et revient à la console plateforme. */
+  exitSupport: () => void
 }
 
 interface Actions {
@@ -148,9 +157,26 @@ const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ slug, children }: { slug: string; children: ReactNode }) {
   const auth = useAuth()
-  // Mode réel : un backend est là ET une session Supabase est ouverte, et ce
-  // n'est pas un super-admin (lui vit dans la console plateforme, pas ici).
-  const remote = HAS_BACKEND && !!auth.session && !auth.isPlatformAdmin
+  // La vue support : un super-admin ouvre une agence EN LECTURE SEULE, pour le
+  // SAV. La cible tient dans le sessionStorage, elle survit à la navigation
+  // interne et au rechargement, mais pas à un nouvel onglet ni à la fermeture.
+  const [supportAgency, setSupportAgency] = useState<string | null>(() => {
+    try { return window.sessionStorage.getItem('visaflow.support') } catch { return null }
+  })
+  const support = HAS_BACKEND && !!auth.session && !!auth.isPlatformAdmin && !!supportAgency
+  const enterSupport = (agencyId: string) => {
+    try { window.sessionStorage.setItem('visaflow.support', agencyId) } catch { /* stockage indisponible */ }
+    setSupportAgency(agencyId)
+  }
+  const exitSupport = () => {
+    try { window.sessionStorage.removeItem('visaflow.support') } catch { /* stockage indisponible */ }
+    setSupportAgency(null)
+  }
+  // Mode réel : un backend est là ET une session Supabase est ouverte. Un
+  // super-admin n'y entre QUE via la vue support, sur une agence précise.
+  const remote = HAS_BACKEND && !!auth.session && (!auth.isPlatformAdmin || support)
+  // Lecture seule : en vue support, l'admin regarde, il ne touche à rien.
+  const readOnly = support
   const [db, setDb] = useState<Database>(() => load(slug))
   const [ready, setReady] = useState(!remote)
   const [remoteAgencyId, setRemoteAgencyId] = useState<string | null>(null)
@@ -163,9 +189,13 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   })
   // En mode réel, l'utilisateur courant est le compte connecté. En démo, c'est
   // le compte choisi sur l'écran de connexion.
-  const currentUserId = remote
-    ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
-    : (session ?? db.users[0].id)
+  const currentUserId = support
+    // L'admin n'est pas un employé de l'agence : pour la vue, on l'adosse à un
+    // profil à portée agence (la direction), afin qu'il voie tout, en lecture.
+    ? (db.users.find((u) => scopeOf(u) === 'agence')?.id ?? db.users[0]?.id ?? '')
+    : remote
+      ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
+      : (session ?? db.users[0].id)
   const [live, setLive] = useState(true)
   // La robustesse du chemin de données : un chargement qui échoue ne doit pas
   // laisser un rond qui tourne à l'infini, et une écriture qui rate ne doit
@@ -179,7 +209,8 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     let timer: ReturnType<typeof setTimeout> | null = null
     async function hydrate() {
       try {
-        const agencyId = await currentAgencyId()
+        // En vue support, on charge l'agence ciblée ; sinon la sienne.
+        const agencyId = support ? supportAgency : await currentAgencyId()
         if (!alive) return
         if (!agencyId) { setReady(true); return }
         setRemoteAgencyId(agencyId)
@@ -219,7 +250,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     }
     return () => { alive = false; if (timer) clearTimeout(timer); if (sub && supabase) supabase.removeChannel(sub) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remote, auth.user?.id])
+  }, [remote, auth.user?.id, supportAgency])
 
   // Diffusion entre onglets. Deux fenetres ouvertes sur la meme agence voient
   // la meme chose, sans rechargement : c'est le comportement d'un poste
@@ -1215,6 +1246,10 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   // seul proxy, pas quarante-cinq réécritures. Une écriture qui échoue
   // recharge l'instantané, ce qui remet l'écran d'accord avec la vérité.
   const wrapped = useMemo<Actions>(() => {
+    // Vue support : aucune action n'écrit. On rend chaque action inerte plutôt
+    // que de laisser une écriture mentir localement puis être refusée par la
+    // base (aucune politique d'écriture n'existe pour la plateforme).
+    if (readOnly) return new Proxy({} as Actions, { get: () => () => undefined as unknown })
     if (!remote) return actions
     const dbRef = { get db() { return db } }
     return new Proxy(actions, {
@@ -1233,7 +1268,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         }
       },
     })
-  }, [remote, actions, remoteAgencyId, db])
+  }, [remote, readOnly, actions, remoteAgencyId, db])
 
   // Les regles tournent toutes les minutes tant que le temps reel est actif.
   // C'est exactement ce que fera la tache planifiee cote serveur.
@@ -1251,11 +1286,15 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       // En mode réel, être connecté à Supabase suffit ; en démo, avoir choisi
       // un compte sur l'écran de connexion.
       signedIn: remote ? Boolean(auth.session) : Boolean(session),
+      support: support ? { agencyId: supportAgency as string, agencyName: db.agency.name } : null,
+      readOnly,
+      enterSupport,
+      exitSupport,
       signIn, signOut, actions: wrapped, live, setLive,
       syncError,
       retry: () => { setSyncError(null); if (remote) { setReady(false); reloadRef.current() } },
     }),
-    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session, syncError],
+    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session, syncError, support, supportAgency, readOnly],
   )
 
   // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de

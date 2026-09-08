@@ -1,6 +1,7 @@
 import type { Dict } from './fr'
 
 export const ar: Dict = {
+  support: { banner: 'وضع الدعم — قراءة فقط — {agency}', exit: 'خروج' },
   notif: {
     title: 'الإشعارات',
     none: 'لا جديد حاليًا.',

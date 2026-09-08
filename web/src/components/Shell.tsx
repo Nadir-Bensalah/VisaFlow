@@ -39,7 +39,7 @@ function Count({ value }: { value: number }) {
 }
 
 export function Shell() {
-  const { db, live, setLive, signOut, syncError, retry } = useStore()
+  const { db, live, setLive, signOut, syncError, retry, support, exitSupport } = useStore()
   const v = useVisible()
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
@@ -217,6 +217,21 @@ export function Shell() {
           </div>
         </header>
 
+        {support && (
+          <div className="supportbar" role="status">
+            <Icon name="eye" size={14} />
+            <span className="grow t-small">
+              {t('support.banner', { agency: support.agencyName })}
+            </span>
+            <button
+              type="button"
+              className="supportbar__btn"
+              onClick={() => { exitSupport(); navigate('/admin') }}
+            >
+              {t('support.exit')}
+            </button>
+          </div>
+        )}
         <main className="content" id="contenu">
           {v.scope === 'bureau' && (
             <p className="scopebar">

@@ -2,6 +2,7 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  support: { banner: 'Mode support — lecture seule — {agency}', exit: 'Quitter' },
   notif: {
     title: 'Notifications',
     none: 'Rien de neuf pour l’instant.',

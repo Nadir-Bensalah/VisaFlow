@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/data/auth'
+import { useStore } from '@/data/store'
 import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
 
 /* La console de la plateforme. Le tien, au-dessus de toutes les agences.
@@ -23,26 +24,41 @@ export function AdminConsole() {
   const { isPlatformAdmin, adminChecked, user, signOut } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
+  const { enterSupport } = useStore()
+
+  // Ouvre une agence en vue support (lecture seule). L'accès est journalisé
+  // côté serveur avant même le chargement ; si le rôle n'y donne pas droit,
+  // la base refuse et on n'entre pas.
+  const openSupport = async (id: string) => {
+    if (!supabase) return
+    const { error } = await supabase.rpc('platform_open_agency', { p_agency: id })
+    if (error) { toast('Accès refusé : ' + error.message); return }
+    enterSupport(id)
+    navigate('/')
+  }
   const [over, setOver] = useState<Overview | null>(null)
   const [agencies, setAgencies] = useState<AgencyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'toutes' | 'actives' | 'suspendues'>('toutes')
   const [busy, setBusy] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<any[]>([])
+  const [supportLog, setSupportLog] = useState<any[]>([])
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AgencyRow | null>(null)
 
   async function load() {
     if (!supabase) return
     setLoading(true)
-    const [o, a, inv] = await Promise.all([
+    const [o, a, inv, log] = await Promise.all([
       supabase.rpc('platform_overview'),
       supabase.rpc('platform_agencies'),
       supabase.rpc('platform_invoices_list', {}),
+      supabase.rpc('platform_support_history', { p_limit: 20 }),
     ])
     if (o.data) setOver(o.data as Overview)
     if (a.data) setAgencies(a.data as AgencyRow[])
     if (inv.data) setInvoices(inv.data as any[])
+    if (log.data) setSupportLog(log.data as any[])
     setLoading(false)
   }
 
@@ -151,6 +167,7 @@ export function AdminConsole() {
                       </td>
                       <td>
                         <div className="row gap-2" style={{ justifyContent: 'flex-end' }}>
+                          <Button icon="eye" disabled={a.suspended} onClick={() => void openSupport(a.id)}>Ouvrir</Button>
                           {a.suspended
                             ? <Button icon="check" disabled={busy === a.id} onClick={() => setState(a.id, 'active', 'Agence réactivée.')}>Réactiver</Button>
                             : <Button icon="lock" disabled={busy === a.id} onClick={() => setState(a.id, 'suspendue', 'Agence suspendue.')}>Suspendre</Button>}
@@ -188,6 +205,27 @@ export function AdminConsole() {
                       <td className="num">{i.cases_billed}</td>
                       <td className="num t-medium">{money(i.amount)}</td>
                       <td><Pill tone={i.status === 'reglee' ? 'green' : i.status === 'envoyee' ? 'blue' : 'orange'}>{i.status}</Pill></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Accès support" flush>
+          {supportLog.length === 0 ? (
+            <div style={{ padding: 'var(--sp-5)' }}><Empty title="Aucun accès support pour l'instant." hint="Chaque ouverture d'une agence en lecture seule est tracée ici." /></div>
+          ) : (
+            <div className="admin__scroll">
+              <table className="admin__table">
+                <thead><tr><th>Admin</th><th>Agence</th><th>Ouverte le</th></tr></thead>
+                <tbody>
+                  {supportLog.map((l, k) => (
+                    <tr key={k}>
+                      <td className="t-small t-medium">{l.admin_email ?? '—'}</td>
+                      <td className="t-small">{l.agency_name}</td>
+                      <td className="t-caption t-tertiary">{l.opened_at ? new Date(l.opened_at).toLocaleString('fr-TN') : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

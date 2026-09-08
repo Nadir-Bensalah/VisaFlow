@@ -1,6 +1,7 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  support: { banner: 'Support mode — read-only — {agency}', exit: 'Leave' },
   notif: {
     title: 'Notifications',
     none: 'Nothing new yet.',
