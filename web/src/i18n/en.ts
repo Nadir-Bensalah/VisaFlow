@@ -37,6 +37,8 @@ export const en: Dict = {
     noAttention: 'Nothing urgent. Every application is moving.',
   },
   cases: {
+    searchClient: 'Search for a client…',
+    noClientMatch: 'No matching client',
     title: 'Applications', subtitle: 'Every application, filterable and exportable.',
     reference: 'Reference', client: 'Client', visa: 'Visa', stage: 'Stage', assignee: 'Agent',
     travel: 'Departure', updated: 'Updated', progress: 'Documents', balance: 'Balance',

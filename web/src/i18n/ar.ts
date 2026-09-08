@@ -37,6 +37,8 @@ export const ar: Dict = {
     noAttention: 'لا شيء عاجل. كل الملفات تتقدم.',
   },
   cases: {
+    searchClient: 'ابحث عن حريف…',
+    noClientMatch: 'لا يوجد حريف مطابق',
     title: 'الملفات', subtitle: 'كل ملفات الوكالة، قابلة للتصفية والتصدير.',
     reference: 'المرجع', client: 'العميل', visa: 'التأشيرة', stage: 'المرحلة', assignee: 'العون',
     travel: 'السفر', updated: 'آخر تحديث', progress: 'الوثائق', balance: 'الرصيد',

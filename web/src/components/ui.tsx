@@ -155,6 +155,111 @@ export const Input = (p: InputHTMLAttributes<HTMLInputElement>) => <input {...p}
 export const Textarea = (p: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...p} className={`textarea ${p.className ?? ''}`} />
 export const Select = (p: SelectHTMLAttributes<HTMLSelectElement>) => <select {...p} className={`select ${p.className ?? ''}`} />
 
+export type ComboOption = { value: string; label: string; hint?: string }
+
+/**
+ * Un sélecteur qui se cherche au clavier. Une agence a des centaines de clients ;
+ * une liste déroulante brute où il faut faire défiler à la main est l'un des gestes
+ * que l'employée du comptoir refait cent fois par jour. Ici on tape trois lettres du
+ * nom, la liste se réduit, les flèches et Entrée choisissent. Repli propre : si aucune
+ * option ne correspond, on le dit, on n'affiche pas une liste vide muette.
+ */
+export function Combobox({
+  value, onChange, options, placeholder, emptyLabel, id, autoFocus,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: ComboOption[]
+  placeholder?: string
+  emptyLabel?: string
+  id?: string
+  autoFocus?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [active, setActive] = useState(0)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listId = useId()
+
+  const selected = options.find((o) => o.value === value)
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const q = norm(query.trim())
+  const shown = !open || q === ''
+    ? options
+    : options.filter((o) => norm(o.label).includes(q) || (o.hint ? norm(o.hint).includes(q) : false))
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const choose = (o: ComboOption) => {
+    onChange(o.value)
+    setOpen(false)
+    setQuery('')
+    inputRef.current?.blur()
+  }
+
+  const onKey = (e: { key: string; preventDefault: () => void }) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!open) { setOpen(true); return }
+      setActive((i) => Math.min(i + 1, shown.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      if (open && shown[active]) { e.preventDefault(); choose(shown[active]) }
+    } else if (e.key === 'Escape') {
+      setOpen(false); setQuery('')
+    }
+  }
+
+  return (
+    <div className="combo" ref={rootRef}>
+      <input
+        id={id}
+        ref={inputRef}
+        className="input combo__input"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        value={open ? query : (selected?.label ?? '')}
+        onChange={(e) => { setQuery(e.target.value); setActive(0); if (!open) setOpen(true) }}
+        onFocus={() => { setOpen(true); setActive(0) }}
+        onKeyDown={onKey}
+      />
+      {open && (
+        <ul className="combo__list" id={listId} role="listbox">
+          {shown.length === 0 ? (
+            <li className="combo__empty">{emptyLabel ?? '—'}</li>
+          ) : shown.map((o, i) => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              className={`combo__opt${i === active ? ' is-active' : ''}${o.value === value ? ' is-selected' : ''}`}
+              onMouseEnter={() => setActive(i)}
+              onMouseDown={(e) => { e.preventDefault(); choose(o) }}
+            >
+              <span className="combo__optLabel">{o.label}</span>
+              {o.hint && <span className="combo__optHint">{o.hint}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Button, Card, Empty, Input, Select, Field, Modal, useToast } from '@/components/ui'
+import { Button, Card, Combobox, Empty, Input, Select, Field, Modal, useToast } from '@/components/ui'
 import { Ago, Countdown, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { ACTIVE_STAGES, caseBalance, clientName, isLate, progress, urgency } from '@/lib/derive'
 import type { Stage } from '@/data/types'
@@ -203,11 +203,17 @@ function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: 
     >
       <div className="col gap-4">
         <Field label={t('cases.client')}>
-          <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-            {v.clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-            ))}
-          </Select>
+          <Combobox
+            value={clientId}
+            onChange={setClientId}
+            placeholder={t('cases.searchClient')}
+            emptyLabel={t('cases.noClientMatch')}
+            options={v.clients.map((c) => ({
+              value: c.id,
+              label: `${c.firstName} ${c.lastName}`.trim(),
+              hint: c.phone,
+            }))}
+          />
         </Field>
         <Field label={t('cases.visa')} hint={t('settings.checklists')}>
           <Select value={visaTypeId} onChange={(e) => setVisaTypeId(e.target.value)}>

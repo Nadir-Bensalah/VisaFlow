@@ -37,6 +37,8 @@ export const zh: Dict = {
     noAttention: '没有紧急事项，所有申请都在推进。',
   },
   cases: {
+    searchClient: '搜索客户…',
+    noClientMatch: '无匹配客户',
     title: '申请', subtitle: '公司全部申请，可筛选、可导出。',
     reference: '编号', client: '客户', visa: '签证', stage: '阶段', assignee: '专员',
     travel: '出发', updated: '更新于', progress: '材料', balance: '余额',

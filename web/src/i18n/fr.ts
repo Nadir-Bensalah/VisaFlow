@@ -137,6 +137,8 @@ export const fr = {
     noAttention: 'Rien d’urgent. Tous les dossiers avancent.',
   },
   cases: {
+    searchClient: 'Rechercher un client…',
+    noClientMatch: 'Aucun client ne correspond',
     title: 'Dossiers',
     subtitle: 'Tous les dossiers de l’agence, filtrables et exportables.',
     reference: 'Référence',
