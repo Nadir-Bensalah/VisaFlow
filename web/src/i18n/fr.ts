@@ -2,6 +2,17 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  notif: {
+    title: 'Notifications',
+    none: 'Rien de neuf pour l’instant.',
+    markAll: 'Tout marquer comme lu',
+    decisionOk: 'Visa accordé',
+    decisionKo: 'Visa refusé',
+    piece: 'Pièce à refaire',
+    rdv: 'Rendez-vous aujourd’hui',
+    demande: 'Nouvelle demande',
+    message: 'Message d’un client',
+  },
   import: {
     action: 'Importer',
     title: 'Importer des clients',

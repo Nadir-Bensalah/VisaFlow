@@ -1,6 +1,17 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  notif: {
+    title: 'Notifications',
+    none: 'Nothing new yet.',
+    markAll: 'Mark all as read',
+    decisionOk: 'Visa granted',
+    decisionKo: 'Visa refused',
+    piece: 'Document to redo',
+    rdv: 'Appointment today',
+    demande: 'New request',
+    message: 'Message from a client',
+  },
   import: {
     action: 'Import',
     title: 'Import clients',

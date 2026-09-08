@@ -1,6 +1,17 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  notif: {
+    title: '通知',
+    none: '暂无新消息。',
+    markAll: '全部标为已读',
+    decisionOk: '签证已获批',
+    decisionKo: '签证被拒',
+    piece: '需重做的材料',
+    rdv: '今日预约',
+    demande: '新申请',
+    message: '客户消息',
+  },
   import: {
     action: '导入',
     title: '导入客户',

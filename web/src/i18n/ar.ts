@@ -1,6 +1,17 @@
 import type { Dict } from './fr'
 
 export const ar: Dict = {
+  notif: {
+    title: 'الإشعارات',
+    none: 'لا جديد حاليًا.',
+    markAll: 'وضع الكل كمقروء',
+    decisionOk: 'تمّت الموافقة على التأشيرة',
+    decisionKo: 'رُفضت التأشيرة',
+    piece: 'وثيقة يجب إعادتها',
+    rdv: 'موعد اليوم',
+    demande: 'طلب جديد',
+    message: 'رسالة من حريف',
+  },
   import: {
     action: 'استيراد',
     title: 'استيراد الحرفاء',

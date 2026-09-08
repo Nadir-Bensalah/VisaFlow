@@ -7,6 +7,7 @@ import type { Locale } from '@/data/types'
 import { Icon, type IconName } from './Icon'
 import { Avatar, IconButton, Select } from './ui'
 import { CommandPalette } from './CommandPalette'
+import { NotificationBell } from './NotificationBell'
 import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
@@ -192,6 +193,7 @@ export function Shell() {
           </button>
 
           <div className="row gap-2 row-nowrap" style={{ marginInlineStart: 'auto' }}>
+            <NotificationBell />
             <button
               type="button"
               className="live"
