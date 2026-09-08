@@ -1,6 +1,33 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  schengen: {
+    title: '180 天内 90 天计数',
+    remaining: '剩余天数',
+    usedOf: '已用 {used} 天，共 {max} 天',
+    window: '滚动窗口：{from} 至 {to}',
+    inside: '目前在境内',
+    mustLeave: '最迟须于 {date} 离境。逾期即属非法停留，下次申请几乎必被拒。',
+    canStay: '今日出发可连续停留 {n} 天。这与余额不同：停留期间窗口也在移动。',
+    comeBack: '今日无可用天数。最早于 {date} 开始释放。',
+    blocked: '未来六个月内无可用天数。',
+    stays: '已记录的停留',
+    noStay: '未记录任何停留：计数器无法给出结论。',
+    addStay: '添加停留',
+    editStay: '修改停留',
+    entry: '入境',
+    exit: '出境',
+    exitHint: '若客户仍在境内则留空。',
+    stillIn: '仍在境内',
+    country: '国家',
+    source: '日期来源',
+    sourceHint: '客户提出异议时，以此字段为准。',
+    src_declare: '客户申报',
+    src_tampon: '护照章',
+    src_ees: 'EES',
+    src_agence: '本机构',
+    bothDaysCount: '入境当日与出境当日均计入。',
+  },
   tariff: {
     title: '滞留费率',
     new: '新增费率',

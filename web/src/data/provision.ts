@@ -128,7 +128,7 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
     shipmentEvents: [],
     requests: [],
     // Une agence toute neuve n'a encore ni conteneur, ni barème, ni déclaration.
-    lots: [], legs: [], tariffs: [], bls: [], declarations: [], customsArticles: [], tce: [],
+    lots: [], legs: [], tariffs: [], bls: [], declarations: [], customsArticles: [], tce: [], stays: [],
   }
 
   if (input.withDemoData) {

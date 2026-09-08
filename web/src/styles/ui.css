@@ -1293,3 +1293,29 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   padding: 6px var(--sp-3); margin-inline-start: var(--sp-4);
   border-inline-start: 2px solid var(--hairline-strong);
 }
+
+/* Le compteur 90 jours sur 180. */
+.schengen__big { font-size: 40px; font-weight: var(--w-semibold); line-height: 1; font-variant-numeric: tabular-nums; }
+.schengen__big--green { color: var(--green); }
+.schengen__big--orange { color: var(--orange); }
+.schengen__big--red { color: var(--red); }
+.schengen__bar { height: 8px; border-radius: 999px; background: var(--hairline); overflow: hidden; }
+.schengen__fill { display: block; height: 100%; border-radius: 999px; transition: width var(--dur-slow, .4s) var(--ease); }
+.schengen__fill--green { background: var(--green); }
+.schengen__fill--orange { background: var(--orange); }
+.schengen__fill--red { background: var(--red); }
+.schengen__note {
+  display: flex; align-items: flex-start; gap: var(--sp-2); margin: 0;
+  padding: 10px var(--sp-3); border-radius: var(--radius-field);
+  background: var(--bg-subtle, var(--fill)); font-size: var(--size-small);
+  color: var(--text-secondary); line-height: 1.45;
+}
+.schengen__note svg { flex: none; margin-top: 2px; color: var(--text-tertiary); }
+.schengen__note.is-warn { background: var(--tint-orange, rgba(255,149,0,0.12)); color: var(--text-primary); }
+.schengen__note.is-warn svg { color: var(--orange); }
+.schengen__stay {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
+  padding: 8px var(--sp-3); border: 1px solid var(--hairline);
+  border-radius: var(--radius-field); background: transparent; cursor: pointer;
+}
+.schengen__stay:hover { background: var(--fill, var(--bg-subtle)); }

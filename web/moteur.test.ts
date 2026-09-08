@@ -21,6 +21,8 @@ import {
 } from './src/lib/fret'
 import type { DemurrageTariff, ShipmentLeg } from './src/data/types'
 
+import { schengenState, planStay, type Stay } from './src/lib/schengen'
+
 let passed = 0
 const failures: string[] = []
 
@@ -193,6 +195,54 @@ ok(tceNeedsAmendment(tce, { ...tce, designation: 'Pièces détachées' }).needed
   'changer la désignation impose de modifier le titre')
 ok(tceNeedsAmendment(tce, { ...tce, quantity: 600 }).needed,
   'une hausse de quantité de 20 % impose aussi la modification')
+
+console.log('--- 7 · Le compteur 90 jours sur 180 ---')
+// Toutes les valeurs ci-dessous sont calculées à la main dans les commentaires.
+const REF = '2026-09-08'
+
+ok(schengenState([], REF).remaining === 90, 'sans aucun séjour, les 90 jours sont entiers')
+
+// 2026-08-01 au 2026-08-10 : dix jours, entrée ET sortie comprises.
+ok(schengenState([{ entry: '2026-08-01', exit: '2026-08-10' }], REF).used === 10,
+  'le jour d\'entrée et le jour de sortie comptent tous les deux')
+ok(schengenState([{ entry: '2026-08-01', exit: '2026-08-01' }], REF).used === 1,
+  'un aller-retour dans la journée compte un jour, pas zéro')
+
+// Deux tampons qui se recouvrent : l'union fait 15 jours, pas 10 + 11.
+ok(schengenState([
+  { entry: '2026-08-01', exit: '2026-08-10' },
+  { entry: '2026-08-05', exit: '2026-08-15' },
+], REF).used === 15, 'deux séjours qui se chevauchent ne comptent pas deux fois')
+
+// La fenêtre commence le 2026-03-13. Un séjour du 01/03 au 20/03 n'y entre
+// qu'à partir du 13 : huit jours, pas vingt.
+ok(schengenState([{ entry: '2026-03-01', exit: '2026-03-20' }], REF).used === 8,
+  'la fenêtre glissante coupe ce qui est trop vieux')
+ok(schengenState([], REF).windowFrom === '2026-03-13', 'la fenêtre couvre bien 180 jours')
+
+// Soixante jours consommés jusqu'à hier : il reste trente jours d'affilée.
+const soixante: Stay[] = [{ entry: '2026-07-10', exit: '2026-09-07' }]
+ok(schengenState(soixante, REF).used === 60, 'soixante jours consommés')
+const plan = planStay(soixante, '2026-09-08')
+ok(plan.maxDays === 30, 'entrer aujourd\'hui permet trente jours, pas un de plus')
+ok(plan.blockedOn === '2026-10-08', 'le trente-et-unième jour ferait basculer au-dessus de 90')
+
+// Quatre-vingt-dix jours pleins : bloqué, mais pas pour toujours.
+const plein: Stay[] = [{ entry: '2026-06-11', exit: '2026-09-08' }]
+ok(schengenState(plein, REF).used === 90, 'quatre-vingt-dix jours pleins')
+ok(schengenState(plein, REF).remaining === 0, 'il ne reste rien')
+const bloque = planStay(plein, '2026-09-09')
+ok(bloque.maxDays === 0, 'il ne peut pas repartir demain')
+// Les vieux jours sortent de la fenêtre : le 2026-12-08, un jour se libère.
+ok(bloque.earliestEntry === '2026-12-08',
+  'on lui donne une date de retour au lieu d\'un refus sec')
+
+// Un client encore à l'intérieur : jusqu'à quand peut-il rester ?
+const dedans = schengenState([{ entry: '2026-09-01' }], REF)
+ok(dedans.inside, 'un séjour sans date de sortie signifie que le client est dedans')
+ok(dedans.used === 8, 'huit jours déjà passés sur place')
+ok(dedans.mustLeaveBy === '2026-11-29',
+  'la date limite de sortie est calculée : au-delà, séjour irrégulier')
 
 console.log('')
 if (failures.length > 0) {

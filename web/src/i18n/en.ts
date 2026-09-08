@@ -1,6 +1,33 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  schengen: {
+    title: '90 days in 180 counter',
+    remaining: 'days left',
+    usedOf: '{used} days used out of {max}',
+    window: 'Rolling window from {from} to {to}',
+    inside: 'Currently inside',
+    mustLeave: 'Must leave by {date}. Beyond that the stay becomes unlawful, and the next application will almost certainly be refused.',
+    canStay: 'Leaving today, they can stay {n} consecutive days. That is not the same as the balance: the window moves during the stay.',
+    comeBack: 'No days available today. The first ones free up on {date}.',
+    blocked: 'No days available in the next six months.',
+    stays: 'Recorded stays',
+    noStay: 'No stay recorded: the counter cannot claim anything.',
+    addStay: 'Add a stay',
+    editStay: 'Edit stay',
+    entry: 'Entry',
+    exit: 'Exit',
+    exitHint: 'Leave empty if the client is still there.',
+    stillIn: 'still there',
+    country: 'Country',
+    source: 'Source of the date',
+    sourceHint: 'The day a client disputes it, this field settles it.',
+    src_declare: 'Declared',
+    src_tampon: 'Stamp',
+    src_ees: 'EES',
+    src_agence: 'Agency',
+    bothDaysCount: 'The entry day and the exit day both count.',
+  },
   tariff: {
     title: 'Storage tariffs',
     new: 'New tariff',

@@ -876,6 +876,23 @@ export interface TceTitle {
   note?: string
 }
 
+/**
+ * Un séjour dans l'espace Schengen. Le jour d'entrée ET le jour de sortie
+ * comptent tous les deux dans le quota de 90 jours.
+ */
+export interface SchengenStay {
+  id: string
+  agencyId: string
+  clientId: string
+  entryDate: string
+  /** Absente = le client est encore à l'intérieur. */
+  exitDate?: string
+  country?: string
+  /** D'où vient la date : un compteur qui ne le dit pas ne tient pas devant une contestation. */
+  source: 'declare' | 'tampon' | 'ees' | 'agence'
+  note?: string
+}
+
 /** Etat complet du magasin, un seul objet serialisable. */
 export interface Database {
   version: number
@@ -909,4 +926,6 @@ export interface Database {
   declarations: CustomsDeclaration[]
   customsArticles: CustomsArticle[]
   tce: TceTitle[]
+  /** Les séjours, pour le compteur 90 jours sur 180. */
+  stays: SchengenStay[]
 }

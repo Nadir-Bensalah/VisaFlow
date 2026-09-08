@@ -10,7 +10,8 @@ import type {
   BillOfLading,
   CustomsDeclaration,
   CustomsArticle,
-  TceTitle
+  TceTitle,
+  SchengenStay
 } from './types'
 import { findTenant } from '@/tenant'
 
@@ -995,12 +996,47 @@ export function buildSeed(slug: string): Database {
   ]
   const { queue, attempts } = buildQueue(agencyId, cases, users, consulates)
 
+  /* Les séjours passés, pour le compteur 90 jours sur 180. Trois situations
+     valent la peine d'être montrées : celui qui a de la marge, celui qui est
+     presque au plafond, et celui qui est encore à l'intérieur. */
+  const stays: SchengenStay[] = []
+  clients.slice(0, 9).forEach((c, i) => {
+    const cas = i % 3
+    if (cas === 0) {
+      // De la marge : deux courts séjours anciens.
+      stays.push({
+        id: `st_${c.id}_1`, agencyId, clientId: c.id,
+        entryDate: d(-150).slice(0, 10), exitDate: d(-139).slice(0, 10),
+        country: 'FR', source: 'tampon',
+      })
+      stays.push({
+        id: `st_${c.id}_2`, agencyId, clientId: c.id,
+        entryDate: d(-60).slice(0, 10), exitDate: d(-52).slice(0, 10),
+        country: 'IT', source: 'declare',
+      })
+    } else if (cas === 1) {
+      // Presque au plafond : 82 jours consommés, il lui en reste huit.
+      stays.push({
+        id: `st_${c.id}_1`, agencyId, clientId: c.id,
+        entryDate: d(-120).slice(0, 10), exitDate: d(-39).slice(0, 10),
+        country: 'FR', source: 'ees',
+      })
+    } else {
+      // Encore à l'intérieur : pas de date de sortie.
+      stays.push({
+        id: `st_${c.id}_1`, agencyId, clientId: c.id,
+        entryDate: d(-14).slice(0, 10),
+        country: 'ES', source: 'declare',
+      })
+    }
+  })
+
   return {
     version: 3, agency, users, clients, visaTypes, consulates, checklists, cases, documents, custody: [],
     messages, templates, appointments, payments, rules, events, tasks,
     shipments, shipmentDocs, shipmentEvents,
     requests: buildRequests(agencyId, visaTypes),
     queue, attempts,
-    lots, legs, tariffs, bls, declarations, customsArticles, tce,
+    lots, legs, tariffs, bls, declarations, customsArticles, tce, stays,
   }
 }

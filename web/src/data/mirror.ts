@@ -133,6 +133,13 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
     case 'removeConsulate':
       await patch('consulates', args[0], { active: false })
       return true
+    case 'saveStay':
+      await upsert('schengen_stays', args[0], ctx.agencyId)
+      ctx.reload()
+      return true
+    case 'removeStay':
+      await remove('schengen_stays', args[0])
+      return true
     case 'saveTariff':
       await upsert('demurrage_tariffs', args[0], ctx.agencyId)
       ctx.reload()

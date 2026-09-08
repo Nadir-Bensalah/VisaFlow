@@ -2,6 +2,33 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  schengen: {
+    title: 'Compteur 90 jours sur 180',
+    remaining: 'jours restants',
+    usedOf: '{used} jours utilisés sur {max}',
+    window: 'Fenêtre glissante du {from} au {to}',
+    inside: 'Actuellement sur place',
+    mustLeave: 'Sortie au plus tard le {date}. Au-delà, le séjour devient irrégulier et la prochaine demande sera presque sûrement refusée.',
+    canStay: 'En partant aujourd’hui, il peut rester {n} jours d’affilée. Ce n’est pas la même chose que le solde : la fenêtre bouge pendant le séjour.',
+    comeBack: 'Plus aucun jour disponible aujourd’hui. Les premiers se libèrent le {date}.',
+    blocked: 'Aucun jour disponible dans les six prochains mois.',
+    stays: 'Séjours enregistrés',
+    noStay: 'Aucun séjour enregistré : le compteur ne peut rien affirmer.',
+    addStay: 'Ajouter un séjour',
+    editStay: 'Modifier le séjour',
+    entry: 'Entrée',
+    exit: 'Sortie',
+    exitHint: 'Laisser vide si le client est encore sur place.',
+    stillIn: 'encore sur place',
+    country: 'Pays',
+    source: 'Origine de la date',
+    sourceHint: 'Le jour où le client conteste, c’est ce champ qui tranche.',
+    src_declare: 'Déclaré',
+    src_tampon: 'Tampon',
+    src_ees: 'EES',
+    src_agence: 'Agence',
+    bothDaysCount: 'Le jour d’entrée et le jour de sortie comptent tous les deux.',
+  },
   tariff: {
     title: 'Barèmes de stationnement',
     new: 'Nouveau barème',
