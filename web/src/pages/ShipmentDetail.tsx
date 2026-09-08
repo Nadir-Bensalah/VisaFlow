@@ -9,7 +9,7 @@ import { CountersCard, CustomsCard, DouaneDocsCard, LotsCard, RouteCard } from '
 import { Icon } from '@/components/Icon'
 import { FileDrop } from '@/components/FileDrop'
 import { Ago, Countdown, DocPill, PageHead } from '@/components/bits'
-import { SHIPMENT_STAGES, SHIPMENT_TONE, clientName, shipmentLate, shipmentProgress } from '@/lib/derive'
+import { SHIPMENT_STAGES, SHIPMENT_TONE, clientName, shipmentLate, shipmentProgress, shipmentClientIds} from '@/lib/derive'
 
 export function ShipmentDetail() {
   const { id = '' } = useParams()
@@ -22,7 +22,10 @@ export function ShipmentDetail() {
   const shipment = v.shipments.find((s) => s.id === id)
   if (!shipment) return <Empty title={t('ship.none')} action={<Link to="/cargaisons" className="btn btn--secondary">{t('action.back')}</Link>} />
 
-  const client = db.clients.find((c) => c.id === shipment.clientId)!
+  // Les clients viennent des LOTS. Le champ `clientId` de la cargaison n'existe
+  // pas en base : s'y fier faisait planter la fiche sur des données réelles.
+  const clientIds = shipmentClientIds(db, shipment)
+  const client = clientIds.length === 1 ? db.clients.find((c) => c.id === clientIds[0]) : undefined
   const docs = db.shipmentDocs.filter((d) => d.shipmentId === shipment.id)
   const events = db.shipmentEvents.filter((e) => e.shipmentId === shipment.id).sort((a, b) => b.at.localeCompare(a.at))
   const currentIndex = SHIPMENT_STAGES.indexOf(shipment.stage)
@@ -172,6 +175,7 @@ export function ShipmentDetail() {
             </div>
           </Card>
 
+          {client && (
           <Card title={t('cases.client')} action={<Link to={`/clients/${client.id}`} className="t-small">{t('action.open')}</Link>}>
             <div className="row gap-3">
               <Avatar name={clientName(db, client.id)} />
@@ -187,6 +191,7 @@ export function ShipmentDetail() {
               </Link>
             )}
           </Card>
+          )}
 
           {shipment.notes && (
             <Card title={t('caseDetail.notes')}>

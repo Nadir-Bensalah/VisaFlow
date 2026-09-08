@@ -182,10 +182,29 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
       return true
 
     /* Le fret. */
-    case 'saveShipment':
-      await upsert('shipments', args[0], ctx.agencyId)
+    case 'saveShipment': {
+      // En base, une cargaison n'a PAS de client : le lien passe par les lots.
+      // Envoyer le champ tel quel faisait échouer toute création de cargaison
+      // avec « column client_id does not exist ».
+      const { clientId, ...cargaison } = args[0] as Record<string, unknown> & { clientId?: string }
+      const saved = await upsert('shipments', cargaison, ctx.agencyId) as { id?: string } | undefined
+      const shipmentId = (cargaison.id as string) ?? saved?.id
+      // Un client désigné à la création devient un lot : c'est ce que le métier
+      // fait vraiment, et ça marche aussi bien pour un conteneur complet.
+      if (clientId && shipmentId) {
+        const dejaLa = db.lots.some((l) => l.shipmentId === shipmentId && l.clientId === clientId)
+        if (!dejaLa) {
+          await insert('shipment_lots', {
+            agencyId: ctx.agencyId, shipmentId, clientId,
+            weightKg: (cargaison.weightKg as number) ?? null,
+            volumeCbm: (cargaison.volumeCbm as number) ?? null,
+            packages: (cargaison.packages as number) ?? null,
+          })
+        }
+      }
       ctx.reload()
       return true
+    }
     case 'advanceShipment': {
       const s = db.shipments.find((x) => x.id === args[0])
       if (s) await patch('shipments', s.id, { stage: s.stage })

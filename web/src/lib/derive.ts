@@ -439,3 +439,30 @@ function riskBand(rate: number): RefusalRisk['band'] {
   if (rate >= 0.1) return 'modere'
   return 'faible'
 }
+
+
+/**
+ * Les clients d'une cargaison. Ils viennent des LOTS : une cargaison groupée en
+ * porte quinze, chacun ses cartons et son dédouanement. Le champ `clientId` de
+ * la cargaison n'est qu'une commodité du jeu de démonstration ; s'y fier faisait
+ * planter la fiche sur des données réelles.
+ */
+export function shipmentClientIds(db: Database, shipment: Shipment): string[] {
+  const fromLots = db.lots.filter((l) => l.shipmentId === shipment.id).map((l) => l.clientId)
+  if (fromLots.length > 0) return [...new Set(fromLots)]
+  return shipment.clientId ? [shipment.clientId] : []
+}
+
+/** Le libellé à afficher : un nom, ou le nombre de clients d'un groupage. */
+export function shipmentClientLabel(db: Database, shipment: Shipment): string {
+  const ids = shipmentClientIds(db, shipment)
+  if (ids.length === 0) return '—'
+  if (ids.length === 1) return clientName(db, ids[0])
+  return `${clientName(db, ids[0])} +${ids.length - 1}`
+}
+
+/** Les cargaisons où ce client a quelque chose, lot compris. */
+export function shipmentsOfClient(db: Database, clientId: string): Shipment[] {
+  const viaLots = new Set(db.lots.filter((l) => l.clientId === clientId).map((l) => l.shipmentId))
+  return db.shipments.filter((s) => viaLots.has(s.id) || s.clientId === clientId)
+}

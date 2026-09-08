@@ -587,7 +587,13 @@ export interface Shipment {
   id: string
   agencyId: string
   reference: string
-  clientId: string
+  /**
+   * Commodité d'affichage pour une cargaison à un seul client. En base ce champ
+   * N'EXISTE PAS : une cargaison porte plusieurs clients, chacun par son lot.
+   * Un modèle à un client par cargaison rate la moitié du métier, et le croire
+   * faisait planter la fiche dès qu'on la branchait sur de vraies données.
+   */
+  clientId?: string
   /** Dossier de visa du meme client, quand il y en a un. */
   caseId?: string
   mode: ShipmentMode

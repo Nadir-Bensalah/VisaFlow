@@ -4,7 +4,7 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Icon, type IconName } from './Icon'
-import { clientName } from '@/lib/derive'
+import { clientName, shipmentClientLabel} from '@/lib/derive'
 
 interface Entry {
   id: string
@@ -65,7 +65,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const shipments: Entry[] = v.shipments.map((x) => ({
       id: x.id,
       group: t('ship.title'),
-      label: `${x.reference} · ${clientName(db, x.clientId)}`,
+      label: `${x.reference} · ${shipmentClientLabel(db, x)}`,
       hint: `${x.originPort} → ${x.destPort}`,
       icon: 'ship',
       to: `/cargaisons/${x.id}`,

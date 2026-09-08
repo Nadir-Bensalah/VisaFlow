@@ -9,7 +9,7 @@ import { SchengenCard } from '@/components/SchengenCard'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
 import { Avatar, Button, Card, Empty, Field, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
-import { daysUntil } from '@/lib/derive'
+import { daysUntil, shipmentsOfClient} from '@/lib/derive'
 
 export function ClientDetail() {
   const { id = '' } = useParams()
@@ -24,7 +24,8 @@ export function ClientDetail() {
 
   const cases = v.cases.filter((c) => c.clientId === client.id)
   const events = v.events.filter((e) => cases.some((c) => c.id === e.caseId)).slice(0, 12)
-  const shipments = v.shipments.filter((x) => x.clientId === client.id)
+  // Le client est rattaché par ses LOTS, pas par un champ sur la cargaison.
+  const shipments = shipmentsOfClient(db, client.id).filter((x) => v.shipments.some((y) => y.id === x.id))
   const passportSoon = daysUntil(client.passportExpiry) < 180
 
   return (

@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Input, Pill, Progress, Segmented, Select } from '@/components/ui'
 import { PageHead } from '@/components/bits'
 import { ShipmentEditor } from '@/components/ShipmentEditor'
-import { SHIPMENT_TONE, clientName, daysUntil, shipmentLate, shipmentProgress } from '@/lib/derive'
+import { SHIPMENT_TONE, daysUntil, shipmentLate, shipmentProgress, shipmentClientLabel } from '@/lib/derive'
 import type { ShipmentMode } from '@/data/types'
 
 type View = 'en_cours' | 'retard' | 'bloquees' | 'toutes'
@@ -31,7 +31,7 @@ export function Shipments() {
         : true,
       )
       .filter((s) => (mode === 'tous' ? true : s.mode === mode))
-      .filter((s) => !q || `${s.reference} ${s.supplier} ${clientName(db, s.clientId)} ${s.containerNo ?? ''} ${s.blNumber ?? ''}`.toLowerCase().includes(q))
+      .filter((s) => !q || `${s.reference} ${s.supplier} ${shipmentClientLabel(db, s)} ${s.containerNo ?? ''} ${s.blNumber ?? ''}`.toLowerCase().includes(q))
       .sort((a, b) => (a.eta ?? '').localeCompare(b.eta ?? ''))
   }, [db, v, view, mode, query])
 
@@ -110,7 +110,7 @@ export function Shipments() {
                     }}
                   >
                     <td className="t-mono t-small">{s.reference}</td>
-                    <td className="t-medium t-small">{clientName(db, s.clientId)}</td>
+                    <td className="t-medium t-small">{shipmentClientLabel(db, s)}</td>
                     <td className="t-small t-secondary">{tt(s.goods)}</td>
                     <td className="t-small t-secondary">{s.originPort} → {s.destPort}</td>
                     <td className="t-small t-secondary col-optional">{t(`ship.m.${s.mode}` as 'ship.m.aerien')}</td>
