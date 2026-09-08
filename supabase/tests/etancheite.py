@@ -13,6 +13,7 @@ Deux murs à éprouver, et ils sont indépendants :
 
     source .sbenv && python3 supabase/tests/etancheite.py
 """
+import os
 import json
 import os
 import sys
@@ -23,7 +24,7 @@ import urllib.request
 URL = os.environ["SUPABASE_URL"].rstrip("/")
 ANON = os.environ["SUPABASE_ANON_KEY"]
 SERVICE = os.environ.get("SUPABASE_SERVICE_KEY", "")
-PASSWORD = "VisaFlow!Demo2026"
+PASSWORD = os.environ.get("VISAFLOW_DEMO_PASSWORD", "")
 
 verts, rouges = 0, []
 

@@ -23,9 +23,18 @@ TOKEN = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
 SERVICE = os.environ.get("SUPABASE_SERVICE_KEY", "")
 URL = os.environ.get("SUPABASE_URL", f"https://{REF}.supabase.co")
 
-# Un mot de passe unique et connu : ce sont des comptes de démonstration sur
-# un projet de démonstration. Ils n'existeront jamais sur un projet client.
-PASSWORD = "VisaFlow!Demo2026"
+# Le mot de passe des comptes de démonstration ne vit PAS ici. Ce dépôt est
+# public : un mot de passe écrit dans un fichier suivi est un mot de passe donné
+# à tout le monde, et il l'a été. Il se lit maintenant dans l'environnement, et
+# le script refuse de tourner sans plutôt que d'en inventer un faible.
+PASSWORD = os.environ.get("VISAFLOW_DEMO_PASSWORD", "")
+if not PASSWORD:
+    raise SystemExit(
+        "VISAFLOW_DEMO_PASSWORD n'est pas défini.\n"
+        "Choisissez un mot de passe pour les comptes de démonstration, puis :\n"
+        "  export VISAFLOW_DEMO_PASSWORD='...'\n"
+        "Il ne doit jamais être écrit dans un fichier suivi par git."
+    )
 
 COMPTES = [
     ("TCA_OWNER",   "slim@tunis-consulting.test"),

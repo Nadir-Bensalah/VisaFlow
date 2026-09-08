@@ -15,7 +15,7 @@ Cible : le projet VisaFlow, en production sur Supabase.
   écrire une ligne marquée `REDTEAM` puis la relever, sans toucher aux données
   existantes.
 - Comptes de démonstration utilisables (agents réels, pour tester les rôles) :
-  mot de passe `VisaFlow!Demo2026`, adresses en @tunis-consulting.test et
+  mot de passe `le mot de passe de démonstration (hors dépôt, variable VISAFLOW_DEMO_PASSWORD)`, adresses en @tunis-consulting.test et
   @sahara-voyages.test (voir supabase/seed/demo.sql).
 
 ## Ce qu'on attend
