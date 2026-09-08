@@ -38,6 +38,7 @@ import { PortalCase } from './pages/portal/PortalCase'
 import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
 import { AdminGate } from './pages/admin/AdminGate'
+import { AppSkeleton } from '@/components/AppSkeleton'
 
 /** Personne n'entre dans l'espace agence sans session. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -47,7 +48,7 @@ function RequireSession({ children }: { children: ReactNode }) {
   // On attend ce verdict avant de renvoyer vers la connexion, sinon on éjecte
   // un utilisateur pourtant connecté.
   if (HAS_BACKEND && !auth.ready) {
-    return <div className="auth"><div className="auth__card" style={{ textAlign: 'center' }}><span className="t-secondary">…</span></div></div>
+    return <AppSkeleton />
   }
   if (!signedIn) return <Navigate to="/connexion" replace />
   return <>{children}</>

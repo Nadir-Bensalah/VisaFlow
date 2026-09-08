@@ -6,6 +6,7 @@ import { useAuth } from './auth'
 import { loadSnapshot, currentAgencyId } from './remote'
 import { mirror } from './mirror'
 import { samePhone } from './identity'
+import { AppSkeleton } from '@/components/AppSkeleton'
 import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
@@ -1260,11 +1261,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de
   // démonstration qui clignoterait avant d'être remplacé.
   if (remote && !ready) {
-    return (
-      <div className="auth"><div className="auth__card" style={{ textAlign: 'center' }}>
-        <span className="t-secondary">Chargement de votre agence…</span>
-      </div></div>
-    )
+    return <AppSkeleton />
   }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
