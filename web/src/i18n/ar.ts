@@ -132,6 +132,7 @@ export const ar: Dict = {
     yourShipment: 'بضاعتك', trackShipment: 'تتبع شحنتي',
   },
   login: {
+    subtitleReal: 'ادخل بحساب وكالتك.', wrong: 'بيانات دخول خاطئة.', signingIn: 'جارٍ الدخول…',
     title: 'تسجيل الدخول', subtitle: 'اختر حساب تجربة للدخول.', email: 'البريد الإلكتروني', password: 'كلمة السر',
     demo: 'حسابات التجربة', demoHint: 'لا توجد معطيات حقيقية. كل شيء يبقى في متصفحك.',
     clientAccess: 'أنت عميل؟ افتح الرابط الذي وصلك عبر واتساب.',

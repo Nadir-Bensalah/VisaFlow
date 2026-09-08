@@ -132,6 +132,7 @@ export const en: Dict = {
     yourShipment: 'Your goods', trackShipment: 'Track my shipment',
   },
   login: {
+    subtitleReal: 'Sign in with your agency account.', wrong: 'Wrong credentials.', signingIn: 'Signing in…',
     title: 'Sign in', subtitle: 'Pick a demo account to get in.', email: 'Email address', password: 'Password',
     demo: 'Demo accounts', demoHint: 'No real data. Everything stays in your browser.',
     clientAccess: 'Are you a client? Open the link you received on WhatsApp.',

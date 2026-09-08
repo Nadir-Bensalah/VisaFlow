@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
 import { Card, Empty, ToastProvider } from './components/ui'
 import { useStore } from './data/store'
+import { useAuth } from './data/auth'
+import { HAS_BACKEND } from './lib/supabase'
 import { useVisible } from './data/scope'
 import { useI18n } from './i18n'
 import type { Capability } from './lib/permissions'
@@ -39,6 +41,13 @@ import { AdminGate } from './pages/admin/AdminGate'
 /** Personne n'entre dans l'espace agence sans session. */
 function RequireSession({ children }: { children: ReactNode }) {
   const { signedIn } = useStore()
+  const auth = useAuth()
+  // Sur un rechargement dur, la session Supabase met un instant à se restaurer.
+  // On attend ce verdict avant de renvoyer vers la connexion, sinon on éjecte
+  // un utilisateur pourtant connecté.
+  if (HAS_BACKEND && !auth.ready) {
+    return <div className="auth"><div className="auth__card" style={{ textAlign: 'center' }}><span className="t-secondary">…</span></div></div>
+  }
   if (!signedIn) return <Navigate to="/connexion" replace />
   return <>{children}</>
 }

@@ -132,6 +132,7 @@ export const zh: Dict = {
     yourShipment: '您的货物', trackShipment: '跟踪我的货物',
   },
   login: {
+    subtitleReal: '用您机构的账号登录。', wrong: '凭据不正确。', signingIn: '登录中…',
     title: '登录', subtitle: '选择一个演示账号进入。', email: '邮箱地址', password: '密码',
     demo: '演示账号', demoHint: '没有真实数据，一切都保存在你的浏览器里。',
     clientAccess: '您是客户？请打开 WhatsApp 收到的链接。',

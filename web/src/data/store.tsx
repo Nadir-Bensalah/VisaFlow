@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { buildSeed } from './seed'
+import { HAS_BACKEND, supabase } from '@/lib/supabase'
+import { useAuth } from './auth'
+import { loadSnapshot, currentAgencyId } from './remote'
+import { mirror } from './mirror'
 import { samePhone } from './identity'
 import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
@@ -134,13 +138,65 @@ interface Actions {
 const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ slug, children }: { slug: string; children: ReactNode }) {
+  const auth = useAuth()
+  // Mode réel : un backend est là ET une session Supabase est ouverte, et ce
+  // n'est pas un super-admin (lui vit dans la console plateforme, pas ici).
+  const remote = HAS_BACKEND && !!auth.session && !auth.isPlatformAdmin
   const [db, setDb] = useState<Database>(() => load(slug))
+  const [ready, setReady] = useState(!remote)
+  const [remoteAgencyId, setRemoteAgencyId] = useState<string | null>(null)
+  const remoteRef = useRef(remote)
+  remoteRef.current = remote
+
   // La session survit au rechargement, jamais au changement d'agence.
   const [session, setSession] = useState<string | null>(() => {
     try { return window.localStorage.getItem(`visaflow.session.${slug}`) } catch { return null }
   })
-  const currentUserId = session ?? db.users[0].id
+  // En mode réel, l'utilisateur courant est le compte connecté. En démo, c'est
+  // le compte choisi sur l'écran de connexion.
+  const currentUserId = remote
+    ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
+    : (session ?? db.users[0].id)
   const [live, setLive] = useState(true)
+
+  // Le rechargement de l'instantané, débrayé et réutilisable.
+  const reloadRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+    async function hydrate() {
+      const agencyId = await currentAgencyId()
+      if (!alive) return
+      if (!agencyId) { setReady(true); return }
+      setRemoteAgencyId(agencyId)
+      const snap = await loadSnapshot(agencyId)
+      if (!alive) return
+      setDb(snap)
+      setReady(true)
+    }
+    reloadRef.current = () => {
+      // Coalescé : plusieurs écritures rapprochées ne déclenchent qu'un rechargement.
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => { void hydrate() }, 250)
+    }
+    if (!remote) { setReady(true); return }
+    setReady(false)
+    void hydrate()
+
+    // Temps réel : toute écriture dans l'agence, d'où qu'elle vienne, rafraîchit.
+    let sub: ReturnType<NonNullable<typeof supabase>['channel']> | null = null
+    if (supabase) {
+      sub = supabase.channel('agence')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'cases' }, () => reloadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'case_documents' }, () => reloadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => reloadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'appointment_queue' }, () => reloadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => reloadRef.current())
+        .subscribe()
+    }
+    return () => { alive = false; if (timer) clearTimeout(timer); if (sub && supabase) supabase.removeChannel(sub) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remote, auth.user?.id])
 
   // Diffusion entre onglets. Deux fenetres ouvertes sur la meme agence voient
   // la meme chose, sans rechargement : c'est le comportement d'un poste
@@ -184,7 +240,10 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   const signOut = useCallback(() => {
     setSession(null)
     try { window.localStorage.removeItem(`visaflow.session.${slug}`) } catch { /* stockage indisponible */ }
-  }, [slug])
+    // En mode réel, se déconnecter coupe aussi la session Supabase, sinon le
+    // rechargement rouvrirait l'agence sans mot de passe.
+    if (remoteRef.current) void auth.signOut()
+  }, [slug, auth])
 
   const log = useCallback(
     (draft: Database, type: EventType, detail: I18nText, caseId?: string, automated = false): Database => {
@@ -1089,6 +1148,31 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, log, slug, db])
 
+  // En mode réel, chaque action garde son effet local optimiste (l'écran
+  // répond tout de suite) puis se reflète vers Supabase en tâche de fond. Un
+  // seul proxy, pas quarante-cinq réécritures. Une écriture qui échoue
+  // recharge l'instantané, ce qui remet l'écran d'accord avec la vérité.
+  const wrapped = useMemo<Actions>(() => {
+    if (!remote) return actions
+    const dbRef = { get db() { return db } }
+    return new Proxy(actions, {
+      get(target, prop: string) {
+        const fn = (target as any)[prop]
+        if (typeof fn !== 'function') return fn
+        return (...args: any[]) => {
+          const result = fn(...args) // optimiste, synchrone : la valeur de retour est préservée
+          const agencyId = remoteAgencyId
+          if (agencyId) {
+            void mirror(prop, args, { db: dbRef.db, agencyId, reload: () => reloadRef.current() })
+              .then((ok) => { if (!ok) console.warn('[mirror] action non persistée :', prop) })
+              .catch((e) => { console.error('[mirror]', prop, e); reloadRef.current() })
+          }
+          return result
+        }
+      },
+    })
+  }, [remote, actions, remoteAgencyId, db])
+
   // Les regles tournent toutes les minutes tant que le temps reel est actif.
   // C'est exactement ce que fera la tache planifiee cote serveur.
   useEffect(() => {
@@ -1098,9 +1182,25 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   }, [live, actions])
 
   const value = useMemo<StoreValue>(
-    () => ({ db, slug, currentUserId, signedIn: Boolean(session), signIn, signOut, actions, live, setLive }),
-    [db, slug, currentUserId, session, signIn, signOut, actions, live],
+    () => ({
+      db, slug, currentUserId,
+      // En mode réel, être connecté à Supabase suffit ; en démo, avoir choisi
+      // un compte sur l'écran de connexion.
+      signedIn: remote ? Boolean(auth.session) : Boolean(session),
+      signIn, signOut, actions: wrapped, live, setLive,
+    }),
+    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session],
   )
+
+  // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de
+  // démonstration qui clignoterait avant d'être remplacé.
+  if (remote && !ready) {
+    return (
+      <div className="auth"><div className="auth__card" style={{ textAlign: 'center' }}>
+        <span className="t-secondary">Chargement de votre agence…</span>
+      </div></div>
+    )
+  }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
