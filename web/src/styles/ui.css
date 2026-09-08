@@ -1044,3 +1044,19 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .admin__signin h1 { font-size: 22px; margin-bottom: var(--sp-2); }
 .admin__signin .field__label { color: #9aa0ab; text-align: left; }
 .admin__signin .input { background: #0f1115; border-color: rgba(255,255,255,0.12); color: #e7e9ee; }
+
+/* La bannière de synchro : un chargement qui échoue ou une écriture qui rate
+   ne doit jamais passer inaperçu. Fixée en haut, elle propose de réessayer. */
+.syncbar {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--red, #d10000); color: #fff;
+  font-weight: 500;
+}
+.syncbar__btn {
+  border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.12);
+  color: #fff; border-radius: var(--radius-field); padding: 4px 12px;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.syncbar__btn:hover { background: rgba(255,255,255,0.24); }

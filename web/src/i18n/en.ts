@@ -12,7 +12,7 @@ export const en: Dict = {
   nav: {
     dashboard: 'Dashboard', pipeline: 'Pipeline', cases: 'Applications', clients: 'Clients',
     documents: 'Documents', appointments: 'Appointments', messages: 'Messages', payments: 'Payments',
-    automations: 'Automations', reports: 'Reports', settings: 'Settings', portal: 'Client portal', shipments: 'Shipments', myTasks: 'My tasks',
+    automations: 'Automations', reports: 'Reports', stats: 'Statistics', settings: 'Settings', portal: 'Client portal', shipments: 'Shipments', myTasks: 'My tasks',
     slots: 'Slots',
     workspace: 'Workspace', admin: 'Administration',
   },
@@ -166,6 +166,7 @@ export const en: Dict = {
     st: { en_cours: 'In progress', livree: 'Delivered', bloquee: 'Blocked', annulee: 'Cancelled' },
   },
   today: {
+    remindConfirm: 'Remind {n} clients at once?',
     title: 'Today', morning: 'Good morning {name}', afternoon: 'Good afternoon {name}', evening: 'Good evening {name}',
     subtitle: 'What needs doing, and what is going to happen.',
     toDo: 'To do today', willHappen: 'Happening today', agenda: 'Your day',
@@ -270,6 +271,7 @@ export const en: Dict = {
     manager: 'Manager', agentRole: 'Agent', viewer: 'Read only',
   },
   slots: {
+    leaveConfirm: 'Remove this file from the queue?',
     title: 'Slots',
     subtitle: 'Who is waiting for an appointment, since when, and what has been tried.',
     queues: 'Waiting lists',
@@ -430,5 +432,23 @@ export const en: Dict = {
     noUnmatched: 'No message waiting to be attached.',
     cost: 'Sending cost this month',
     costHint: 'Charged per template message since July 2025. Replies inside the window are free.',
+  },
+  stats: {
+    title: 'Statistics', subtitle: 'The figures you will not find anywhere else.',
+    acceptance: 'Acceptance rate', avgDays: 'Average processing time', measured: 'measured on your decisions',
+    returning: 'Returning clients', loyalty: 'came back at least twice',
+    biometrics: 'Valid biometrics', biometricsHint: 'that many trips saved',
+    refusalByConsulate: 'Refusals by consulate', waitByConsulate: 'Real time to secure a slot',
+    waitingNow: '{n} waiting', vsAnnounced: 'announced {n} d',
+    funnel: 'Conversion', requestConversion: 'Requests turned into files', attemptSuccess: 'Successful slot attempts',
+    last30: 'over 30 days', topMissing: 'Most often missing documents', upcoming: 'Upcoming load, by travel month',
+    money: 'Money', outstanding: 'Outstanding', shipments: 'Shipments', byVisa: 'Collected by visa type',
+    notEnough: 'Not enough decisions yet.',
+  },
+  sync: {
+    connexion: 'Connection lost. What you see may be out of date.',
+    ecriture: 'A save did not go through. Check your connection.',
+    non_persiste: 'This action has not been saved to the server yet.',
+    retry: 'Retry',
   },
 }

@@ -59,6 +59,18 @@
   --radius-badge: 8px;
   --radius-pill: 980px;
 
+  /* Alias attendus par des composants récents (console plateforme, dépôt de
+     fichier, liens discrets). Ils étaient utilisés sans être définis, ce qui
+     cassait la console admin : logo sans fond, carte commission illisible,
+     dropzones à coins carrés. Repérés par le panel UX. */
+  --accent: var(--blue);
+  --surface: var(--bg-white);
+  --surface-sunken: var(--bg-sunken);
+  --fill: var(--bg-hover);
+  --text: var(--text-primary);
+  --r-md: var(--radius-card-sm);
+  --r-sm: var(--radius-field);
+
   /* Ombres */
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);

@@ -485,15 +485,22 @@ function MessagesTab({ caseId }: { caseId: string }) {
         <Empty title={t('msg.none')} />
       ) : (
         <div className="col gap-3">
-          {messages.map((m) => (
+          {messages.map((m) => {
+            // Un message arabe se lit de droite à gauche : la bulle et sa
+            // ponctuation doivent suivre, sinon le client libyen lit de travers.
+            const rtl = m.locale === 'ar'
+            return (
             <div
               key={m.id}
+              dir={rtl ? 'rtl' : 'ltr'}
+              lang={m.locale}
               style={{
                 alignSelf: m.direction === 'sortant' ? 'flex-end' : 'flex-start',
                 maxWidth: '78%',
                 background: m.direction === 'sortant' ? 'var(--tint-blue)' : 'var(--bg-hover)',
                 borderRadius: 'var(--radius-card-sm)',
                 padding: 'var(--sp-3) var(--sp-4)',
+                textAlign: rtl ? 'right' : 'left',
               }}
             >
               <p className="t-small" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</p>
@@ -503,7 +510,7 @@ function MessagesTab({ caseId }: { caseId: string }) {
                 {m.automated && <Pill tone="violet">{t('msg.automated')}</Pill>}
               </span>
             </div>
-          ))}
+          )})}
         </div>
       )}
 
@@ -535,7 +542,17 @@ function MessagesTab({ caseId }: { caseId: string }) {
             </span>
           </div>
         )}
-        <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder={t('msg.placeholder')} />
+        <Textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={t('msg.placeholder')}
+          dir={client.locale === 'ar' ? 'rtl' : 'ltr'}
+          onKeyDown={(e) => {
+            // Entrée envoie, comme dans une messagerie. Maj+Entrée saute une
+            // ligne. C'est le tac-au-tac que réclame le comptoir.
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+          }}
+        />
         <div className="row-between">
           <span className="t-caption t-tertiary">{t('portal.privacy')}</span>
           <span className="row gap-2">

@@ -38,7 +38,7 @@ function Count({ value }: { value: number }) {
 }
 
 export function Shell() {
-  const { db, live, setLive, signOut } = useStore()
+  const { db, live, setLive, signOut, syncError, retry } = useStore()
   const v = useVisible()
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
@@ -104,6 +104,7 @@ export function Shell() {
   const admin: NavEntry[] = [
     { to: '/automatisations', labelKey: 'nav.automations', icon: 'automations', need: 'automation:manage' },
     { to: '/rapports', labelKey: 'nav.reports', icon: 'reports', need: 'reports:view' },
+    { to: '/statistiques', labelKey: 'nav.stats', icon: 'dashboard', need: 'reports:view' },
     { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
   ]
 
@@ -123,6 +124,13 @@ export function Shell() {
   return (
     <div className="shell">
       <a className="skip" href="#contenu">{t('nav.workspace')}</a>
+      {syncError && (
+        <div className="syncbar" role="alert">
+          <Icon name="alert" size={16} />
+          <span className="grow t-small">{t(`sync.${syncError}` as 'sync.connexion')}</span>
+          <button type="button" className="syncbar__btn" onClick={retry}>{t('sync.retry')}</button>
+        </div>
+      )}
 
       <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`} aria-label={db.agency.name}>
         <div className="sidebar__brand">

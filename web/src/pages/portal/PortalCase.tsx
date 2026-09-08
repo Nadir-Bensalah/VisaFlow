@@ -169,20 +169,24 @@ export function PortalCase() {
             <div className="col gap-4">
               {messages.length > 0 && (
                 <div className="col gap-3">
-                  {messages.map((m) => (
+                  {messages.map((m) => {
+                    const rtl = locale === 'ar'
+                    return (
                     <div
                       key={m.id}
+                      dir={rtl ? 'rtl' : 'ltr'}
                       style={{
                         alignSelf: m.direction === 'sortant' ? 'flex-start' : 'flex-end',
                         maxWidth: '80%',
                         background: m.direction === 'sortant' ? 'var(--bg-hover)' : 'var(--tint-blue)',
                         borderRadius: 'var(--radius-card-sm)',
                         padding: 'var(--sp-3) var(--sp-4)',
+                        textAlign: rtl ? 'right' : 'left',
                       }}
                     >
                       <p className="t-small" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</p>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
               <Textarea value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={t('portal.askQuestion')} />

@@ -25,6 +25,7 @@ import { Payments } from './pages/Payments'
 import { Tasks } from './pages/Tasks'
 import { Automations } from './pages/Automations'
 import { Reports } from './pages/Reports'
+import { Stats } from './pages/Stats'
 import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
 import { AgencyHome } from './pages/public/AgencyHome'
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="/paiements" element={<Require capability="finance:global"><Payments /></Require>} />
           <Route path="/automatisations" element={<Require capability="automation:manage"><Automations /></Require>} />
           <Route path="/rapports" element={<Require capability="reports:view"><Reports /></Require>} />
+          <Route path="/statistiques" element={<Require capability="reports:view"><Stats /></Require>} />
           <Route path="/reglages" element={<Require capability="settings:view"><Settings /></Require>} />
         </Route>
 

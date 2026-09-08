@@ -70,6 +70,10 @@ interface StoreValue {
   signIn: (userId: string) => void
   signOut: () => void
   actions: Actions
+  /** Décrit un problème de chargement ou d'écriture, pour la bannière. */
+  syncError: string | null
+  /** Recharge l'agence, et efface l'erreur si ça repasse. */
+  retry: () => void
   live: boolean
   setLive: (v: boolean) => void
 }
@@ -158,6 +162,10 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
     : (session ?? db.users[0].id)
   const [live, setLive] = useState(true)
+  // La robustesse du chemin de données : un chargement qui échoue ne doit pas
+  // laisser un rond qui tourne à l'infini, et une écriture qui rate ne doit
+  // pas faire croire à l'utilisateur qu'elle a réussi.
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   // Le rechargement de l'instantané, débrayé et réutilisable.
   const reloadRef = useRef<() => void>(() => {})
@@ -165,14 +173,24 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     let alive = true
     let timer: ReturnType<typeof setTimeout> | null = null
     async function hydrate() {
-      const agencyId = await currentAgencyId()
-      if (!alive) return
-      if (!agencyId) { setReady(true); return }
-      setRemoteAgencyId(agencyId)
-      const snap = await loadSnapshot(agencyId)
-      if (!alive) return
-      setDb(snap)
-      setReady(true)
+      try {
+        const agencyId = await currentAgencyId()
+        if (!alive) return
+        if (!agencyId) { setReady(true); return }
+        setRemoteAgencyId(agencyId)
+        const snap = await loadSnapshot(agencyId)
+        if (!alive) return
+        setDb(snap)
+        setSyncError(null)
+        setReady(true)
+      } catch (e) {
+        if (!alive) return
+        // On sort de l'attente et on montre l'erreur avec un bouton réessayer,
+        // au lieu de bloquer l'agence sur un chargement sans fin.
+        console.error('[hydrate]', e)
+        setSyncError('connexion')
+        setReady(true)
+      }
     }
     reloadRef.current = () => {
       // Coalescé : plusieurs écritures rapprochées ne déclenchent qu'un rechargement.
@@ -1164,8 +1182,8 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
           const agencyId = remoteAgencyId
           if (agencyId) {
             void mirror(prop, args, { db: dbRef.db, agencyId, reload: () => reloadRef.current() })
-              .then((ok) => { if (!ok) console.warn('[mirror] action non persistée :', prop) })
-              .catch((e) => { console.error('[mirror]', prop, e); reloadRef.current() })
+              .then((ok) => { if (!ok) { console.warn('[mirror] non persistée :', prop); setSyncError('non_persiste') } })
+              .catch((e) => { console.error('[mirror]', prop, e); setSyncError('ecriture'); reloadRef.current() })
           }
           return result
         }
@@ -1176,10 +1194,12 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   // Les regles tournent toutes les minutes tant que le temps reel est actif.
   // C'est exactement ce que fera la tache planifiee cote serveur.
   useEffect(() => {
-    if (!live) return
+    // En mode réel, les automatisations tournent côté serveur (tâche planifiée).
+    // Les faire tourner ici, dans chaque onglet ouvert, doublerait les relances.
+    if (!live || remote) return
     const id = window.setInterval(() => actions.runRules(), 60_000)
     return () => window.clearInterval(id)
-  }, [live, actions])
+  }, [live, actions, remote])
 
   const value = useMemo<StoreValue>(
     () => ({
@@ -1188,8 +1208,10 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       // un compte sur l'écran de connexion.
       signedIn: remote ? Boolean(auth.session) : Boolean(session),
       signIn, signOut, actions: wrapped, live, setLive,
+      syncError,
+      retry: () => { setSyncError(null); if (remote) { setReady(false); reloadRef.current() } },
     }),
-    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session],
+    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session, syncError],
   )
 
   // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de

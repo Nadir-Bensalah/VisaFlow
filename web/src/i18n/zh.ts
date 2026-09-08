@@ -12,7 +12,7 @@ export const zh: Dict = {
   nav: {
     dashboard: '工作台', pipeline: '流程看板', cases: '申请', clients: '客户',
     documents: '材料', appointments: '预约', messages: '消息', payments: '收款',
-    automations: '自动化', reports: '报表', settings: '设置', portal: '客户端口', shipments: '货运', myTasks: '我的任务',
+    automations: '自动化', reports: '报表', stats: '统计', settings: '设置', portal: '客户端口', shipments: '货运', myTasks: '我的任务',
     slots: '名额',
     workspace: '业务', admin: '管理',
   },
@@ -166,6 +166,7 @@ export const zh: Dict = {
     st: { en_cours: '进行中', livree: '已送达', bloquee: '受阻', annulee: '已取消' },
   },
   today: {
+    remindConfirm: '一次性提醒 {n} 位客户？',
     title: '今天', morning: '{name}，早上好', afternoon: '{name}，下午好', evening: '{name}，晚上好',
     subtitle: '今天要做什么，今天会发生什么。',
     toDo: '今天要做', willHappen: '今天会发生', agenda: '你的一天',
@@ -269,6 +270,7 @@ export const zh: Dict = {
     manager: '主管', agentRole: '专员', viewer: '只读',
   },
   slots: {
+    leaveConfirm: '把该档案移出队列？',
     title: '名额',
     subtitle: '谁在等预约、等了多久、已经尝试过什么。',
     queues: '等候队列',
@@ -429,5 +431,23 @@ export const zh: Dict = {
     noUnmatched: '没有等待匹配的消息。',
     cost: '本月发送成本',
     costHint: '自 2025 年 7 月起按模板消息计费。窗口内的回复免费。',
+  },
+  stats: {
+    title: '统计', subtitle: '别处找不到的数字。',
+    acceptance: '通过率', avgDays: '平均处理时长', measured: '基于您的决定实测',
+    returning: '回头客', loyalty: '至少来过两次',
+    biometrics: '有效生物信息', biometricsHint: '因此省去的行程',
+    refusalByConsulate: '按领事馆的拒签', waitByConsulate: '取得名额的实际时长',
+    waitingNow: '{n} 个等待中', vsAnnounced: '公布 {n} 天',
+    funnel: '转化', requestConversion: '转为档案的申请', attemptSuccess: '成功的抢号尝试',
+    last30: '近 30 天', topMissing: '最常缺失的材料', upcoming: '未来负荷（按出行月）',
+    money: '资金', outstanding: '未收款', shipments: '货运', byVisa: '按签证类型的收款',
+    notEnough: '决定数量尚不足。',
+  },
+  sync: {
+    connexion: '连接已断开。所显示的数据可能已过期。',
+    ecriture: '保存未成功。请检查网络。',
+    non_persiste: '此操作尚未保存到服务器。',
+    retry: '重试',
   },
 }

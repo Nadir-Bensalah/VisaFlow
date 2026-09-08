@@ -12,7 +12,7 @@ export const ar: Dict = {
   nav: {
     dashboard: 'لوحة القيادة', pipeline: 'مسار الملفات', cases: 'الملفات', clients: 'العملاء',
     documents: 'الوثائق', appointments: 'المواعيد', messages: 'الرسائل', payments: 'المدفوعات',
-    automations: 'الأتمتة', reports: 'التقارير', settings: 'الإعدادات', portal: 'بوابة العميل', shipments: 'الشحنات', myTasks: 'مهامي',
+    automations: 'الأتمتة', reports: 'التقارير', stats: 'إحصائيات', settings: 'الإعدادات', portal: 'بوابة العميل', shipments: 'الشحنات', myTasks: 'مهامي',
     slots: 'المواعيد',
     workspace: 'المتابعة', admin: 'الإدارة',
   },
@@ -166,6 +166,7 @@ export const ar: Dict = {
     st: { en_cours: 'جارية', livree: 'مسلمة', bloquee: 'معطلة', annulee: 'ملغاة' },
   },
   today: {
+    remindConfirm: 'تذكير {n} حرفاء دفعة واحدة؟',
     title: 'اليوم', morning: 'صباح الخير {name}', afternoon: 'طاب يومك {name}', evening: 'مساء الخير {name}',
     subtitle: 'ما يجب إنجازه، وما سيحدث.',
     toDo: 'للإنجاز اليوم', willHappen: 'ما يحدث اليوم', agenda: 'يومك',
@@ -270,6 +271,7 @@ export const ar: Dict = {
     manager: 'مسؤول', agentRole: 'عون', viewer: 'اطلاع فقط',
   },
   slots: {
+    leaveConfirm: 'إخراج هذا الملف من قائمة الانتظار؟',
     title: 'المواعيد',
     subtitle: 'من ينتظر موعدًا، ومنذ متى، وما جُرّب حتى الآن.',
     queues: 'قوائم الانتظار',
@@ -430,5 +432,23 @@ export const ar: Dict = {
     noUnmatched: 'لا رسائل تنتظر الربط.',
     cost: 'كلفة الإرسال هذا الشهر',
     costHint: 'تُحتسب لكل رسالة نموذج منذ جويلية 2025. الردود داخل النافذة مجانية.',
+  },
+  stats: {
+    title: 'إحصائيات', subtitle: 'أرقام لن تجدها في مكان آخر.',
+    acceptance: 'نسبة القبول', avgDays: 'متوسط مدة المعالجة', measured: 'مقاسة على قراراتك',
+    returning: 'حرفاء أوفياء', loyalty: 'عادوا مرتين على الأقل',
+    biometrics: 'بصمات سارية', biometricsHint: 'أي تنقلات مُوفَّرة',
+    refusalByConsulate: 'الرفض حسب القنصلية', waitByConsulate: 'المدة الفعلية للحصول على موعد',
+    waitingNow: '{n} في الانتظار', vsAnnounced: 'المعلن {n} يوم',
+    funnel: 'التحويل', requestConversion: 'الطلبات المحوّلة إلى ملفات', attemptSuccess: 'المحاولات الناجحة',
+    last30: 'خلال 30 يومًا', topMissing: 'الوثائق الأكثر نقصًا', upcoming: 'الحِمل القادم، حسب شهر السفر',
+    money: 'المال', outstanding: 'مبالغ غير خالصة', shipments: 'الشحنات', byVisa: 'المقبوض حسب نوع التأشيرة',
+    notEnough: 'لا توجد قرارات كافية بعد.',
+  },
+  sync: {
+    connexion: 'انقطع الاتصال. قد تكون البيانات المعروضة قديمة.',
+    ecriture: 'لم يكتمل الحفظ. تحقق من اتصالك.',
+    non_persiste: 'لم يُحفظ هذا الإجراء على الخادم بعد.',
+    retry: 'إعادة المحاولة',
   },
 }

@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { Illustration, type Scene } from './Illustration'
 import { Icon, type IconName } from './Icon'
 import type { Tone } from '@/lib/derive'
@@ -133,10 +133,18 @@ export function Empty({ title, hint, action, scene = 'vide' }: {
 
 export function Field({ label, hint, error, children }: { label?: string; hint?: string; error?: string; children: ReactNode }) {
   const id = useId()
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined
+  // On relie l'aide et l'erreur au champ pour les lecteurs d'écran : sans
+  // aria-describedby, ni l'une ni l'autre n'est annoncée (relevé par le panel).
+  const described =
+    describedBy && isValidElement(children)
+      ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string; 'aria-invalid'?: boolean }>,
+          { 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined })
+      : children
   return (
     <label className="field">
       {label && <span className="field__label">{label}</span>}
-      {children}
+      {described}
       {hint && !error && <span className="field__hint" id={`${id}-hint`}>{hint}</span>}
       {error && <span className="field__error" id={`${id}-error`} role="alert">{error}</span>}
     </label>

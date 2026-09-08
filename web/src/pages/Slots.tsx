@@ -140,7 +140,7 @@ export function Slots() {
                               <IconButton
                                 icon="close"
                                 label={t('slots.leave')}
-                                onClick={() => { actions.leaveQueue(entry.id); toast(t('slots.left')) }}
+                                onClick={() => { if (window.confirm(t('slots.leaveConfirm'))) { actions.leaveQueue(entry.id); toast(t('slots.left')) } }}
                               />
                             </>
                           )}

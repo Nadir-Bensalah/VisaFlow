@@ -128,7 +128,7 @@ export function AdminConsole() {
                           <span className="t-caption t-tertiary">{a.slug}.visaflow.app</span>
                         </div>
                       </td>
-                      <td><Pill tone={a.plan === 'essai' ? 'orange' : 'blue'}>{a.plan}</Pill></td>
+                      <td><Pill tone={a.plan === 'essai' ? 'orange' : 'blue'}>{a.plan.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}</Pill></td>
                       <td className="num">{a.users}</td>
                       <td className="num">{a.clients}</td>
                       <td className="num">{a.cases_open}</td>

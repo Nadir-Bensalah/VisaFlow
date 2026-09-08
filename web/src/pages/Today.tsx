@@ -166,7 +166,7 @@ export function Today() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm"
-                    onClick={() => { toChase.forEach((x) => actions.remindDoc(x.doc.id)); toast(t('msg.sent')) }}
+                    onClick={() => { if (window.confirm(t('today.remindConfirm', { n: toChase.length }))) { toChase.forEach((x) => actions.remindDoc(x.doc.id)); toast(t('msg.sent')) } }}
                   >
                     {t('docs.remindAll')}
                   </button>
