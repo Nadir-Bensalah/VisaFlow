@@ -25,6 +25,7 @@ import { DocumentTemplates } from '@/components/DocumentTemplates'
 import { CustomsChecklistsAdmin } from '@/components/CustomsChecklistsAdmin'
 import { SlaSection } from '@/components/SlaSection'
 import { ComplianceSection } from '@/components/ComplianceSection'
+import { WorkModeSection } from '@/components/WorkModeSection'
 
 import { AgencyIdentity } from '@/components/settings/AgencyIdentity'
 import { VisaCatalogSection } from '@/components/settings/VisaCatalogSection'
@@ -106,16 +107,11 @@ export function Settings() {
     { id: 'bureaux', family: 'agence', label: 'settings.offices', visible: manage, node: <OfficesSection /> },
     { id: 'marque', family: 'agence', label: 'brand.title', visible: manage, node: <BrandSection /> },
 
-    /* EMPLACEMENT RÉSERVÉ : l'organisation du travail (portefeuille ou file).
-       Le composant `@/components/WorkModeSection` est livré en parallèle. Quand
-       le fichier existera, ajouter l'import en haut puis cette ligne ici même,
-       juste après « marque » :
-
-       { id: 'travail', family: 'agence', label: 'rg.workMode', visible: manage, node: <WorkModeSection /> },
-
-       Le libellé `rg.workMode` est déjà traduit dans les quatre langues. Rien
-       d'autre à toucher : la famille, la recherche et `?section=travail`
-       marcheront tout seuls. */
+    /* L'organisation du travail : portefeuille ou file. Livrée en parallèle,
+       montée ici parce que c'est une décision d'agence, au même rang que ses
+       bureaux et sa marque. Le libellé vient du composant lui-même quand il
+       existe ; ici c'est le nom de l'onglet. */
+    { id: 'travail', family: 'agence', label: 'rg.workMode', visible: manage, node: <WorkModeSection /> },
 
     /* ---------------------------- Mon métier --------------------------- */
     { id: 'visas', family: 'metier', label: 'settings.visaTypes', keywords: 'rg.kwVisas', visible: catalog, node: <VisaCatalogSection /> },
@@ -135,7 +131,7 @@ export function Settings() {
     { id: 'whatsapp', family: 'messages', label: 'wa.title', visible: manage, node: <WhatsAppSection /> },
     // Les alertes décident de ce qui part chez le client : c'est un réglage
     // qui engage de l'argent et l'image de l'agence.
-    { id: 'alertes', family: 'messages', label: 'notif.rules.title', visible: automation, node: <NotificationRules /> },
+    { id: 'alertes', family: 'messages', label: 'notif.title', visible: automation, node: <NotificationRules /> },
     { id: 'webhooks', family: 'messages', label: 'notif.wh.title', visible: automation, node: <WebhooksSection /> },
     { id: 'sla', family: 'messages', label: 'pil.slaTitle', visible: automation, node: <SlaSection /> },
 
@@ -271,7 +267,14 @@ export function Settings() {
           </Card>
         )
       ) : (
-        <div id={`rg-panel-${currentEntry.id}`} role="tabpanel" aria-labelledby={`rg-${currentEntry.id}`}>
+        /* Le panneau ne se déclare « tabpanel » que s'il y a vraiment une
+           barre d'onglets au-dessus : sinon il pointerait un onglet inexistant,
+           et le lecteur d'écran annoncerait un lien mort. */
+        <div
+          id={siblings.length > 1 ? `rg-panel-${currentEntry.id}` : undefined}
+          role={siblings.length > 1 ? 'tabpanel' : undefined}
+          aria-labelledby={siblings.length > 1 ? `rg-${currentEntry.id}` : undefined}
+        >
           {currentEntry.node}
         </div>
       )}
