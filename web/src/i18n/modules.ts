@@ -23,8 +23,9 @@ import { voyage } from './modules/voyage'
 import { traduction } from './modules/traduction'
 import { equipe } from './modules/equipe'
 import { reglages } from './modules/reglages'
+import { travail } from './modules/travail'
 
-const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, parcours, support, documents, integrite, cargo2, pilotage, voyage, traduction, equipe, reglages]
+const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, parcours, support, documents, integrite, cargo2, pilotage, voyage, traduction, equipe, reglages, travail]
 
 type Lang = 'fr' | 'en' | 'ar' | 'zh'
 
@@ -48,6 +49,7 @@ export type ModuleDict =
   & typeof traduction.fr
   & typeof equipe.fr
   & typeof reglages.fr
+  & typeof travail.fr
 
 export const MODULES: Record<Lang, Record<string, unknown>> = {
   fr: merge('fr'), en: merge('en'), ar: merge('ar'), zh: merge('zh'),
