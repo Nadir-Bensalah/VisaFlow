@@ -32,6 +32,7 @@ import { AgencyHome } from './pages/public/AgencyHome'
 import { AskForm } from './pages/public/AskForm'
 import { FindMine } from './pages/public/FindMine'
 import { Signup } from './pages/public/Signup'
+import { Souscrire } from './pages/public/Souscrire'
 import { PortalRequest } from './pages/portal/PortalRequest'
 import { Inbox } from './pages/Inbox'
 import { PortalCase } from './pages/portal/PortalCase'
@@ -75,6 +76,8 @@ export default function App() {
         <Route path="/connexion" element={<Login />} />
         <Route path="/admin" element={<AdminGate />} />
         <Route path="/inscription" element={<Signup />} />
+        {/* La porte d'entrée commerciale : une agence demande à souscrire. */}
+        <Route path="/souscrire" element={<Souscrire />} />
         <Route path="/agence" element={<AgencyHome />} />
         <Route path="/demande" element={<AskForm />} />
         <Route path="/suivi" element={<FindMine />} />

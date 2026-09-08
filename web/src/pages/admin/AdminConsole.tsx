@@ -43,22 +43,26 @@ export function AdminConsole() {
   const [busy, setBusy] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [supportLog, setSupportLog] = useState<any[]>([])
+  const [signups, setSignups] = useState<any[]>([])
+  const [converting, setConverting] = useState<any | null>(null)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AgencyRow | null>(null)
 
   async function load() {
     if (!supabase) return
     setLoading(true)
-    const [o, a, inv, log] = await Promise.all([
+    const [o, a, inv, log, sg] = await Promise.all([
       supabase.rpc('platform_overview'),
       supabase.rpc('platform_agencies'),
       supabase.rpc('platform_invoices_list', {}),
       supabase.rpc('platform_support_history', { p_limit: 20 }),
+      supabase.rpc('platform_signups', {}),
     ])
     if (o.data) setOver(o.data as Overview)
     if (a.data) setAgencies(a.data as AgencyRow[])
     if (inv.data) setInvoices(inv.data as any[])
     if (log.data) setSupportLog(log.data as any[])
+    if (sg.data) setSignups(sg.data as any[])
     setLoading(false)
   }
 
@@ -181,6 +185,68 @@ export function AdminConsole() {
           )}
         </Card>
 
+        {/* Les demandes de souscription passent AVANT la facturation : c'est
+            le premier écran d'une journée, et une demande qui dort est un
+            client perdu. */}
+        <Card
+          title="Demandes de souscription"
+          action={<span className="t-caption t-tertiary">
+            {signups.filter((x) => x.status === 'nouvelle').length} nouvelles sur {signups.length}
+          </span>}
+          flush
+        >
+          {signups.length === 0 ? (
+            <div style={{ padding: 'var(--sp-5)' }}>
+              <Empty title="Aucune demande pour l'instant."
+                hint="Partagez le lien /souscrire : c'est la porte d'entrée des agences." />
+            </div>
+          ) : (
+            <div className="admin__scroll">
+              <table className="admin__table">
+                <thead><tr>
+                  <th>Agence</th><th>Contact</th><th className="num">Équipe</th>
+                  <th className="num">Dossiers/mois</th><th className="num">Estimation an</th>
+                  <th>État</th><th />
+                </tr></thead>
+                <tbody>
+                  {signups.map((sg) => (
+                    <tr key={sg.id}>
+                      <td className="t-small t-medium">
+                        {sg.agency_name}
+                        <span className="t-caption t-tertiary"> · {sg.city ?? sg.country}</span>
+                        {sg.current_tool && <div className="t-caption t-tertiary">aujourd'hui : {sg.current_tool}</div>}
+                      </td>
+                      <td className="t-small">
+                        {sg.contact_name}
+                        <div className="t-caption t-tertiary t-mono">{sg.phone}</div>
+                      </td>
+                      <td className="num t-small">{sg.team_size ?? '—'}</td>
+                      <td className="num t-small">{sg.monthly_cases ?? '—'}</td>
+                      {/* 45 DT par utilisateur et par mois : l'unité d'œuvre
+                          exigée par la circulaire BCT, jamais un forfait sec. */}
+                      <td className="num t-small">{sg.suggested_year ? money(sg.suggested_year) : '—'}</td>
+                      <td>
+                        <Pill tone={sg.status === 'nouvelle' ? 'blue'
+                          : sg.status === 'convertie' ? 'green'
+                          : sg.status === 'ecartee' ? 'gray' : 'orange'}>{sg.status}</Pill>
+                      </td>
+                      <td>
+                        <div className="row gap-2" style={{ justifyContent: 'flex-end' }}>
+                          <a className="btn btn--secondary btn--sm" href={`tel:${String(sg.phone).replace(/\s/g,'')}`}>Appeler</a>
+                          {sg.status !== 'convertie' && (
+                            <Button variant="primary" onClick={() => setConverting(sg)}>Créer l'agence</Button>
+                          )}
+                          {sg.agency_slug && <span className="t-caption t-tertiary">{sg.agency_slug}</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
         <Card
           title="Facturation de la plateforme"
           action={<Button icon="refresh" onClick={async () => {
@@ -236,6 +302,7 @@ export function AdminConsole() {
       </main>
 
       {creating && <CreateAgency onClose={() => setCreating(false)} onDone={() => { setCreating(false); void load() }} toast={toast} />}
+      {converting && <ConvertSignup signup={converting} onClose={() => setConverting(null)} onDone={() => { setConverting(null); void load() }} toast={toast} />}
       {editing && <EditCommission agency={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); void load() }} toast={toast} />}
     </div>
   )
@@ -309,5 +376,77 @@ function Metric({ label, value, hint, accent }: { label: string; value: number |
       <span className="admin__metric-value">{value}</span>
       {hint && <span className="t-caption t-tertiary">{hint}</span>}
     </div>
+  )
+}
+
+/**
+ * Convertir une demande en agence.
+ *
+ * On ne redemande que ce que la demande ne portait pas : le sous-domaine et les
+ * termes de commission. Le reste (nom, pays, services) vient de ce que l'agence
+ * a déjà écrit, et la demande garde le lien vers l'agence née d'elle : six mois
+ * plus tard, on sait d'où vient chaque client.
+ */
+function ConvertSignup({ signup, onClose, onDone, toast }: {
+  signup: any; onClose: () => void; onDone: () => void; toast: (m: string) => void
+}) {
+  const [slug, setSlug] = useState(
+    String(signup.agency_name).toLowerCase().normalize('NFD')
+      .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24),
+  )
+  const [kind, setKind] = useState('par_dossier')
+  const [amount, setAmount] = useState('8')
+  const [busy, setBusy] = useState(false)
+
+  return (
+    <Modal
+      title={`Créer l'agence · ${signup.agency_name}`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button onClick={onClose}>Annuler</Button>
+          <Button
+            variant="primary"
+            disabled={busy || !slug.trim()}
+            onClick={async () => {
+              if (!supabase) return
+              setBusy(true)
+              const { error } = await supabase.rpc('platform_convert_signup', {
+                p_signup: signup.id, p_slug: slug.trim().toLowerCase(),
+                p_commission_kind: kind, p_commission_amount: Number(amount) || 0,
+              })
+              setBusy(false)
+              if (error) { toast(error.message); return }
+              toast(`Agence créée · ${slug}.visaflow.app`)
+              onDone()
+            }}
+          >
+            Créer l'agence
+          </Button>
+        </>
+      }
+    >
+      <div className="col gap-4">
+        <Field label="Sous-domaine" hint={`${slug || '…'}.visaflow.app`}>
+          <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
+        </Field>
+        <div className="grid grid--2">
+          <Field label="Commission">
+            <Select value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="par_dossier">Par dossier</option>
+              <option value="par_utilisateur">Par utilisateur et par mois</option>
+              <option value="forfait">Forfait</option>
+            </Select>
+          </Field>
+          <Field label="Montant">
+            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </Field>
+        </div>
+        <p className="t-caption t-tertiary" style={{ margin: 0 }}>
+          La grille doit être par unité d'œuvre, jamais un forfait sec : l'article 3 de la
+          circulaire BCT 2016-09 fait refuser le transfert d'un forfait sans unité quantifiable.
+        </p>
+      </div>
+    </Modal>
   )
 }

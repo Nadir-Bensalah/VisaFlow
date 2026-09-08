@@ -2,6 +2,33 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  sub: {
+    title: 'Souscrire à VisaFlow',
+    subtitle: 'Deux minutes. On vous rappelle avec une proposition chiffrée.',
+    agencyName: 'Nom de l’agence',
+    country: 'Pays',
+    city: 'Ville',
+    contactName: 'Votre nom',
+    phone: 'Téléphone',
+    phoneHint: 'C’est par là qu’on vous joindra.',
+    email: 'E-mail (facultatif)',
+    services: 'Ce que vous traitez',
+    visas: 'Visas',
+    fret: 'Fret et marchandises',
+    teamSize: 'Personnes qui utiliseront l’outil',
+    teamSizeHint: 'C’est ce qui détermine le prix.',
+    monthlyCases: 'Dossiers par mois, environ',
+    currentTool: 'Ce que vous utilisez aujourd’hui',
+    currentToolHint: 'Excel, WhatsApp, un autre logiciel…',
+    note: 'Ce qui vous pose le plus problème',
+    notePlaceholder: 'Par exemple : on perd des dossiers, on ne sait jamais où en est un client, les créneaux nous échappent.',
+    estimate: '{users} utilisateurs : environ {month} DT par mois, soit {year} DT pour l’année. Facturé annuellement, au format TTN.',
+    noCard: 'Aucun paiement maintenant. Nous ne prélevons pas par carte : l’abonnement se facture à l’année, et vous réglez par virement.',
+    send: 'Envoyer ma demande',
+    doneTitle: 'C’est envoyé',
+    doneHint: 'On vous rappelle sous un jour ouvré.',
+    doneWhat: 'Ce qui se passe ensuite : on vous appelle pour comprendre votre organisation, on vous envoie une proposition chiffrée, et si elle vous convient nous ouvrons votre espace avec vos types de visa et votre équipe. Vous ne payez qu’après signature.',
+  },
   pay2: {
     currencies: 'Devises acceptées',
     currenciesHint: 'Ce que vous acceptez d’encaisser. {base} reste votre devise de référence, celle de vos totaux et de vos rapports.',
@@ -599,6 +626,7 @@ export const fr = {
     exportCsv: 'Exporter en CSV',
   },
   settings: {
+    version: 'Version {v}',
     title: 'Réglages',
     subtitle: 'L’agence, les bureaux, les équipes et les règles du métier.',
     agency: 'Agence',

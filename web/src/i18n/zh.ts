@@ -1,6 +1,33 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  sub: {
+    title: '订阅 VisaFlow',
+    subtitle: '两分钟填写，我们会带着报价回电。',
+    agencyName: '机构名称',
+    country: '国家',
+    city: '城市',
+    contactName: '您的姓名',
+    phone: '电话',
+    phoneHint: '我们将通过此号码联系您。',
+    email: '邮箱（选填）',
+    services: '你们经办的业务',
+    visas: '签证',
+    fret: '货运与商品',
+    teamSize: '将使用本工具的人数',
+    teamSizeHint: '价格由此确定。',
+    monthlyCases: '每月案件量（约）',
+    currentTool: '你们目前使用什么',
+    currentToolHint: 'Excel、WhatsApp、其他软件……',
+    note: '目前最困扰你们的是什么',
+    notePlaceholder: '例如：会弄丢案件、说不清客户进度、预约名额总是错过。',
+    estimate: '{users} 位用户：每月约 {month} 第纳尔，全年 {year} 第纳尔。按年开票，采用 TTN 格式。',
+    noCard: '现在无需付款。我们不扣卡：订阅按年开票，通过转账结清。',
+    send: '提交申请',
+    doneTitle: '已提交',
+    doneHint: '我们将在一个工作日内回电。',
+    doneWhat: '接下来：我们会致电了解你们的运作方式，发送带报价的方案；若合适，便为你们开通工作空间，配置签证类型与团队。签约后才付款。',
+  },
   pay2: {
     currencies: '可接受币种',
     currenciesHint: '你愿意收取的币种。{base} 仍是你的基准币种，用于总额与报表。',
@@ -418,6 +445,7 @@ export const zh: Dict = {
     byCountry: '按目的地', byAgent: '按专员', revenue: '营业额', days: '{n} 天', exportCsv: '导出 CSV',
   },
   settings: {
+    version: '版本 {v}',
     title: '设置', subtitle: '公司、办公室、团队和业务规则。',
     agency: '公司', offices: '办公室', team: '团队', visaTypes: '签证类型', checklists: '材料清单',
     templates: '消息模板', languages: '语言', brand: '品牌', domain: '专属域名',

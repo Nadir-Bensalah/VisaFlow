@@ -1,6 +1,33 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  sub: {
+    title: 'Subscribe to VisaFlow',
+    subtitle: 'Two minutes. We call you back with a priced proposal.',
+    agencyName: 'Agency name',
+    country: 'Country',
+    city: 'City',
+    contactName: 'Your name',
+    phone: 'Phone',
+    phoneHint: 'This is how we will reach you.',
+    email: 'Email (optional)',
+    services: 'What you handle',
+    visas: 'Visas',
+    fret: 'Freight and goods',
+    teamSize: 'People who will use the tool',
+    teamSizeHint: 'This is what sets the price.',
+    monthlyCases: 'Cases per month, roughly',
+    currentTool: 'What you use today',
+    currentToolHint: 'Excel, WhatsApp, another package…',
+    note: 'What hurts most today',
+    notePlaceholder: 'For example: we lose files, we never know where a client stands, appointment slots slip away.',
+    estimate: '{users} users: about {month} TND per month, i.e. {year} TND for the year. Invoiced annually, TTN format.',
+    noCard: 'No payment now. We do not charge cards: the subscription is invoiced yearly and settled by transfer.',
+    send: 'Send my request',
+    doneTitle: 'Sent',
+    doneHint: 'We call you back within one working day.',
+    doneWhat: 'What happens next: we call to understand how you work, we send a priced proposal, and if it suits you we open your workspace with your visa types and your team. You pay only after signing.',
+  },
   pay2: {
     currencies: 'Accepted currencies',
     currenciesHint: 'What you accept to collect. {base} stays your reference currency, the one your totals and reports use.',
@@ -418,6 +445,7 @@ export const en: Dict = {
     byCountry: 'By destination', byAgent: 'By agent', revenue: 'Revenue', days: '{n} days', exportCsv: 'Export as CSV',
   },
   settings: {
+    version: 'Version {v}',
     title: 'Settings', subtitle: 'The agency, its offices, its people and its rules.',
     agency: 'Agency', offices: 'Offices', team: 'Team', visaTypes: 'Visa types', checklists: 'Document lists',
     templates: 'Message templates', languages: 'Languages', brand: 'Brand', domain: 'Subdomain',

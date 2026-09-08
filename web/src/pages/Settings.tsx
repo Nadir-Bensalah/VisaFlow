@@ -5,6 +5,7 @@ import { useVisible } from '@/data/scope'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Card, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, Switch, Textarea, useToast } from '@/components/ui'
 import { Ago, PageHead } from '@/components/bits'
+import { versionLabel } from '@/lib/version'
 import { TariffsSection } from '@/components/TariffsSection'
 import { BrandSection } from '@/components/BrandSection'
 import { EncaissementSection } from '@/components/EncaissementSection'
@@ -83,6 +84,15 @@ export function Settings() {
       {current === 'conformite' && <ComplianceSection />}
       {current === 'modeles' && <TemplatesSection />}
       {current === 'whatsapp' && <WhatsAppSection />}
+
+      {/* La version publiée. GitHub Pages garde la page dix minutes en cache :
+          sans repère, on ne sait jamais si l'écran qu'on regarde est le dernier.
+          Ce numéro tranche la question en une seconde. */}
+      {current === 'agence' && (
+        <p className="t-caption t-tertiary" style={{ textAlign: 'center', marginTop: 'var(--sp-6)' }}>
+          {t('settings.version', { v: versionLabel(locale) })}
+        </p>
+      )}
 
       {current === 'donnees' && (
         <div className="grid grid--2">
