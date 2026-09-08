@@ -1,0 +1,16 @@
+/* Le banc croisé des moteurs tourne sous Node, pas dans le navigateur : il lui
+   faut du CommonJS et l'alias « @/ » du projet. La configuration de l'app reste
+   inchangée, elle ne compile que src/. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": "/tmp/vfmoteur",
+    "noUnusedLocals": false,
+    "isolatedModules": false,
+    "verbatimModuleSyntax": false
+  },
+  "include": ["moteur.test.ts", "src/lib/fret.ts", "src/lib/douane.ts", "src/data/types.ts"]
+}

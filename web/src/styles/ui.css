@@ -1221,3 +1221,54 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   font-size: var(--size-small); font-weight: var(--w-medium); cursor: pointer;
 }
 .supportbar__btn:hover { background: rgba(255,255,255,0.14); }
+
+/* Le fret : trajet en tronçons, compteurs de stationnement, groupage, douane. */
+.fret__warn {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  padding: 10px var(--sp-3); margin: 0 0 var(--sp-3);
+  background: var(--tint-orange, rgba(255,149,0,0.10));
+  border: 1px solid var(--orange); border-radius: var(--radius-field);
+  color: var(--text-primary); font-size: var(--size-small); line-height: 1.45;
+}
+.fret__warn svg { flex: none; margin-top: 2px; color: var(--orange); }
+
+.fret__route { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.fret__leg {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: 10px 0; border-bottom: 1px solid var(--hairline);
+}
+.fret__leg:last-child { border-bottom: 0; }
+.fret__legDot {
+  flex: none; width: 26px; height: 26px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--tint-blue); color: var(--blue);
+}
+.fret__hub {
+  flex: none; align-self: center;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--tint-orange, rgba(255,149,0,0.12));
+  color: var(--orange); font-size: var(--size-caption); font-weight: var(--w-medium);
+  white-space: nowrap;
+}
+
+.fret__counter {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3); border-radius: var(--radius-field);
+  border: 1px solid var(--hairline);
+}
+.fret__counter.is-over { border-color: var(--red); background: var(--tint-red, rgba(255,59,48,0.06)); }
+
+.fret__solidarity,
+.fret__advice {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: 0; padding: 10px var(--sp-5);
+  font-size: var(--size-small); color: var(--text-secondary);
+  border-bottom: 1px solid var(--hairline);
+}
+.fret__solidarity.is-on { background: var(--tint-orange, rgba(255,149,0,0.10)); color: var(--text-primary); }
+.fret__advice { border-bottom: 0; border-top: 1px solid var(--hairline); }
+.fret__solidarity svg, .fret__advice svg { flex: none; color: var(--text-tertiary); }
+.fret__solidarity.is-on svg { color: var(--orange); }
+
+.t-red { color: var(--red); }
+.t-orange { color: var(--orange); }

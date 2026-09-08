@@ -42,6 +42,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     checklistVersions, cases, documents, custody, notes, messages, templates,
     appointments, payments, rules, events, tasks, shipments, shipmentDocs,
     shipmentEvents, requests, queue, attempts,
+    lots, legs, tariffs, bls, declarations, customsArticles, tce,
   ] = await Promise.all([
     sb.from('agencies').select('*').eq('id', agencyId).single(),
     rows('offices', agencyId),
@@ -69,6 +70,15 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     rows('client_requests', agencyId),
     rows('appointment_queue', agencyId),
     rows('slot_attempts', agencyId),
+    // Le fret réel : les lots du groupage, les tronçons du trajet, les barèmes
+    // de stationnement, les deux niveaux de connaissement et la douane.
+    rows('shipment_lots', agencyId),
+    rows('shipment_legs', agencyId),
+    rows('demurrage_tariffs', agencyId),
+    rows('bills_of_lading', agencyId),
+    rows('customs_declarations', agencyId),
+    rows('customs_articles', agencyId),
+    rows('tce_titles', agencyId),
   ])
 
   const agency = camelKeys<any>(agencyRow.data)
@@ -101,7 +111,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
   const eventsData = (events.data ?? []).map((r) => camelKeys(r))
 
   return {
-    version: 2,
+    version: 3,
     agency,
     users,
     clients,
@@ -124,6 +134,13 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     requests,
     queue,
     attempts,
+    lots,
+    legs,
+    tariffs,
+    bls,
+    declarations,
+    customsArticles,
+    tce,
   } as Database
 }
 

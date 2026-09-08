@@ -618,6 +618,262 @@ export interface Shipment {
   officeId: string
   portalToken: string
   notes?: string
+  /** Le transporteur et le manutentionnaire : deux facturiers différents. */
+  carrier?: string
+  handler?: string
+  containersCount?: number
+  containerType?: ContainerType
+  /* Les jalons qui font partir les trois compteurs. Ils ne se valent pas :
+     un seul « arrivé » ne permet de calculer aucun des trois correctement. */
+  arrivedAt?: string
+  /** Déchargement du navire : départ des jours francs de surestaries. */
+  dischargedAt?: string
+  /** Sortie du conteneur du terminal : arrête les surestaries, lance la détention. */
+  gateOutAt?: string
+  /** Restitution du conteneur vide : arrête la détention. */
+  containerReturnedAt?: string
+  /** Enlèvement de la marchandise : arrête le magasinage. */
+  goodsRemovedAt?: string
+  /** Dépotage du conteneur : éteint la solidarité entre lots. */
+  strippedAt?: string
+}
+
+
+// ------------------------------------------------------------------
+// Le fret réel : tronçons, compteurs, connaissements, douane
+// ------------------------------------------------------------------
+
+/**
+ * Un lot par client dans une cargaison groupée. Le vrai LCL, ce n'est pas une
+ * cargaison pour un client : c'est un conteneur avec quinze clients dedans,
+ * chacun ses cartons, sa facture et son dédouanement.
+ */
+export interface ShipmentLot {
+  id: string
+  agencyId: string
+  shipmentId: string
+  clientId: string
+  marks?: string
+  goods?: I18nText
+  packages?: number
+  weightKg?: number
+  volumeCbm?: number
+  declaredValue?: number
+  declaredCurrency?: string
+  clearedAt?: string
+  deliveredAt?: string
+  /** Libération du lot à son client. Distinct du dépotage du conteneur. */
+  releasedAt?: string
+  blockedReason?: string
+  blockedSince?: string
+  portalToken?: string
+  note?: string
+}
+
+export type LegMode = 'maritime' | 'aerien' | 'routier' | 'ferroviaire'
+
+/**
+ * Un tronçon de transport. Une expédition Chine vers Radès en compte au moins
+ * deux : le tirant d'eau de Radès (-8,8 m) interdit toute ligne directe depuis
+ * l'Asie. L'attente au hub se déduit de l'écart entre deux tronçons, et c'est
+ * là que se produit le retard le plus fréquent.
+ */
+export interface ShipmentLeg {
+  id: string
+  agencyId: string
+  shipmentId: string
+  seq: number
+  mode: LegMode
+  fromPlace: string
+  fromCode?: string
+  toPlace: string
+  toCode?: string
+  carrier?: string
+  /** Le navire, le numéro de vol, l'immatriculation : le mode dit ce que c'est. */
+  conveyance?: string
+  voyage?: string
+  etd?: string
+  eta?: string
+  atd?: string
+  ata?: string
+  note?: string
+}
+
+export type CounterKind = 'surestaries' | 'detention' | 'magasinage'
+export type ContainerType = '20' | '40' | '40HC' | '45HC' | 'LCL'
+
+/** Un palier de tarif journalier. Le tarif monte à partir du 3e ou 4e jour. */
+export interface DemurrageTier {
+  fromDay: number
+  toDay: number | null
+  rate: number
+}
+
+/**
+ * Un barème de stationnement, SAISI par l'agence. Aucune valeur par défaut
+ * n'est livrée : les barèmes tunisiens ne sont pas publics.
+ */
+export interface DemurrageTariff {
+  id: string
+  agencyId: string
+  kind: CounterKind
+  /** L'armateur pour surestaries et détention, le manutentionnaire pour le magasinage. */
+  billedBy: string
+  port: string
+  containerType: ContainerType
+  freeDays: number
+  currency: string
+  tiers: DemurrageTier[]
+  surchargePct: number
+  validFrom: string
+  validTo?: string
+  note?: string
+}
+
+export type BlKind = 'master' | 'house'
+export type BlRelease = 'original_endosse' | 'telex_release' | 'express_release'
+
+/**
+ * Deux connaissements, jamais un. Le Master est émis par l'armateur au nom du
+ * groupeur, le House par le groupeur au client final. L'importateur n'a JAMAIS
+ * le Master : le lui promettre est une faute.
+ */
+export interface BillOfLading {
+  id: string
+  agencyId: string
+  shipmentId: string
+  kind: BlKind
+  /** Un House descend d'un Master. Un Master ne descend de rien. */
+  parentId?: string
+  lotId?: string
+  number: string
+  issuer?: string
+  shipper?: string
+  consignee?: string
+  notify?: string
+  issuedAt?: string
+  releaseType?: BlRelease
+  releasedAt?: string
+  freightTerms?: 'prepaid' | 'collect'
+  note?: string
+}
+
+/** Ce qui s'ajoute à la valeur transactionnelle. Liste limitative, article 30. */
+export type AdditionCode =
+  | 'commissions_vente'
+  | 'contenants_emballages'
+  | 'apports_materiels'
+  | 'apports_intellectuels_hors_tn'
+  | 'redevances_licences'
+  | 'produit_revente'
+  | 'transport_assurance_jusqu_introduction'
+
+/** Ce qui se retranche. Liste limitative, article 31. */
+export type DeductionCode =
+  | 'transport_assurance_apres_import'
+  | 'montage_assistance'
+  | 'droits_reproduction'
+  | 'commissions_achat'
+  | 'droits_taxes_tn'
+  | 'cout_donnees_logiciel'
+
+export interface CustomsValueElement {
+  code: AdditionCode | DeductionCode
+  amount: number
+  /**
+   * Article 31, la règle absolue : un élément retranchable qui n'est pas
+   * facturé distinctement n'est PAS retranché.
+   */
+  invoicedSeparately?: boolean
+}
+
+export interface CustomsOtherTax {
+  code: string
+  label?: string
+  amount: number
+}
+
+export type CustomsStatus =
+  | 'brouillon' | 'deposee' | 'enregistree' | 'liquidee' | 'payee' | 'annulee'
+
+export interface CustomsDeclaration {
+  id: string
+  agencyId: string
+  shipmentId: string
+  lotId?: string
+  number?: string
+  regime?: string
+  brokerName?: string
+  /** Sept chiffres plus une lettre de contrôle. */
+  brokerCode?: string
+  office?: string
+  registeredOn?: string
+  /** Article 33 : le taux du jour d'ENREGISTREMENT, pas celui de la facture. */
+  fxRate: number
+  currency: string
+  /** Faux = lettre M : l'assiette TVA est majorée de 25 %. */
+  vatRegistered: boolean
+  /** Code 480 : avance sur impôt de 10 %. */
+  airApplicable: boolean
+  circuit?: 'vert' | 'orange' | 'rouge'
+  status: CustomsStatus
+  note?: string
+}
+
+export interface CustomsArticle {
+  id: string
+  agencyId: string
+  declarationId: string
+  lineNo: number
+  /** Case 39 : 6 SH + 2 NC + 1 national + 1 NGP, plus une clé. */
+  ndp?: string
+  designation: string
+  /** Case 32. C'est elle qui commande le régime tarifaire. */
+  originCountry?: string
+  /** Case 42/2. Les codes 404 et 971 sont interdits hors origine préférentielle. */
+  preferentialCode?: string
+  quantity?: number
+  invoiceValue: number
+  /** L = libre, P = exclu du régime de liberté, autorisation d'importation obligatoire. */
+  ccecTitle?: 'L' | 'P'
+  mp5?: boolean
+  additions: CustomsValueElement[]
+  deductions: CustomsValueElement[]
+  /** En pourcentage : 19 pour 19 %. Dépendent de la position, jamais livrés. */
+  ddRate?: number
+  dcRate?: number
+  fodecRate?: number
+  tvaRate?: number
+  /** Série 0xx : elles entrent dans l'assiette de la TVA. */
+  taxes0xx: CustomsOtherTax[]
+  /** Sectorielles : dans la somme des droits, PAS dans l'assiette TVA. */
+  taxesSector: CustomsOtherTax[]
+}
+
+export type TceForm =
+  | 'autorisation_importation' | 'facture_commerciale' | 'admission_temporaire'
+  | 'facture_definitive_export' | 'autorisation_exportation'
+
+/**
+ * Le titre de commerce extérieur. Sans lui domicilié : pas de dédouanement, et
+ * surtout pas de transfert de devises au fournisseur.
+ */
+export interface TceTitle {
+  id: string
+  agencyId: string
+  shipmentId?: string
+  lotId?: string
+  form: TceForm
+  number?: string
+  bank?: string
+  domiciledOn?: string
+  designation?: string
+  amount?: number
+  currency?: string
+  quantity?: number
+  divisible?: boolean
+  status: 'a_domicilier' | 'domicilie' | 'impute' | 'annule'
+  note?: string
 }
 
 /** Etat complet du magasin, un seul objet serialisable. */
@@ -645,4 +901,12 @@ export interface Database {
   requests: ClientRequest[]
   queue: QueueEntry[]
   attempts: SlotAttempt[]
+  /** Le fret réel : un conteneur porte plusieurs clients, et plusieurs tronçons. */
+  lots: ShipmentLot[]
+  legs: ShipmentLeg[]
+  tariffs: DemurrageTariff[]
+  bls: BillOfLading[]
+  declarations: CustomsDeclaration[]
+  customsArticles: CustomsArticle[]
+  tce: TceTitle[]
 }

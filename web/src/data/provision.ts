@@ -104,7 +104,7 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
   const { checklists, visaTypes, consulates, templates, rules } = starterCatalogue(agencyId, input.services)
 
   let db: Database = {
-    version: 2,
+    version: 3,
     agency,
     users: [owner],
     clients: [],
@@ -127,6 +127,8 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
     shipmentDocs: [],
     shipmentEvents: [],
     requests: [],
+    // Une agence toute neuve n'a encore ni conteneur, ni barème, ni déclaration.
+    lots: [], legs: [], tariffs: [], bls: [], declarations: [], customsArticles: [], tce: [],
   }
 
   if (input.withDemoData) {

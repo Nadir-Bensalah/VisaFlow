@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n'
 import { useState } from 'react'
 import { Avatar, Button, Card, Empty, Pill, Progress, useToast } from '@/components/ui'
 import { ShipmentEditor } from '@/components/ShipmentEditor'
+import { CountersCard, CustomsCard, LotsCard, RouteCard } from '@/components/FretCards'
 import { Icon } from '@/components/Icon'
 import { FileDrop } from '@/components/FileDrop'
 import { Ago, Countdown, DocPill, PageHead } from '@/components/bits'
@@ -87,6 +88,14 @@ export function ShipmentDetail() {
             </div>
           </Card>
 
+          {/* Ce que l'agence regarde tous les matins : c'est là que l'argent se
+              perd, un jour à la fois, sur trois factures différentes. */}
+          <CountersCard shipment={shipment} />
+
+          {/* Le trajet en tronçons : sans lui, le délai annoncé au client ne
+              repose sur rien de vérifiable. */}
+          <RouteCard shipment={shipment} />
+
           <Card title={t('ship.docs')} flush>
             <div className="list">
               {docs.map((d) => (
@@ -117,6 +126,9 @@ export function ShipmentDetail() {
               ))}
             </div>
           </Card>
+
+          <LotsCard shipment={shipment} />
+          <CustomsCard shipment={shipment} />
         </div>
 
         <div className="stack">

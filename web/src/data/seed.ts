@@ -4,6 +4,13 @@ import type {
   ClientRequest, Consulate, Database, DocState, Incoterm, Locale, Message, MessageTemplate, Payment, Priority,
   ProfessionalStatus, QueueEntry, RefusalCode, Shipment, ShipmentDocument, ShipmentEvent, ShipmentMode,
   ShipmentStage, SlotAttempt, Stage, Task, Track, User, VisaCase, VisaType,
+  ShipmentLot,
+  ShipmentLeg,
+  DemurrageTariff,
+  BillOfLading,
+  CustomsDeclaration,
+  CustomsArticle,
+  TceTitle
 } from './types'
 import { findTenant } from '@/tenant'
 
@@ -316,16 +323,27 @@ const NOTES = [
 /* Cargaisons                                                          */
 /* ------------------------------------------------------------------ */
 
+/* Les armateurs qui desservent réellement Radès, les feeders qui font le dernier
+   tronçon depuis la Méditerranée, et des commissionnaires en douane agréés. */
+const CARRIERS = ['CMA CGM', 'MSC', 'Maersk', 'Hapag-Lloyd', 'COSCO']
+const VESSELS = ['CMA CGM Marco Polo', 'MSC Ambra', 'Maersk Kotka', 'Hapag Barcelona', 'COSCO Fortune']
+const FEEDERS = ['Tunisian Feeder I', 'Medlink Express', 'Sahara Feeder', 'Ulysse Trader']
+const BROKERS = ['Ben Ammar Transit', 'Cabinet Trabelsi', 'Medina Douane', 'Karthago Transit']
+
 export const SHIPMENT_STAGES: ShipmentStage[] = [
   'demande', 'ramassage', 'entrepot', 'empotage', 'depart', 'transit', 'arrivee', 'douane', 'livraison', 'livre',
 ]
 
-const LANES: { mode: ShipmentMode; originCity: string; originPort: string; destCity: string; destPort: string; countryTo: string; days: number }[] = [
-  { mode: 'maritime_fcl', originCity: 'Guangzhou', originPort: 'Nansha', destCity: 'Tunis', destPort: 'Radès', countryTo: 'TN', days: 34 },
-  { mode: 'maritime_lcl', originCity: 'Shenzhen', originPort: 'Yantian', destCity: 'Tunis', destPort: 'Radès', countryTo: 'TN', days: 38 },
+/* Le hub de transbordement. Il n'existe AUCUNE ligne directe Chine vers Radès :
+   le tirant d'eau y est de -8,8 m, les onze lignes régulières viennent toutes de
+   Méditerranée. Misrata, elle, a 16,2 m et une ligne directe depuis mai 2026 :
+   pas de hub. Le routier et l'aérien suivent leurs propres règles. */
+const LANES: { mode: ShipmentMode; originCity: string; originPort: string; destCity: string; destPort: string; countryTo: string; days: number; hub?: string; hubWait?: number }[] = [
+  { mode: 'maritime_fcl', originCity: 'Guangzhou', originPort: 'Nansha', destCity: 'Tunis', destPort: 'Radès', countryTo: 'TN', days: 34, hub: 'Malte (Marsaxlokk)', hubWait: 5 },
+  { mode: 'maritime_lcl', originCity: 'Shenzhen', originPort: 'Yantian', destCity: 'Tunis', destPort: 'Radès', countryTo: 'TN', days: 38, hub: 'Gioia Tauro', hubWait: 7 },
   { mode: 'maritime_fcl', originCity: 'Shanghai', originPort: 'Shanghai', destCity: 'Misrata', destPort: 'Misrata', countryTo: 'LY', days: 32 },
-  { mode: 'maritime_lcl', originCity: 'Yiwu', originPort: 'Ningbo', destCity: 'Tripoli', destPort: 'Al Khums', countryTo: 'LY', days: 36 },
-  { mode: 'aerien', originCity: 'Guangzhou', originPort: 'CAN', destCity: 'Tunis', destPort: 'TUN', countryTo: 'TN', days: 5 },
+  { mode: 'maritime_lcl', originCity: 'Yiwu', originPort: 'Ningbo', destCity: 'Tripoli', destPort: 'Al Khums', countryTo: 'LY', days: 36, hub: 'Malte (Marsaxlokk)', hubWait: 4 },
+  { mode: 'aerien', originCity: 'Guangzhou', originPort: 'CAN', destCity: 'Tunis', destPort: 'TUN', countryTo: 'TN', days: 5, hub: 'Istanbul (IST)', hubWait: 1 },
   { mode: 'routier', originCity: 'Tunis', originPort: 'Radès', destCity: 'Tripoli', destPort: 'Ras Jedir', countryTo: 'LY', days: 3 },
 ]
 
@@ -360,6 +378,12 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
   const shipments: Shipment[] = []
   const shipmentDocs: ShipmentDocument[] = []
   const shipmentEvents: ShipmentEvent[] = []
+  const legs: ShipmentLeg[] = []
+  const lots: ShipmentLot[] = []
+  const bls: BillOfLading[] = []
+  const declarations: CustomsDeclaration[] = []
+  const customsArticles: CustomsArticle[] = []
+  const tce: TceTitle[] = []
 
   const plan: ShipmentStage[] = [
     'demande', 'ramassage', 'entrepot', 'empotage', 'depart',
@@ -374,8 +398,19 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
     const goods = GOODS[i % GOODS.length]
     const stageIndex = SHIPMENT_STAGES.indexOf(stage)
     const delivered = stage === 'livre'
-    const etdOffset = delivered ? -lane.days - between(3, 20) : -between(0, Math.max(1, Math.round(lane.days * 0.7)))
+    // Une cargaison au stade « arrivée » ou au-delà a forcément touché le port :
+    // son ETA est derrière nous. Sans ça les trois compteurs de stationnement
+    // resteraient à zéro sur un conteneur qui coûte pourtant tous les jours.
+    const berthed = stageIndex >= SHIPMENT_STAGES.indexOf('arrivee')
+    const etdOffset = delivered
+      ? -lane.days - between(3, 20)
+      : berthed
+        ? -lane.days - between(2, 16)
+        : -between(0, Math.max(1, Math.round(lane.days * 0.7)))
     const etaOffset = etdOffset + lane.days
+    // Aucun jalon ne se pose dans le futur : un déchargement « demain » ferait
+    // un compteur négatif, donc un montant faux.
+    const past = (n: number) => d(Math.min(0, n))
     const id = `sh_${i + 1}`
     const fcl = lane.mode === 'maritime_fcl'
     const volume = lane.mode === 'aerien' ? Number((rnd() * 3 + 0.4).toFixed(1)) : fcl ? 58 : Number((rnd() * 12 + 1.2).toFixed(1))
@@ -404,6 +439,19 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
       stage, status: delivered ? 'livree' : stage === 'douane' && chance(0.3) ? 'bloquee' : 'en_cours',
       etd: d(etdOffset), eta: d(etaOffset),
       deliveredAt: delivered ? d(etaOffset + between(1, 5)) : undefined,
+      carrier: CARRIERS[i % CARRIERS.length],
+      handler: lane.destPort === 'Radès' ? 'STAM' : lane.destPort === 'Sfax' ? 'GMS' : undefined,
+      containersCount: fcl ? (i % 3 === 0 ? 2 : 1) : 1,
+      containerType: lane.mode === 'aerien' || lane.mode === 'routier'
+        ? undefined : fcl ? (i % 4 === 0 ? '40HC' : '40') : 'LCL',
+      // Les quatre jalons, posés seulement quand l'étape les justifie. Un seul
+      // « arrivé » ne permettrait de calculer aucun des trois compteurs.
+      arrivedAt: berthed ? past(etaOffset) : undefined,
+      dischargedAt: berthed ? past(etaOffset + 1) : undefined,
+      gateOutAt: stageIndex >= 8 ? past(etaOffset + between(6, 14)) : undefined,
+      containerReturnedAt: delivered && fcl ? past(etaOffset + between(15, 22)) : undefined,
+      goodsRemovedAt: stageIndex >= 8 ? past(etaOffset + between(7, 15)) : undefined,
+      strippedAt: !fcl && stageIndex >= 8 ? past(etaOffset + between(7, 12)) : undefined,
       assigneeId: agent.id, officeId: client.officeId,
       portalToken: `shp_${id}_${Math.floor(rnd() * 1e9).toString(36)}`,
       notes: chance(0.3) ? 'Marchandise fragile, prévoir palettisation au départ de l’entrepôt.' : undefined,
@@ -421,6 +469,155 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
       })
     })
 
+    // Le trajet en tronçons. Vers Radès il en faut deux : le long-courrier
+    // jusqu'au hub méditerranéen, puis le feeder. Vers Misrata (16,2 m de
+    // tirant d'eau, ligne directe depuis mai 2026) un seul suffit.
+    const legMode: ShipmentLeg['mode'] =
+      lane.mode === 'aerien' ? 'aerien' : lane.mode === 'routier' ? 'routier' : 'maritime'
+    if (lane.hub) {
+      const legOneDays = Math.round(lane.days * 0.7)
+      legs.push({
+        id: `${id}_leg1`, agencyId, shipmentId: id, seq: 1, mode: legMode,
+        fromPlace: lane.originPort, toPlace: lane.hub,
+        carrier: CARRIERS[i % CARRIERS.length],
+        conveyance: legMode === 'aerien' ? `TK${between(600, 699)}` : VESSELS[i % VESSELS.length],
+        etd: d(etdOffset), eta: d(etdOffset + legOneDays),
+        atd: stageIndex >= 4 ? d(etdOffset) : undefined,
+        ata: stageIndex >= 5 ? d(etdOffset + legOneDays) : undefined,
+      })
+      legs.push({
+        id: `${id}_leg2`, agencyId, shipmentId: id, seq: 2, mode: legMode,
+        fromPlace: lane.hub, toPlace: lane.destPort,
+        carrier: CARRIERS[i % CARRIERS.length],
+        conveyance: legMode === 'aerien' ? `TU${between(700, 799)}` : FEEDERS[i % FEEDERS.length],
+        etd: d(etdOffset + legOneDays + (lane.hubWait ?? 0)),
+        eta: d(etaOffset),
+        atd: stageIndex >= 5 ? d(etdOffset + legOneDays + (lane.hubWait ?? 0)) : undefined,
+        ata: stageIndex >= 6 ? d(etaOffset) : undefined,
+      })
+    } else {
+      legs.push({
+        id: `${id}_leg1`, agencyId, shipmentId: id, seq: 1, mode: legMode,
+        fromPlace: lane.originPort, toPlace: lane.destPort,
+        carrier: CARRIERS[i % CARRIERS.length],
+        conveyance: legMode === 'routier' ? `TN ${between(1000, 9999)}` : VESSELS[i % VESSELS.length],
+        etd: d(etdOffset), eta: d(etaOffset),
+        atd: stageIndex >= 4 ? d(etdOffset) : undefined,
+        ata: stageIndex >= 6 ? d(etaOffset) : undefined,
+      })
+    }
+
+    // Le groupage : un conteneur, plusieurs clients. C'est le vrai LCL.
+    const master: BillOfLading | undefined = stageIndex >= 4 ? {
+      id: `${id}_mbl`, agencyId, shipmentId: id, kind: 'master',
+      number: `${CARRIERS[i % CARRIERS.length].slice(0, 4).toUpperCase()}${between(1000000, 9999999)}`,
+      issuer: CARRIERS[i % CARRIERS.length], shipper: SUPPLIERS[i % SUPPLIERS.length],
+      consignee: lane.mode === 'maritime_lcl' ? 'Groupeur Méditerranée' : client.firstName + ' ' + client.lastName,
+      issuedAt: d(etdOffset), releaseType: 'telex_release',
+      freightTerms: i % 3 === 0 ? 'collect' : 'prepaid',
+    } : undefined
+    if (master) bls.push(master)
+
+    if (lane.mode === 'maritime_lcl') {
+      const lotCount = between(3, 5)
+      for (let n = 0; n < lotCount; n++) {
+        const lotClient = clients[(i * 3 + n * 5) % clients.length]
+        const lotCbm = Number((rnd() * 3.4 + 0.3).toFixed(2))
+        const lotId = `${id}_lot${n + 1}`
+        // Un lot bloqué immobilise tous les autres tant que rien n'est dépoté.
+        const blocked = n === 1 && stageIndex >= 7 && chance(0.6)
+        lots.push({
+          id: lotId, agencyId, shipmentId: id, clientId: lotClient.id,
+          marks: `${lotClient.lastName.toUpperCase().slice(0, 4)}/${n + 1}`,
+          goods: GOODS[(i + n) % GOODS.length],
+          packages: between(4, 90),
+          weightKg: Math.round(lotCbm * between(180, 340)),
+          volumeCbm: lotCbm,
+          declaredValue: between(1800, 14000), declaredCurrency: 'USD',
+          blockedReason: blocked ? 'Fret impayé, solde de 2 400 TND' : undefined,
+          blockedSince: blocked ? d(-between(2, 9)) : undefined,
+          releasedAt: !blocked && stageIndex >= 9 ? d(etaOffset + between(8, 16)) : undefined,
+          portalToken: `lot_${lotId}_${Math.floor(rnd() * 1e9).toString(36)}`,
+        })
+        // Le House B/L : émis par le groupeur au client final, il descend du Master.
+        if (master) {
+          bls.push({
+            id: `${lotId}_hbl`, agencyId, shipmentId: id, kind: 'house',
+            parentId: master.id, lotId,
+            number: `HBL${between(100000, 999999)}`,
+            issuer: 'Groupeur Méditerranée',
+            shipper: SUPPLIERS[(i + n) % SUPPLIERS.length],
+            consignee: `${lotClient.firstName} ${lotClient.lastName}`,
+            issuedAt: d(etdOffset), releaseType: n % 2 === 0 ? 'express_release' : 'original_endosse',
+            freightTerms: 'prepaid',
+          })
+        }
+      }
+    }
+
+    // Le titre de commerce extérieur : sans lui domicilié, pas de dédouanement
+    // et surtout pas de transfert de devises au fournisseur.
+    if (stageIndex >= 3) {
+      tce.push({
+        id: `${id}_tce`, agencyId, shipmentId: id,
+        form: 'facture_commerciale',
+        number: `TCE${between(100000, 999999)}`,
+        bank: ['BIAT', 'Amen Bank', 'Attijari', 'BNA'][i % 4],
+        domiciledOn: d(etdOffset - between(3, 12)),
+        designation: goods.fr, amount: value, currency: 'USD',
+        quantity: between(200, 4000), divisible: true,
+        status: stageIndex >= 8 ? 'impute' : 'domicilie',
+      })
+    }
+
+    // La déclaration en douane, dès l'étape douane.
+    if (stageIndex >= 7) {
+      const declId = `${id}_dec`
+      declarations.push({
+        id: declId, agencyId, shipmentId: id,
+        number: `${between(100000, 999999)}/2026`,
+        regime: 'mise a la consommation',
+        brokerName: BROKERS[i % BROKERS.length],
+        brokerCode: `${between(1000000, 9999999)}${'ABCDEFGH'[i % 8]}`,
+        office: lane.destPort === 'Radès' ? 'Radès Port' : lane.destPort,
+        registeredOn: d(etaOffset + 2),
+        // Le taux du JOUR D'ENREGISTREMENT, pas celui de la facture.
+        fxRate: Number((3.05 + rnd() * 0.25).toFixed(4)),
+        currency: 'USD',
+        vatRegistered: i % 5 !== 0,   // un importateur sur cinq n'est pas assujetti
+        airApplicable: i % 7 === 0,
+        circuit: (['vert', 'orange', 'rouge'] as const)[i % 3],
+        status: stageIndex >= 8 ? 'liquidee' : 'enregistree',
+      })
+      const articleCount = between(2, 4)
+      for (let n = 0; n < articleCount; n++) {
+        customsArticles.push({
+          id: `${declId}_a${n + 1}`, agencyId, declarationId: declId, lineNo: n + 1,
+          ndp: `${between(100000, 999999)}${between(1000, 9999)}`,
+          designation: GOODS[(i + n) % GOODS.length].fr,
+          // Origine chinoise : NPF plein, aucun code préférentiel possible.
+          originCountry: lane.mode === 'routier' ? 'TN' : 'CN',
+          preferentialCode: undefined,
+          quantity: between(50, 900),
+          invoiceValue: Math.round(value / articleCount),
+          ccecTitle: n === 0 && i % 6 === 0 ? 'P' : 'L',
+          additions: [
+            { code: 'transport_assurance_jusqu_introduction', amount: Math.round(freight / articleCount) },
+          ],
+          deductions: n === 1
+            // Volontairement non facturée à part : l'écran doit dire qu'elle
+            // ne se retranche pas, avant que la douane ne le dise.
+            ? [{ code: 'commissions_achat', amount: between(200, 800), invoicedSeparately: false }]
+            : [],
+          ddRate: [0, 15, 20, 30][(i + n) % 4],
+          dcRate: n === 0 ? 10 : 0,
+          fodecRate: 1,
+          tvaRate: 19,
+          taxes0xx: [], taxesSector: [],
+        })
+      }
+    }
+
     // Le fil de suivi : une ligne par etape franchie, jamais inventee au-dela.
     SHIPMENT_STAGES.slice(0, stageIndex + 1).forEach((st, k) => {
       shipmentEvents.push({
@@ -436,7 +633,7 @@ function buildShipments(agencyId: string, clients: Client[], users: User[], case
     })
   })
 
-  return { shipments, shipmentDocs, shipmentEvents }
+  return { shipments, shipmentDocs, shipmentEvents, legs, lots, bls, declarations, customsArticles, tce }
 }
 
 /* Demandes arrivees de la page publique, en attente de qualification. */
@@ -752,14 +949,58 @@ export function buildSeed(slug: string): Database {
   events.sort((a, b) => b.at.localeCompare(a.at))
   messages.sort((a, b) => a.at.localeCompare(b.at))
 
-  const { shipments, shipmentDocs, shipmentEvents } = buildShipments(agencyId, clients, users, cases)
+  const { shipments, shipmentDocs, shipmentEvents, legs, lots, bls, declarations, customsArticles, tce } =
+    buildShipments(agencyId, clients, users, cases)
+
+  /* Les barèmes de stationnement. Dans la vraie vie ils sont SAISIS par l'agence :
+     les tarifs tunisiens ne sont pas publics. Ceux-ci sont ceux d'une agence de
+     démonstration qui a fait sa configuration, pas des constantes du produit. */
+  const tariffs: DemurrageTariff[] = [
+    { id: 'tar_sur_40', agencyId, kind: 'surestaries', billedBy: 'CMA CGM', port: 'Radès',
+      containerType: '40', freeDays: 5, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 3, rate: 45 }, { fromDay: 4, toDay: 10, rate: 90 }, { fromDay: 11, toDay: null, rate: 180 }] },
+    { id: 'tar_sur_40hc', agencyId, kind: 'surestaries', billedBy: 'CMA CGM', port: 'Radès',
+      containerType: '40HC', freeDays: 5, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 3, rate: 50 }, { fromDay: 4, toDay: 10, rate: 100 }, { fromDay: 11, toDay: null, rate: 200 }] },
+    { id: 'tar_sur_lcl', agencyId, kind: 'surestaries', billedBy: 'CMA CGM', port: 'Radès',
+      containerType: 'LCL', freeDays: 7, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: null, rate: 35 }] },
+    { id: 'tar_det_40', agencyId, kind: 'detention', billedBy: 'CMA CGM', port: 'Radès',
+      containerType: '40', freeDays: 3, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 5, rate: 60 }, { fromDay: 6, toDay: null, rate: 120 }] },
+    { id: 'tar_det_40hc', agencyId, kind: 'detention', billedBy: 'CMA CGM', port: 'Radès',
+      containerType: '40HC', freeDays: 3, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 5, rate: 70 }, { fromDay: 6, toDay: null, rate: 140 }] },
+    // Le magasinage est facturé par le manutentionnaire, jamais par l'armateur.
+    { id: 'tar_mag_40', agencyId, kind: 'magasinage', billedBy: 'STAM', port: 'Radès',
+      containerType: '40', freeDays: 7, currency: 'TND', surchargePct: 30,
+      validFrom: d(-400).slice(0, 10), note: 'Majoration de congestion appliquée depuis la saturation du terminal.',
+      tiers: [{ fromDay: 1, toDay: 7, rate: 20 }, { fromDay: 8, toDay: null, rate: 40 }] },
+    { id: 'tar_mag_lcl', agencyId, kind: 'magasinage', billedBy: 'STAM', port: 'Radès',
+      containerType: 'LCL', freeDays: 7, currency: 'TND', surchargePct: 30, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: null, rate: 12 }] },
+    // Les ports libyens, où l'agence travaille aussi.
+    { id: 'tar_sur_ly_lcl', agencyId, kind: 'surestaries', billedBy: 'COSCO', port: 'Al Khums',
+      containerType: 'LCL', freeDays: 5, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 4, rate: 40 }, { fromDay: 5, toDay: null, rate: 85 }] },
+    { id: 'tar_mag_ly_lcl', agencyId, kind: 'magasinage', billedBy: 'Port d’Al Khums', port: 'Al Khums',
+      containerType: 'LCL', freeDays: 6, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: null, rate: 15 }] },
+    { id: 'tar_sur_mis_40', agencyId, kind: 'surestaries', billedBy: 'MSC', port: 'Misrata',
+      containerType: '40', freeDays: 7, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: 5, rate: 55 }, { fromDay: 6, toDay: null, rate: 110 }] },
+    { id: 'tar_det_mis_40', agencyId, kind: 'detention', billedBy: 'MSC', port: 'Misrata',
+      containerType: '40', freeDays: 4, currency: 'TND', surchargePct: 0, validFrom: d(-400).slice(0, 10),
+      tiers: [{ fromDay: 1, toDay: null, rate: 65 }] },
+  ]
   const { queue, attempts } = buildQueue(agencyId, cases, users, consulates)
 
   return {
-    version: 2, agency, users, clients, visaTypes, consulates, checklists, cases, documents, custody: [],
+    version: 3, agency, users, clients, visaTypes, consulates, checklists, cases, documents, custody: [],
     messages, templates, appointments, payments, rules, events, tasks,
     shipments, shipmentDocs, shipmentEvents,
     requests: buildRequests(agencyId, visaTypes),
     queue, attempts,
+    lots, legs, tariffs, bls, declarations, customsArticles, tce,
   }
 }

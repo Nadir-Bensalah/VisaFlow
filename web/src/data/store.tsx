@@ -19,7 +19,7 @@ import type {
    directement. Le jour ou Supabase arrive, seul ce fichier change. */
 
 const STORAGE_PREFIX = 'visaflow.db.'
-const CURRENT_VERSION = 2
+const CURRENT_VERSION = 3
 
 function load(slug: string): Database {
   try {
