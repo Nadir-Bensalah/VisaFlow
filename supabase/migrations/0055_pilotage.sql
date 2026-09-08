@@ -1382,7 +1382,7 @@ begin
                 l.created_at,
                 (extract(epoch from (now() - l.created_at)) / 60)::int,
                 (extract(epoch from (now() - l.created_at)) / 60 - $3)::int,
-                ''/prospects''
+                ''/commercial''
            from leads l
           where l.agency_id = $4 and l.deleted_at is null and l.status = ''nouveau''
             and l.created_at < now() - make_interval(mins => $3)
