@@ -12,5 +12,5 @@
     "isolatedModules": false,
     "verbatimModuleSyntax": false
   },
-  "include": ["moteur.test.ts", "src/lib/fret.ts", "src/lib/douane.ts", "src/lib/schengen.ts", "src/lib/conformite.ts", "src/data/types.ts"]
+  "include": ["moteur.test.ts", "src/lib/fret.ts", "src/lib/douane.ts", "src/lib/schengen.ts", "src/lib/conformite.ts", "src/lib/noms.ts", "src/data/types.ts"]
 }

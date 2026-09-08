@@ -2,6 +2,15 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  dup: {
+    found: '{n} client(s) déjà connu(s) pourraient être la même personne :',
+    passeport_et_naissance: 'même passeport et même naissance',
+    meme_telephone: 'même téléphone',
+    nom_arabe_et_naissance: 'même nom arabe et même naissance',
+    nativeName: 'Nom en arabe',
+    nativeHint: 'C’est la donnée de référence : il n’existe aucun standard de translittération.',
+    latinHint: 'Version latine, une orthographe parmi d’autres.',
+  },
   conf: {
     title: 'Conformité',
     allSet: 'Tout ce que le droit impose est renseigné.',

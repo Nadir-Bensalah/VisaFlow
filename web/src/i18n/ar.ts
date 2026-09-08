@@ -1,6 +1,15 @@
 import type { Dict } from './fr'
 
 export const ar: Dict = {
+  dup: {
+    found: 'قد يكون {n} من الحرفاء المسجّلين نفس الشخص:',
+    passeport_et_naissance: 'نفس الجواز ونفس تاريخ الولادة',
+    meme_telephone: 'نفس الهاتف',
+    nom_arabe_et_naissance: 'نفس الاسم بالعربية ونفس تاريخ الولادة',
+    nativeName: 'الاسم بالعربية',
+    nativeHint: 'هذه هي البيانات المرجعية: لا يوجد معيار للنقل الحرفي.',
+    latinHint: 'النسخة اللاتينية، كتابة من بين كتابات.',
+  },
   conf: {
     title: 'المطابقة',
     allSet: 'كل ما يفرضه القانون مُدرج.',

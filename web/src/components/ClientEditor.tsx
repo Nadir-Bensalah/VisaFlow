@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '@/data/store'
+import { findDuplicates } from '@/lib/noms'
+import { Icon } from '@/components/Icon'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Field, Input, Modal, Select, useToast } from './ui'
 import { biometricsValid, biometricsValidUntil } from '@/lib/derive'
@@ -41,6 +43,17 @@ export function ClientEditor({ client, onClose, onSaved }: {
   })
   const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
 
+  /* Le même client revient sous trois orthographes : Mohamed, Mohammed,
+     Muhammad. On ne le cherche donc JAMAIS par son nom latin, mais par son
+     passeport et sa date de naissance, son téléphone, ou son nom arabe. */
+  const doublons = findDuplicates(db.clients, {
+    passport: draft.passportNumber || undefined,
+    birth: draft.birthDate || undefined,
+    phone: draft.phone || undefined,
+    nativeName: draft.nativeName || undefined,
+    exclude: client?.id,
+  })
+
   const save = () => {
     const patch = {
       ...draft,
@@ -80,13 +93,32 @@ export function ClientEditor({ client, onClose, onSaved }: {
         </>
       }
     >
+      {/* Le doublon se dit AVANT la création, pas au moment où l'agence
+          découvre deux dossiers pour la même personne. */}
+      {doublons.length > 0 && (
+        <p className="fret__warn" style={{ marginBottom: 'var(--sp-4)' }}>
+          <Icon name="alert" size={16} />
+          <span>
+            {t('dup.found', { n: doublons.length })}{' '}
+            {doublons.map((d) => (
+              `${d.client.firstName} ${d.client.lastName} (${t(`dup.${d.reason}` as 'dup.meme_telephone')})`
+            )).join(' · ')}
+          </span>
+        </p>
+      )}
+
       <div className="grid grid--2">
-        <Field label={t('ask.firstName')}><Input value={draft.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
-        <Field label={t('ask.lastName')}><Input value={draft.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-        <Field label={t('clients.name')} hint="محمد / 陈浩">
-          <Input value={draft.nativeName} onChange={(e) => set('nativeName', e.target.value)} />
+        {/* Le nom arabe est la DONNÉE DE RÉFÉRENCE : il n'existe aucun standard
+            de translittération, et le problème est reconnu au niveau des États
+            dans l'accord frontalier tuniso-libyen de juin 2024. */}
+        <Field label={t('dup.nativeName')} hint={t('dup.nativeHint')}>
+          <Input value={draft.nativeName} onChange={(e) => set('nativeName', e.target.value)} dir="auto" />
         </Field>
         <Field label={t('clients.nationality')}><Input value={draft.nationality} onChange={(e) => set('nationality', e.target.value)} /></Field>
+        <Field label={t('ask.firstName')} hint={t('dup.latinHint')}>
+          <Input value={draft.firstName} onChange={(e) => set('firstName', e.target.value)} />
+        </Field>
+        <Field label={t('ask.lastName')}><Input value={draft.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
         <Field label={t('clients.contact')}><Input type="tel" value={draft.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="WhatsApp" hint={t('ask.phoneHint')}>
           <Input type="tel" value={draft.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} />

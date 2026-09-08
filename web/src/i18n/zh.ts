@@ -1,6 +1,15 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  dup: {
+    found: '有 {n} 位已登记客户可能是同一人：',
+    passeport_et_naissance: '护照与出生日期相同',
+    meme_telephone: '电话相同',
+    nom_arabe_et_naissance: '阿拉伯语姓名与出生日期相同',
+    nativeName: '阿拉伯语姓名',
+    nativeHint: '这是基准数据：阿拉伯语姓名没有统一的拉丁转写标准。',
+    latinHint: '拉丁字母写法，只是众多拼法之一。',
+  },
   conf: {
     title: '合规',
     allSet: '法律要求的信息均已填写。',

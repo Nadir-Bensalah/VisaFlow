@@ -1,6 +1,15 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  dup: {
+    found: '{n} existing client(s) may be the same person:',
+    passeport_et_naissance: 'same passport and birth date',
+    meme_telephone: 'same phone',
+    nom_arabe_et_naissance: 'same Arabic name and birth date',
+    nativeName: 'Name in Arabic',
+    nativeHint: 'This is the reference: there is no transliteration standard.',
+    latinHint: 'Latin version, one spelling among others.',
+  },
   conf: {
     title: 'Compliance',
     allSet: 'Everything the law requires is filled in.',

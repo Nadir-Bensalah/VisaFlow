@@ -25,6 +25,7 @@ import { schengenState, planStay, type Stay } from './src/lib/schengen'
 import {
   cashCheck, promiseCheck, agencyMay, complianceGaps, onttDeadlines,
 } from './src/lib/conformite'
+import { arNormalize, sameArabicName, matchClient, findDuplicates } from './src/lib/noms'
 
 let passed = 0
 const failures: string[] = []
@@ -303,6 +304,41 @@ ok(complianceGaps({
 const ontt = onttDeadlines({ onttChangeAt: '2020-01-01', onttFinancialsAt: '2020-01-01' })
 ok(ontt.changeDue === '2020-01-31', 'le changement se déclare sous trente jours')
 ok(ontt.changeLate && ontt.financialsLate, 'et un retard de six ans est signalé comme tel')
+
+console.log('--- 9 · Le nom arabe comme donnée de référence ---')
+ok(arNormalize('مُحَمَّد') === 'محمد', 'les voyelles ne départagent pas deux graphies')
+ok(sameArabicName('إبراهيم', 'ابراهيم'), 'les quatre formes de l\'alef sont unifiées')
+ok(sameArabicName('فاطمة', 'فاطمه'), 'la ta marbouta et le ha sont unifiés')
+ok(sameArabicName('يحيى', 'يحيي'), 'la ya finale est unifiée')
+ok(!sameArabicName('محمد', 'أحمد'), 'mais Mohamed et Ahmed restent deux personnes')
+ok(!sameArabicName('', ''), 'deux vides ne se ressemblent pas, ils sont vides')
+
+const gens = [
+  { id: 'c1', passportNumber: 'K 1234567', birthDate: '1990-05-12', phone: '+216 20 111 222', nativeName: 'محمد بن علي' },
+  { id: 'c2', passportNumber: 'X9999999', birthDate: '1985-01-01', phone: '+216 20 333 444', nativeName: 'فاطمة الزهراء' },
+]
+// B6 : le rapprochement se fait sur passeport ET date de naissance.
+ok(matchClient(gens, 'K1234567', '1990-05-12').length === 1,
+  'le passeport se retrouve malgré les espaces de saisie')
+ok(matchClient(gens, 'K1234567', '1991-05-12').length === 0,
+  'un passeport juste avec une mauvaise date ne rapproche rien')
+ok(matchClient(gens, 'K1234567', undefined).length === 0,
+  'le passeport SEUL ne suffit pas : il se ressaisit de travers')
+
+// B7 : le doublon se détecte à la saisie, classé par force de preuve.
+const d1 = findDuplicates(gens, { passport: 'k 1234567', birth: '1990-05-12' })
+ok(d1.length === 1 && d1[0].reason === 'passeport_et_naissance',
+  'même passeport et même naissance : quasi-certitude')
+const d2 = findDuplicates(gens, { phone: '20 333 444' })
+ok(d2.length === 1 && d2[0].client.id === 'c2' && d2[0].reason === 'meme_telephone',
+  'le téléphone se compare sur ses huit derniers chiffres')
+const d3 = findDuplicates(gens, { nativeName: 'فاطمه الزهراء', birth: '1985-01-01' })
+ok(d3.length === 1 && d3[0].reason === 'nom_arabe_et_naissance',
+  'le nom arabe normalisé plus la naissance méritent un coup d\'œil')
+ok(findDuplicates(gens, { nativeName: 'فاطمه الزهراء' }).length === 0,
+  'le nom SEUL ne signale rien : il ne prouve rien, c\'est tout le sujet')
+ok(findDuplicates(gens, { passport: 'K1234567', birth: '1990-05-12', exclude: 'c1' }).length === 0,
+  'on ne se signale pas soi-même comme son propre doublon')
 
 console.log('')
 if (failures.length > 0) {
