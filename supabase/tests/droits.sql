@@ -71,6 +71,12 @@ begin
       'slug_available', 'provision_agency', 'issue_otp', 'verify_otp',
       'portal_case', 'portal_shipment', 'portal_mine', 'portal_queue',
       'portal_submit_request', 'portal_send',
+      -- La devanture publique d'une agence : nom, couleurs, visas proposés et
+      -- mentions légales. Une page sans session ne peut rien lire autrement, et
+      -- une agence suspendue ne rend rien.
+      'portal_agency',
+      -- Le suivi d'une demande par son jeton, avant qu'elle ne devienne dossier.
+      'portal_request',
       -- L'outil du banc lui-même, absent de la production.
       'assert'
     );
