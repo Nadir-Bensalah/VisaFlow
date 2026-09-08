@@ -45,7 +45,12 @@ export const zh: Dict = {
     newCase: '新建申请', none: '没有符合条件的申请。', count: '{n} 份申请',
     mine: '我的', late: '逾期', blocked: '卡住',
   },
+  risk: { faible: '低', modere: '中', eleve: '高' },
   caseDetail: {
+    refusalRisk: '预估拒签风险',
+    riskBasisFine: '同一签证中心、同一身份',
+    riskBasisConsulat: '同一签证中心',
+    riskSample: '基于 {n} 个已决案件',
     overview: '概览', documents: '材料', messages: '消息', appointments: '预约',
     payments: '收款', history: '记录', notes: '内部备注', openedOn: '建档日期',
     dueOn: '截止', travelOn: '出发日期', consulateRef: '领事馆编号', assignedTo: '负责专员',

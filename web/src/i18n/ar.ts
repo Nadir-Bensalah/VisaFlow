@@ -45,7 +45,12 @@ export const ar: Dict = {
     newCase: 'ملف جديد', none: 'لا يوجد ملف مطابق لهذه التصفية.', count: '{n} ملفات',
     mine: 'ملفاتي', late: 'متأخرة', blocked: 'معطلة',
   },
+  risk: { faible: 'ضعيف', modere: 'متوسط', eleve: 'مرتفع' },
   caseDetail: {
+    refusalRisk: 'خطر الرفض المقدَّر',
+    riskBasisFine: 'نفس القنصلية، نفس الوضع',
+    riskBasisConsulat: 'نفس القنصلية',
+    riskSample: 'على {n} ملفًا مبتوتًا',
     overview: 'نظرة عامة', documents: 'الوثائق', messages: 'الرسائل', appointments: 'المواعيد',
     payments: 'المدفوعات', history: 'السجل', notes: 'ملاحظات داخلية', openedOn: 'فتح بتاريخ',
     dueOn: 'الأجل', travelOn: 'تاريخ السفر', consulateRef: 'مرجع القنصلية', assignedTo: 'العون المكلف',

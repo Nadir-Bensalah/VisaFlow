@@ -1095,3 +1095,11 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .combo__opt.is-selected .combo__optLabel { font-weight: var(--w-semibold); }
 .combo__optHint { font-size: var(--size-caption); color: var(--text-tertiary); white-space: nowrap; }
 .combo__empty { padding: 10px var(--sp-3); color: var(--text-tertiary); font-size: var(--size-control); }
+
+/* Le bandeau du risque de refus estimé sur le dossier. */
+.riskband {
+  padding: var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--bg-subtle, var(--bg-white));
+}

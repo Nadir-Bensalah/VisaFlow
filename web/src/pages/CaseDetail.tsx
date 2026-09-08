@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { CaseEditor } from '@/components/CaseEditor'
 import { FileDrop } from '@/components/FileDrop'
-import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank, waWindowLeft, waWindowOpen } from '@/lib/derive'
+import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank, refusalRisk, waWindowLeft, waWindowOpen } from '@/lib/derive'
 import type { AppointmentKind, Channel, DocState, PaymentMethod, RefusalCode } from '@/data/types'
 
 type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'historique'
@@ -271,6 +271,32 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
           <span className="t-medium">{formatDate(kase.dueAt)}</span>
         </div>
       </div>
+
+      {/* Le risque de refus, estimé sur les dossiers déjà décidés de l'agence,
+          au même consulat et si possible pour le même statut professionnel.
+          Aucun modèle importé : le chiffre porte sa propre taille d'échantillon,
+          et sous le seuil on ne prétend rien. */}
+      {kase.status === 'ouvert' && (() => {
+        const risk = refusalRisk(db, kase)
+        if (risk.basis === 'insuffisant') return null
+        const tone = risk.band === 'eleve' ? 'red' : risk.band === 'modere' ? 'orange' : 'green'
+        return (
+          <div className="riskband">
+            <div className="col gap-1">
+              <span className="t-caption t-tertiary">{t('caseDetail.refusalRisk')}</span>
+              <div className="row gap-2" style={{ alignItems: 'baseline' }}>
+                <span className="t-medium" style={{ fontSize: 20 }}>{Math.round(risk.rate * 100)}%</span>
+                <Pill tone={tone}>{t(`risk.${risk.band}` as 'risk.faible')}</Pill>
+              </div>
+              <span className="t-caption t-tertiary">
+                {t(risk.basis === 'consulat_statut' ? 'caseDetail.riskBasisFine' : 'caseDetail.riskBasisConsulat')}
+                {' · '}
+                {t('caseDetail.riskSample', { n: risk.sample })}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Le créneau : le poste, le rang dans la file, et la biométrie qui
           dispense ou non du déplacement. C'est ce qui manque partout ailleurs. */}

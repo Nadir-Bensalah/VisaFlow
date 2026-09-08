@@ -45,7 +45,12 @@ export const en: Dict = {
     newCase: 'New application', none: 'No application matches this filter.', count: '{n} applications',
     mine: 'Mine', late: 'Overdue', blocked: 'Blocked',
   },
+  risk: { faible: 'Low', modere: 'Moderate', eleve: 'High' },
   caseDetail: {
+    refusalRisk: 'Estimated refusal risk',
+    riskBasisFine: 'same consulate, same status',
+    riskBasisConsulat: 'same consulate',
+    riskSample: 'over {n} decided cases',
     overview: 'Overview', documents: 'Documents', messages: 'Messages', appointments: 'Appointments',
     payments: 'Payments', history: 'History', notes: 'Internal notes', openedOn: 'Opened on',
     dueOn: 'Due', travelOn: 'Departure date', consulateRef: 'Consulate reference', assignedTo: 'Assigned agent',

@@ -157,7 +157,12 @@ export const fr = {
     late: 'En retard',
     blocked: 'Bloqués',
   },
+  risk: { faible: 'Faible', modere: 'Modéré', eleve: 'Élevé' },
   caseDetail: {
+    refusalRisk: 'Risque de refus estimé',
+    riskBasisFine: 'même consulat, même statut',
+    riskBasisConsulat: 'même consulat',
+    riskSample: 'sur {n} dossiers décidés',
     overview: 'Aperçu',
     documents: 'Pièces',
     messages: 'Messages',

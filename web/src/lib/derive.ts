@@ -383,3 +383,59 @@ export function waWindowLeft(db: Database, clientId: string): number {
   const closes = new Date(last.at).getTime() + 24 * 3600 * 1000
   return Math.max(0, Math.round((closes - Date.now()) / 60000))
 }
+
+/**
+ * Un risque de refus estimé, sur les dossiers déjà décidés de l'agence, jamais un
+ * modèle importé de nulle part. L'étude de marché le rappelle : le taux de refus est
+ * une propriété du consulat, pas du pays, et le statut professionnel du demandeur le
+ * déplace. On regarde donc les dossiers passés au même consulat, si possible pour un
+ * demandeur au même statut, on compte les refus, et on rend le taux avec la taille de
+ * l'échantillon. Sous un seuil, on ne prétend rien : mieux vaut « pas assez
+ * d'historique » qu'un chiffre tiré de trois dossiers.
+ */
+export type RefusalRisk = {
+  rate: number
+  sample: number
+  band: 'faible' | 'modere' | 'eleve'
+  basis: 'consulat_statut' | 'consulat' | 'insuffisant'
+}
+
+export function refusalRisk(db: Database, kase: VisaCase, minSample = 8): RefusalRisk {
+  const decided = db.cases.filter(
+    (c) => c.id !== kase.id && (c.status === 'accepte' || c.status === 'refuse'),
+  )
+  const atConsulate = kase.consulateId
+    ? decided.filter((c) => c.consulateId === kase.consulateId)
+    : []
+  const client = db.clients.find((c) => c.id === kase.clientId)
+  const status = client?.professionalStatus
+
+  const rateOf = (rows: VisaCase[]) => ({
+    rate: rows.length ? rows.filter((c) => c.status === 'refuse').length / rows.length : 0,
+    sample: rows.length,
+  })
+
+  // D'abord le grain fin : même consulat ET même statut professionnel.
+  if (status) {
+    const fine = atConsulate.filter((c) => {
+      const cl = db.clients.find((x) => x.id === c.clientId)
+      return cl?.professionalStatus === status
+    })
+    if (fine.length >= minSample) {
+      const { rate, sample } = rateOf(fine)
+      return { rate, sample, band: riskBand(rate), basis: 'consulat_statut' }
+    }
+  }
+  // Sinon on retombe sur le consulat seul, si l'échantillon tient.
+  if (atConsulate.length >= minSample) {
+    const { rate, sample } = rateOf(atConsulate)
+    return { rate, sample, band: riskBand(rate), basis: 'consulat' }
+  }
+  return { rate: 0, sample: atConsulate.length, band: 'faible', basis: 'insuffisant' }
+}
+
+function riskBand(rate: number): RefusalRisk['band'] {
+  if (rate >= 0.3) return 'eleve'
+  if (rate >= 0.1) return 'modere'
+  return 'faible'
+}
