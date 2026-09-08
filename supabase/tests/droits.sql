@@ -70,7 +70,7 @@ begin
     and p.proname not in (
       'slug_available', 'provision_agency', 'issue_otp', 'verify_otp',
       'portal_case', 'portal_shipment', 'portal_mine', 'portal_queue',
-      'portal_submit_request',
+      'portal_submit_request', 'portal_send',
       -- L'outil du banc lui-même, absent de la production.
       'assert'
     );
