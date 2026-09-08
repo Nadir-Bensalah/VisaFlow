@@ -1010,3 +1010,37 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 }
 
 .wawindow--open { background: var(--tint-green, var(--fill)); color: var(--green); }
+
+/* ---------------------------- Console plateforme --------------------- */
+/* L'espace super-admin a sa propre chrome, plus dense et plus sombre que
+   l'espace agence : on n'y est pas dans une agence, on est au-dessus. */
+
+.admin { min-height: 100vh; background: var(--bg-sunken, #0f1115); color: #e7e9ee; }
+.admin__wrap { max-width: 1100px; margin: 0 auto; padding: 0 var(--sp-5); }
+.admin__bar { background: #16181f; border-bottom: 1px solid rgba(255,255,255,0.08); padding: var(--sp-4) 0; margin-bottom: var(--sp-6); position: sticky; top: 0; z-index: 10; }
+.admin__mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+.admin__mark--lg { width: 52px; height: 52px; border-radius: 14px; font-size: 18px; margin-bottom: var(--sp-4); }
+.admin .btn { background: rgba(255,255,255,0.06); color: #e7e9ee; border-color: rgba(255,255,255,0.12); }
+.admin .btn:hover { background: rgba(255,255,255,0.12); }
+
+.admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); }
+.admin__metric { background: #16181f; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
+.admin__metric--accent { border-color: color-mix(in oklab, var(--accent) 55%, transparent); background: color-mix(in oklab, var(--accent) 16%, #16181f); }
+.admin__metric--accent .admin__metric-value { color: #fff; }
+.admin__metric-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.admin__metric .t-tertiary { color: #9aa0ab; }
+
+.admin .card { background: #16181f; border-color: rgba(255,255,255,0.07); color: #e7e9ee; box-shadow: none; }
+.admin .card__head { border-color: rgba(255,255,255,0.07); }
+.admin__scroll { overflow-x: auto; }
+.admin__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin__table th { text-align: left; padding: var(--sp-2) var(--sp-4); color: #9aa0ab; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+.admin__table td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.admin__table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin__row--off { opacity: 0.5; }
+
+.admin--gate { display: grid; place-items: center; }
+.admin__signin { background: #16181f; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: var(--sp-8); width: min(400px, 92vw); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.admin__signin h1 { font-size: 22px; margin-bottom: var(--sp-2); }
+.admin__signin .field__label { color: #9aa0ab; text-align: left; }
+.admin__signin .input { background: #0f1115; border-color: rgba(255,255,255,0.12); color: #e7e9ee; }

@@ -34,6 +34,7 @@ import { Inbox } from './pages/Inbox'
 import { PortalCase } from './pages/portal/PortalCase'
 import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
+import { AdminGate } from './pages/admin/AdminGate'
 
 /** Personne n'entre dans l'espace agence sans session. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -61,6 +62,7 @@ export default function App() {
     <ToastProvider>
       <Routes>
         <Route path="/connexion" element={<Login />} />
+        <Route path="/admin" element={<AdminGate />} />
         <Route path="/inscription" element={<Signup />} />
         <Route path="/agence" element={<AgencyHome />} />
         <Route path="/demande" element={<AskForm />} />

@@ -14,6 +14,8 @@ interface AuthValue {
   user: User | null
   /** Vrai quand le compte connecté est un super-admin de la plateforme. */
   isPlatformAdmin: boolean
+  /** Vrai une fois la question tranchée par le serveur, pas avant. */
+  adminChecked: boolean
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
@@ -24,6 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(!HAS_BACKEND)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+  // L'identité pour laquelle le statut super-admin est connu. Le lier à la
+  // session, plutôt qu'un booléen à part, supprime la course où la console
+  // montait avec un statut périmé de la session précédente.
+  const [adminCheckedFor, setAdminCheckedFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (!supabase) { setReady(true); return }
@@ -46,8 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase || !session) { setIsPlatformAdmin(false); return }
     let alive = true
+    const uid = session.user.id
     supabase.rpc('is_platform_admin').then(({ data }) => {
-      if (alive) setIsPlatformAdmin(data === true)
+      if (!alive) return
+      setIsPlatformAdmin(data === true)
+      setAdminCheckedFor(uid)
     })
     return () => { alive = false }
   }, [session])
@@ -57,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user: session?.user ?? null,
     isPlatformAdmin,
+    // Vrai quand la question est tranchée pour CETTE session, pas une autre.
+    adminChecked: session ? adminCheckedFor === session.user.id : true,
     async signIn(email, password) {
       if (!supabase) return 'Aucun backend configuré.'
       const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -67,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async signOut() {
       await supabase?.auth.signOut()
     },
-  }), [ready, session, isPlatformAdmin])
+  }), [ready, session, isPlatformAdmin, adminCheckedFor])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
