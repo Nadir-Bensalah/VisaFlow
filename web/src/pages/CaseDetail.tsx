@@ -3,6 +3,9 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { AuditTrail } from '@/components/AuditTrail'
+import { PrintButton } from '@/components/PrintButton'
+import { HistoryCard } from '@/components/HistoryCard'
+import { CustomFields } from '@/components/CustomFields'
 import { TrackingLinks } from '@/components/TrackingLinks'
 import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from '@/components/ui'
@@ -78,6 +81,7 @@ export function CaseDetail() {
         subtitle={`${kase.reference} · ${tt(visa.country)} ${tt(visa.label)}`}
         action={
           <div className="row gap-2">
+            <PrintButton kind="fiche_dossier" entityId={kase.id} />
             {v.can('case:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
             <Button icon="copy" onClick={copyPortal}>{t('caseDetail.portalLink')}</Button>
             {kase.status === 'ouvert' && ['decision', 'consulat', 'depot'].includes(kase.stage) && (
@@ -205,6 +209,8 @@ export function CaseDetail() {
             <NoteBox caseId={kase.id} />
           </Card>
 
+          <CustomFields entityKind="VISA_CASE" entityId={kase.id} />
+          <HistoryCard entityKind="VISA_CASE" entityId={kase.id} />
           <TrackingLinks kind="VISA_CASE" entityId={kase.id} />
           <AuditTrail entityType="cases" entityId={kase.id} />
         </div>

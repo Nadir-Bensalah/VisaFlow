@@ -13,6 +13,12 @@
 \set ON_ERROR_STOP on
 set search_path = public;
 
+
+-- BANC REJOUABLE : on efface d'abord ce qu'un passage précédent aurait laissé.
+-- Sans ça, le deuxième lancement échoue sur le slug déjà pris, et on croit à
+-- une régression alors que c'est un résidu.
+delete from agencies where slug in ('supvisa', 'supfret');
+
 create or replace function assert(condition boolean, label text) returns void
 language plpgsql as $$
 begin

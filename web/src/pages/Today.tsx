@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n'
 import { Card, Empty, Pill, useToast } from '@/components/ui'
 import { Icon, type IconName } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
-import { SetupCard } from '@/components/SetupCard'
+import { OnboardingCard } from '@/components/OnboardingCard'
 import { Ago, Countdown } from '@/components/bits'
 import { blockingDocs, clientName, daysSince, daysUntil, urgency } from '@/lib/derive'
 
@@ -108,7 +108,7 @@ export function Today() {
 
       {db.agency.setupDone.length < 5 && !db.agency.setupHidden && (
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <SetupCard />
+          <OnboardingCard />
         </div>
       )}
 

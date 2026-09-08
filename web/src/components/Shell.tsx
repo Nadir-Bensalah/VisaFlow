@@ -9,6 +9,8 @@ import { Avatar, IconButton, Select } from './ui'
 import { CommandPalette } from './CommandPalette'
 import { brandTheme, themeVariables } from '@/lib/marque'
 import { NotificationBell } from './NotificationBell'
+import { AnnouncementBanner } from './AnnouncementBanner'
+import { FeedbackButton } from './FeedbackButton'
 import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
@@ -168,6 +170,7 @@ export function Shell() {
         { to: '/cargaisons', labelKey: 'nav.shipments', icon: 'ship', count: v.shipments.filter((x) => x.status === 'en_cours').length },
         { to: '/livraisons', labelKey: 'nav.deliveries', icon: 'box', need: 'shipment:write' },
         { to: '/entrepot', labelKey: 'nav.warehouse', icon: 'building', need: 'shipment:write' },
+        { to: '/repertoires', labelKey: 'nav.directory', icon: 'grid', need: 'shipment:write' },
       ],
     },
     {
@@ -193,6 +196,8 @@ export function Shell() {
       labelKey: 'nav.pilotage',
       collapsible: true,
       entries: [
+        { to: '/aujourdhui', labelKey: 'pil.todayTitle', icon: 'today' },
+        { to: '/pilotage', labelKey: 'pil.title', icon: 'reports', need: 'reports:view' },
         { to: '/tableau-de-bord', labelKey: 'nav.dashboard', icon: 'dashboard' },
         { to: '/rapports', labelKey: 'nav.reports', icon: 'reports', need: 'reports:view' },
         { to: '/statistiques', labelKey: 'nav.stats', icon: 'grid', need: 'reports:view' },
@@ -202,6 +207,7 @@ export function Shell() {
     {
       key: 'pied',
       entries: [
+        { to: '/aide', labelKey: 'nav.support', icon: 'shield' },
         { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
       ],
     },
@@ -226,6 +232,7 @@ export function Shell() {
   return (
     <div className="shell">
       <a className="skip" href="#contenu">{t('nav.workspace')}</a>
+      <AnnouncementBanner />
       {syncError && (
         <div className="syncbar" role="alert">
           <Icon name="alert" size={16} />
@@ -333,6 +340,7 @@ export function Shell() {
                 ))}
               </Select>
             )}
+            <FeedbackButton />
             <NotificationBell />
             <button
               type="button"

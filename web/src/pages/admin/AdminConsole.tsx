@@ -6,6 +6,9 @@ import { useStore } from '@/data/store'
 import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
 import { AgencyDetail } from './AgencyDetail'
 import { Subscriptions } from './Subscriptions'
+import { SupportInbox } from './Support'
+import { Announcements } from './Announcements'
+import { Analytics } from './Analytics'
 import type { Locale } from '@/data/types'
 import { TempPassword } from '@/components/TempPassword'
 import { inviteUser } from '@/lib/invite'
@@ -117,6 +120,8 @@ export function AdminConsole() {
       </header>
 
       <main className="admin__wrap" style={{ paddingBottom: 'var(--sp-10)' }}>
+        <Analytics />
+
         {over && (
           <div className="admin__grid" style={{ marginBottom: 'var(--sp-6)' }}>
             <Metric label="Agences" value={over.agencies_total} hint={`${over.agencies_active} actives · ${over.agencies_trial} en essai`} />
@@ -198,6 +203,8 @@ export function AdminConsole() {
         {/* Les abonnements viennent juste après la liste des agences : c'est
             la même question, vue par l'argent. */}
         <Subscriptions />
+        <SupportInbox />
+        <Announcements />
 
         {/* Les demandes de souscription passent AVANT la facturation : c'est
             le premier écran d'une journée, et une demande qui dort est un

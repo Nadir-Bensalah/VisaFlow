@@ -15,6 +15,12 @@ import { PlanCard } from '@/components/PlanCard'
 import { NotificationRules } from '@/components/NotificationRules'
 import { WebhooksSection } from '@/components/WebhooksSection'
 import { SecuritySection } from '@/components/SecuritySection'
+import { CustomFieldsAdmin } from '@/components/CustomFieldsAdmin'
+import { NumberingSection } from '@/components/NumberingSection'
+import { DuplicatesCard } from '@/components/DuplicatesCard'
+import { DocumentTemplates } from '@/components/DocumentTemplates'
+import { CustomsChecklistsAdmin } from '@/components/CustomsChecklistsAdmin'
+import { SlaSection } from '@/components/SlaSection'
 import { InviteMember } from '@/components/InviteMember'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { ComplianceSection } from '@/components/ComplianceSection'
@@ -23,7 +29,7 @@ import { tenantUrl } from '@/tenant'
 import { roleKey } from '@/lib/permissions'
 import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, Locale, MessageTemplate, Role, User, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
+type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'papiers' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
 
 const EMPTY_I18N: I18nText = { fr: '' }
 
@@ -54,6 +60,9 @@ export function Settings() {
     { value: 'encaissement', label: t('pay2.providers'), visible: v.can('settings:manage') },
     { value: 'baremes', label: t('tariff.title'), visible: v.can('settings:manage') },
     { value: 'modeles', label: t('settings.templates'), visible: v.can('catalog:manage') },
+    // Les papiers imprimés : facture, devis, reçu, bon de livraison. En
+    // Tunisie, une facture sans matricule fiscal est refusée.
+    { value: 'papiers', label: t('doc2.tplTitle'), visible: v.can('settings:manage') },
     { value: 'whatsapp', label: t('wa.title'), visible: v.can('settings:manage') },
     // La conformité porte des amendes chiffrées : elle relève des réglages,
     // pas de l'exploitation.
@@ -92,16 +101,24 @@ export function Settings() {
 
       {current === 'agence' && <><AgencySection /><PlanCard /></>}
       {current === 'bureaux' && <OfficesSection />}
-      {current === 'alertes' && <><NotificationRules /><WebhooksSection /></>}
+      {current === 'alertes' && <><SlaSection /><NotificationRules /><WebhooksSection /></>}
       {current === 'securite' && <SecuritySection />}
+      {current === 'donnees' && v.can('settings:manage') && (
+        <div className="col gap-5" style={{ marginBottom: 'var(--sp-6)' }}>
+          <NumberingSection />
+          <CustomFieldsAdmin />
+          <DuplicatesCard />
+        </div>
+      )}
       {current === 'equipe' && <TeamSection />}
       {current === 'visas' && <CatalogSection />}
       {current === 'consulats' && <ConsulatesSection />}
       {current === 'marque' && <BrandSection />}
       {current === 'encaissement' && <EncaissementSection />}
-      {current === 'baremes' && <><ServicesSection /><TariffsSection /></>}
+      {current === 'baremes' && <><ServicesSection /><TariffsSection /><CustomsChecklistsAdmin /></>}
       {current === 'conformite' && <ComplianceSection />}
       {current === 'modeles' && <TemplatesSection />}
+      {current === 'papiers' && <DocumentTemplates />}
       {current === 'whatsapp' && <WhatsAppSection />}
 
       {/* La version publiée. GitHub Pages garde la page dix minutes en cache :

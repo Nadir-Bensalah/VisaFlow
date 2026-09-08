@@ -10,6 +10,10 @@ import { TagsPicker } from '@/components/TagsPicker'
 import { ContactsCard } from '@/components/ContactsCard'
 import { CompanySection } from '@/components/CompanySection'
 import { AuditTrail } from '@/components/AuditTrail'
+import { CustomFields } from '@/components/CustomFields'
+import { PinButton } from '@/components/PinButton'
+import { PrintButton } from '@/components/PrintButton'
+import { CreditCard } from '@/components/CreditCard'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
 import { Avatar, Button, Card, Empty, Field, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -37,12 +41,18 @@ export function ClientDetail() {
       <PageHead
         title={`${client.firstName} ${client.lastName}`}
         subtitle={client.nativeName ?? client.nationality}
-        action={v.can('case:write') ? (
+        action={(
           <span className="row gap-2">
-            <Button icon="phone" onClick={() => setCallOpen(true)}>{t('notes.logCall')}</Button>
-            {v.can('client:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
+            <PinButton entityKind="CLIENT" entityId={client.id} />
+            <PrintButton kind="fiche_client" entityId={client.id} />
+            {v.can('case:write') && (
+              <>
+                <Button icon="phone" onClick={() => setCallOpen(true)}>{t('notes.logCall')}</Button>
+                {v.can('client:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
+              </>
+            )}
           </span>
-        ) : undefined}
+        )}
       />
 
       {editing && <ClientEditor client={client} onClose={() => setEditing(false)} />}
@@ -131,8 +141,10 @@ export function ClientDetail() {
               au comptoir depuis l'EES, et que personne d'autre ne sait traiter. */}
           <SchengenCard clientId={client.id} />
           <TagsPicker clientId={client.id} />
+          <CustomFields entityKind="CLIENT" entityId={client.id} />
           <ContactsCard clientId={client.id} />
           <CompanySection clientId={client.id} />
+          <CreditCard clientId={client.id} />
           <AuditTrail entityType="clients" entityId={client.id} />
         </div>
       </div>

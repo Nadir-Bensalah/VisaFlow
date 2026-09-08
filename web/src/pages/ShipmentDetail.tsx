@@ -1,5 +1,16 @@
+import { CustomsChecklist } from '@/components/CustomsChecklist'
+import { InspectionsCard } from '@/components/InspectionsCard'
+import { DangerousGoodsCard } from '@/components/DangerousGoodsCard'
+import { InsuranceCard } from '@/components/InsuranceCard'
+import { PurchaseOrders } from '@/components/PurchaseOrders'
+import { PrintButton } from '@/components/PrintButton'
 import { AuditTrail } from '@/components/AuditTrail'
+import { HistoryCard } from '@/components/HistoryCard'
+import { CustomFields } from '@/components/CustomFields'
 import { ArrivalCard } from '@/components/ArrivalCard'
+import { ContainersCard } from '@/components/ContainersCard'
+import { GoodsCard } from '@/components/GoodsCard'
+import { ActorsCard } from '@/components/ActorsCard'
 import { TransportDocsCard } from '@/components/TransportDocsCard'
 import { CostsCard } from '@/components/CostsCard'
 import { TrackingLinks } from '@/components/TrackingLinks'
@@ -44,6 +55,7 @@ export function ShipmentDetail() {
         subtitle={`${shipment.reference} · ${tt(shipment.goods)} · ${shipment.supplier}`}
         action={
           <div className="row gap-2">
+            <PrintButton kind="cargaison" entityId={shipment.id} />
             {v.can('shipment:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
             <Button
               icon="copy"
@@ -137,10 +149,20 @@ export function ShipmentDetail() {
           </Card>
 
           <LotsCard shipment={shipment} />
+          <ContainersCard shipmentId={shipment.id} />
+          <GoodsCard shipmentId={shipment.id} />
+          <ActorsCard shipmentId={shipment.id} />
           <CustomsCard shipment={shipment} />
+          <CustomsChecklist shipmentId={shipment.id} />
+          <InspectionsCard shipmentId={shipment.id} />
+          <DangerousGoodsCard shipmentId={shipment.id} />
+          <InsuranceCard shipmentId={shipment.id} />
+          <PurchaseOrders shipmentId={shipment.id} />
           <DouaneDocsCard shipment={shipment} />
           <TransportDocsCard shipmentId={shipment.id} />
           <CostsCard shipmentId={shipment.id} />
+          <CustomFields entityKind="SHIPMENT" entityId={shipment.id} />
+          <HistoryCard entityKind="SHIPMENT" entityId={shipment.id} />
           <TrackingLinks kind="SHIPMENT" entityId={shipment.id} />
           <AuditTrail entityType="shipments" entityId={shipment.id} />
         </div>

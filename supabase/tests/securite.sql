@@ -373,10 +373,21 @@ begin
    where ns.nspname = 'public'
      and p.proname in ('sec_req_ip','sec_req_agent','sec_severity','security_note','audit_trigger',
                        'session_touch','session_revoke','my_sessions','tracking_issue','tracking_revoke',
-                       'tracking_open','document_version_add','document_history','file_accept',
+                       'document_version_add','document_history','file_accept',
                        'audit_search','security_feed','audit_read_note','data_export_note')
      and has_function_privilege('anon', p.oid, 'execute');
   perform assert(n = 0, 'aucune fonction du module n''est ouverte à l''anonyme (' || n || ' de trop)');
+
+  -- `tracking_open` fait exception, et c'est sa raison d'être : un client n'a
+  -- pas de compte, et un lien de suivi qu'il ne peut pas ouvrir est un lien
+  -- mort. Elle ne prend qu'un jeton, ne rend rien sans jeton valide, et rend la
+  -- même chose pour un jeton inconnu, révoqué ou périmé : aucun essai ne
+  -- renseigne. Ouverte par la migration 0057.
+  select count(*) into n
+    from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+   where ns.nspname = 'public' and p.proname in ('tracking_open', 'tracking_resolve')
+     and has_function_privilege('anon', p.oid, 'execute');
+  perform assert(n = 2, 'le suivi par lien s''ouvre bien sans compte (' || n || ' sur 2)');
 
   select count(*) into n
     from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace

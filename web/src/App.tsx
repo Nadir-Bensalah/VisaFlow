@@ -32,6 +32,10 @@ import { Quotes } from './pages/Quotes'
 import { Invoices } from './pages/Invoices'
 import { Deliveries } from './pages/Deliveries'
 import { Warehouse } from './pages/Warehouse'
+import { Directory } from './pages/Directory'
+import { Support } from './pages/Support'
+import { Aujourdhui } from './pages/Aujourdhui'
+import { Pilotage } from './pages/Pilotage'
 import { Login } from './pages/Login'
 import { AgencyHome } from './pages/public/AgencyHome'
 import { AskForm } from './pages/public/AskForm'
@@ -100,6 +104,13 @@ export default function App() {
         <Route element={<RequireSession><Shell /></RequireSession>}>
           <Route path="/" element={<Today />} />
           <Route path="/tableau-de-bord" element={<Dashboard />} />
+          {/* Le nouvel écran « À traiter » est branché sur le serveur, l'ancien
+              sur l'instantané chargé. Ils cohabitent le temps de comparer leurs
+              chiffres sur une vraie agence : deux compteurs qui se contredisent
+              sont pires qu'un seul mauvais, et c'est à Nadir de trancher lequel
+              devient la page d'accueil. */}
+          <Route path="/aujourdhui" element={<Aujourdhui />} />
+          <Route path="/pilotage" element={<Require capability="reports:view"><Pilotage /></Require>} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/demandes" element={<Inbox />} />
           <Route path="/dossiers" element={<Cases />} />
@@ -108,6 +119,7 @@ export default function App() {
           <Route path="/cargaisons/:id" element={<ShipmentDetail />} />
           <Route path="/livraisons" element={<Deliveries />} />
           <Route path="/entrepot" element={<Warehouse />} />
+          <Route path="/repertoires" element={<Directory />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/pieces" element={<Documents />} />
@@ -122,6 +134,7 @@ export default function App() {
           <Route path="/automatisations" element={<Require capability="automation:manage"><Automations /></Require>} />
           <Route path="/rapports" element={<Require capability="reports:view"><Reports /></Require>} />
           <Route path="/statistiques" element={<Require capability="reports:view"><Stats /></Require>} />
+          <Route path="/aide" element={<Support />} />
           <Route path="/reglages" element={<Require capability="settings:view"><Settings /></Require>} />
         </Route>
 
