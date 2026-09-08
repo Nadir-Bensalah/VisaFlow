@@ -97,6 +97,8 @@ export interface Office {
   phone: string
   address: string
   timezone: string
+  /** Un bureau fermé garde son histoire, mais n’accueille plus personne. */
+  active?: boolean
 }
 
 /** Ce que l'agence vend. Une agence de visas seule ne doit pas voir le fret. */
@@ -201,6 +203,8 @@ export interface User {
   officeId: string
   locale: Locale
   active: boolean
+  /** Vrai tant que le mot de passe provisoire remis à l’invitation n’a pas été remplacé. */
+  mustResetPassword?: boolean
 }
 
 /** Une demande arrivee de la page publique de l'agence.

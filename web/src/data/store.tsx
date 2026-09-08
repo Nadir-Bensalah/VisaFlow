@@ -8,7 +8,7 @@ import { mirror } from './mirror'
 import { samePhone } from './identity'
 import { scopeOf } from '@/lib/permissions'
 import { AppSkeleton } from '@/components/AppSkeleton'
-import type {
+import type { Office,
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
   PassportCustody, RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
@@ -86,6 +86,10 @@ interface StoreValue {
   enterSupport: (agencyId: string) => void
   /** Quitte la vue support et revient à la console plateforme. */
   exitSupport: () => void
+  /** Le bureau que la direction regarde, ou null pour toute l'agence. Sans
+      effet pour un agent : il ne voit que le sien, quoi qu'il arrive. */
+  officeFilter: string | null
+  setOfficeFilter: (officeId: string | null) => void
 }
 
 interface Actions {
@@ -120,6 +124,8 @@ interface Actions {
   setShipmentDocState: (docId: string, state: DocState) => void
   saveUser: (user: Omit<User, 'agencyId' | 'id'> & { id?: string }) => void
   removeUser: (userId: string) => void
+  /** Crée ou modifie un bureau de l'agence. */
+  saveOffice: (office: Omit<Office, 'id'> & { id?: string }) => void
   saveTemplate: (template: Omit<MessageTemplate, 'agencyId' | 'id'> & { id?: string }) => void
   removeTemplate: (templateId: string) => void
   saveVisaType: (visa: Omit<VisaType, 'agencyId' | 'id'> & { id?: string }) => void
@@ -207,6 +213,19 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
       : (session ?? db.users[0].id)
   const [live, setLive] = useState(true)
+  // Le bureau regardé par la direction. Il survit au rechargement, pas à un
+  // nouvel onglet : on ne veut pas qu'un manager croie l'agence vide parce
+  // qu'un filtre d'hier est resté armé.
+  const [officeFilter, setOfficeFilterState] = useState<string | null>(() => {
+    try { return window.sessionStorage.getItem(`visaflow.office.${slug}`) } catch { return null }
+  })
+  const setOfficeFilter = useCallback((officeId: string | null) => {
+    try {
+      if (officeId) window.sessionStorage.setItem(`visaflow.office.${slug}`, officeId)
+      else window.sessionStorage.removeItem(`visaflow.office.${slug}`)
+    } catch { /* stockage indisponible */ }
+    setOfficeFilterState(officeId)
+  }, [slug])
   // La robustesse du chemin de données : un chargement qui échoue ne doit pas
   // laisser un rond qui tourne à l'infini, et une écriture qui rate ne doit
   // pas faire croire à l'utilisateur qu'elle a réussi.
@@ -902,6 +921,15 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return { ...prev, users: prev.users.filter((u) => u.id !== userId) }
       })
 
+    const saveOffice: Actions['saveOffice'] = (input) =>
+      setDb((prev) => {
+        const id = input.id ?? rid('o')
+        const office: Office = { ...input, id }
+        const exists = prev.agency.offices.some((o) => o.id === id)
+        const offices = exists ? prev.agency.offices.map((o) => (o.id === id ? office : o)) : [...prev.agency.offices, office]
+        return { ...prev, agency: { ...prev.agency, offices } }
+      })
+
     const saveTemplate: Actions['saveTemplate'] = (input) =>
       setDb((prev) => {
         const id = input.id ?? rid('tpl')
@@ -1277,7 +1305,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       setStage, advance, setDocState, requestMissingDocs, remindDoc, sendMessage, addNote,
       markPaymentPaid, addAppointment, toggleRule, runRules, toggleTask, createCase,
       createClient, decideCase, updateCase, createTask, submitRequest, convertRequest,
-      refuseRequest, markSetup, hideSetup, updateClient, clearAll, stepBackShipment, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser,
+      refuseRequest, markSetup, hideSetup, updateClient, clearAll, stepBackShipment, updateAppointment, saveShipment, advanceShipment, setShipmentDocState, saveUser, removeUser, saveOffice,
       saveTemplate, removeTemplate, saveVisaType, removeVisaType, saveChecklistItem,
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
       attachFile, detachFile, attachShipmentFile,
@@ -1339,10 +1367,11 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       enterSupport,
       exitSupport,
       signIn, signOut, actions: wrapped, live, setLive,
+      officeFilter, setOfficeFilter,
       syncError,
       retry: () => { setSyncError(null); if (remote) { setReady(false); reloadRef.current() } },
     }),
-    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session, syncError, support, supportAgency, readOnly],
+    [db, slug, currentUserId, session, signIn, signOut, wrapped, live, remote, auth.session, syncError, support, supportAgency, readOnly, officeFilter, setOfficeFilter],
   )
 
   // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de

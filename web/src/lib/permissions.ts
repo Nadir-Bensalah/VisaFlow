@@ -21,6 +21,9 @@ export type Capability =
   | 'settings:view'
   | 'settings:manage'
   | 'team:manage'
+  /** Ouvrir un accès à un agent ou un lecteur. Le manager l’a, sans pouvoir
+      fabriquer ses pairs ni son patron : c’est la fonction de bord qui tranche. */
+  | 'team:invite'
   | 'catalog:manage'
   | 'audit:view'
   | 'data:export'
@@ -33,7 +36,7 @@ const AGENT: Capability[] = [
 
 const MANAGER: Capability[] = [
   ...AGENT, 'reports:view', 'automation:manage', 'settings:manage',
-  'catalog:manage', 'audit:view',
+  'catalog:manage', 'audit:view', 'team:invite',
 ]
 
 const OWNER: Capability[] = [

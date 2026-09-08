@@ -4,6 +4,12 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/data/auth'
 import { useStore } from '@/data/store'
 import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
+import { AgencyDetail } from './AgencyDetail'
+import type { Locale } from '@/data/types'
+import { TempPassword } from '@/components/TempPassword'
+import { inviteUser } from '@/lib/invite'
+import type { InviteResult } from '@/lib/invite'
+import { tenantUrl } from '@/tenant'
 
 /* La console de la plateforme. Le tien, au-dessus de toutes les agences.
    Branchée en réel sur platform_overview et platform_agencies : rien n'est en
@@ -16,7 +22,7 @@ interface Overview {
 }
 interface AgencyRow {
   id: string; slug: string; name: string; country: string; plan: string
-  suspended: boolean; created_at: string; users: number; clients: number; cases_open: number
+  suspended: boolean; created_at: string; users: number; offices: number; clients: number; cases_open: number
   last_activity: string | null; commission_kind: string; commission_amount: number
 }
 
@@ -47,6 +53,7 @@ export function AdminConsole() {
   const [converting, setConverting] = useState<any | null>(null)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AgencyRow | null>(null)
+  const [detail, setDetail] = useState<AgencyRow | null>(null)
 
   async function load() {
     if (!supabase) return
@@ -140,7 +147,7 @@ export function AdminConsole() {
               <table className="admin__table">
                 <thead>
                   <tr>
-                    <th>Agence</th><th>Formule</th><th className="num">Comptes</th>
+                    <th>Agence</th><th>Formule</th><th className="num">Bureaux</th><th className="num">Comptes</th>
                     <th className="num">Clients</th><th className="num">Dossiers</th>
                     <th>Commission</th><th>Activité</th><th></th>
                   </tr>
@@ -155,6 +162,7 @@ export function AdminConsole() {
                         </div>
                       </td>
                       <td><Pill tone={a.plan === 'essai' ? 'orange' : 'blue'}>{a.plan.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}</Pill></td>
+                      <td className="num">{a.offices}</td>
                       <td className="num">{a.users}</td>
                       <td className="num">{a.clients}</td>
                       <td className="num">{a.cases_open}</td>
@@ -171,6 +179,7 @@ export function AdminConsole() {
                       </td>
                       <td>
                         <div className="row gap-2" style={{ justifyContent: 'flex-end' }}>
+                          <Button icon="edit" onClick={() => setDetail(a)}>Gérer</Button>
                           <Button icon="eye" disabled={a.suspended} onClick={() => void openSupport(a.id)}>Ouvrir</Button>
                           {a.suspended
                             ? <Button icon="check" disabled={busy === a.id} onClick={() => setState(a.id, 'active', 'Agence réactivée.')}>Réactiver</Button>
@@ -303,37 +312,71 @@ export function AdminConsole() {
 
       {creating && <CreateAgency onClose={() => setCreating(false)} onDone={() => { setCreating(false); void load() }} toast={toast} />}
       {converting && <ConvertSignup signup={converting} onClose={() => setConverting(null)} onDone={() => { setConverting(null); void load() }} toast={toast} />}
+      {detail && <AgencyDetail agencyId={detail.id} onClose={() => { setDetail(null); void load() }} toast={toast} />}
       {editing && <EditCommission agency={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); void load() }} toast={toast} />}
     </div>
   )
 }
 
+/**
+ * Créer une agence à la main, sans passer par une demande.
+ *
+ * L'agence naît avec son premier bureau (la ville donnée) et, si on renseigne
+ * le propriétaire, son premier compte : la fonction de bord ouvre le compte et
+ * rend un mot de passe provisoire, montré une fois. Sans propriétaire, l'agence
+ * existe mais personne ne peut y entrer : on le dit.
+ */
 function CreateAgency({ onClose, onDone, toast }: { onClose: () => void; onDone: () => void; toast: (m: string) => void }) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [country, setCountry] = useState('Tunisie')
+  const [city, setCity] = useState('')
+  const [phone, setPhone] = useState('')
+  const [ownerName, setOwnerName] = useState('')
+  const [ownerEmail, setOwnerEmail] = useState('')
   const [kind, setKind] = useState('par_dossier')
   const [amount, setAmount] = useState(8)
   const [busy, setBusy] = useState(false)
+  const [created, setCreated] = useState<(InviteResult & { name: string; phone: string; locale: Locale }) | null>(null)
+  const emailOk = ownerEmail.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())
+
+  if (created) {
+    return <TempPassword name={created.name} email={created.email} phone={created.phone} tempPassword={created.tempPassword}
+      url={tenantUrl(slug.trim().toLowerCase())} locale={created.locale} onClose={onDone} />
+  }
+
   return (
     <Modal title="Nouvelle agence" onClose={onClose} footer={<>
       <Button onClick={onClose}>Annuler</Button>
-      <Button variant="primary" disabled={busy || !name.trim() || !slug.trim()} onClick={async () => {
+      <Button variant="primary" disabled={busy || !name.trim() || !slug.trim() || !emailOk || (ownerEmail.trim() !== '' && !ownerName.trim())} onClick={async () => {
         if (!supabase) return
         setBusy(true)
-        const { error } = await supabase.rpc('platform_create_agency', {
+        const { data: agencyId, error } = await supabase.rpc('platform_create_agency', {
           p_name: name.trim(), p_slug: slug.trim().toLowerCase(), p_country: country,
           p_commission_kind: kind, p_commission_amount: amount,
+          p_city: city.trim() || null, p_phone: phone.trim() || null,
         })
+        if (error) { setBusy(false); toast(error.message); return }
+        if (!ownerEmail.trim()) { setBusy(false); toast('Agence créée, sans compte : ouvrez un accès depuis « Gérer ».'); onDone(); return }
+        const owner = await inviteOwner(String(agencyId), ownerName.trim(), ownerEmail.trim(), phone.trim(), toast)
         setBusy(false)
-        if (error) { toast(error.message); return }
-        toast('Agence créée.'); onDone()
+        if (!owner) { onDone(); return }
+        toast('Agence et compte propriétaire créés.')
+        setCreated(owner)
       }}>Créer</Button>
     </>}>
       <div className="col gap-4">
         <Field label="Nom de l'agence"><Input value={name} onChange={(e) => { setName(e.target.value); if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')) }} /></Field>
         <Field label="Sous-domaine" hint={`${slug || 'agence'}.visaflow.app`}><Input value={slug} onChange={(e) => setSlug(e.target.value)} /></Field>
-        <Field label="Pays"><Select value={country} onChange={(e) => setCountry(e.target.value)}><option>Tunisie</option><option>Libye</option></Select></Field>
+        <div className="grid grid--2">
+          <Field label="Pays"><Select value={country} onChange={(e) => setCountry(e.target.value)}><option>Tunisie</option><option>Libye</option></Select></Field>
+          <Field label="Ville du premier bureau"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+          <Field label="Téléphone"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+        </div>
+        <div className="grid grid--2">
+          <Field label="Propriétaire" hint="La personne qui recevra le premier accès."><Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} /></Field>
+          <Field label="E-mail du propriétaire" hint="Son identifiant de connexion."><Input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} /></Field>
+        </div>
         <div className="grid grid--2">
           <Field label="Commission"><Select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="par_dossier">Par dossier</option><option value="mensuel">Mensuelle</option><option value="gratuit">Gratuit</option>
@@ -343,6 +386,21 @@ function CreateAgency({ onClose, onDone, toast }: { onClose: () => void; onDone:
       </div>
     </Modal>
   )
+}
+
+/** Ouvre le compte du propriétaire dans le premier bureau de l'agence. */
+async function inviteOwner(agencyId: string, name: string, email: string, phone: string, toast: (m: string) => void) {
+  if (!supabase) return null
+  const { data, error } = await supabase.rpc('platform_agency_detail', { p_agency: agencyId })
+  const office = (data as { offices?: { id: string; active: boolean }[] } | null)?.offices?.find((o) => o.active)
+  if (error || !office) { toast('Agence créée, mais pas de bureau : ouvrez un accès depuis « Gérer ».'); return null }
+  try {
+    const r = await inviteUser({ agencyId, officeId: office.id, role: 'owner', name, email: email.toLowerCase(), phone: phone || undefined, locale: 'fr' })
+    return { ...r, name, phone, locale: 'fr' as Locale }
+  } catch (e) {
+    toast(`Agence créée, mais le compte a échoué : ${e instanceof Error ? e.message : ''}. Ouvrez un accès depuis « Gérer ».`)
+    return null
+  }
 }
 
 function EditCommission({ agency, onClose, onDone, toast }: { agency: AgencyRow; onClose: () => void; onDone: () => void; toast: (m: string) => void }) {
@@ -397,6 +455,12 @@ function ConvertSignup({ signup, onClose, onDone, toast }: {
   const [kind, setKind] = useState('par_dossier')
   const [amount, setAmount] = useState('8')
   const [busy, setBusy] = useState(false)
+  const [created, setCreated] = useState<(InviteResult & { name: string; phone: string; locale: Locale }) | null>(null)
+
+  if (created) {
+    return <TempPassword name={created.name} email={created.email} phone={created.phone} tempPassword={created.tempPassword}
+      url={tenantUrl(slug.trim().toLowerCase())} locale={created.locale} onClose={onDone} />
+  }
 
   return (
     <Modal
@@ -411,14 +475,18 @@ function ConvertSignup({ signup, onClose, onDone, toast }: {
             onClick={async () => {
               if (!supabase) return
               setBusy(true)
-              const { error } = await supabase.rpc('platform_convert_signup', {
+              const { data: agencyId, error } = await supabase.rpc('platform_convert_signup', {
                 p_signup: signup.id, p_slug: slug.trim().toLowerCase(),
                 p_commission_kind: kind, p_commission_amount: Number(amount) || 0,
               })
+              if (error) { setBusy(false); toast(error.message); return }
+              // Le contact de la demande devient le propriétaire : son compte
+              // s'ouvre dans la foulée, avec un mot de passe provisoire.
+              const owner = await inviteOwner(String(agencyId), String(signup.contact_name), String(signup.email), String(signup.phone ?? ''), toast)
               setBusy(false)
-              if (error) { toast(error.message); return }
+              if (!owner) { onDone(); return }
               toast(`Agence créée · ${slug}.visaflow.app`)
-              onDone()
+              setCreated({ ...owner, locale: (signup.locale as Locale) ?? 'fr' })
             }}
           >
             Créer l'agence
@@ -442,6 +510,9 @@ function ConvertSignup({ signup, onClose, onDone, toast }: {
             <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </Field>
         </div>
+        <p className="t-small t-secondary" style={{ margin: 0 }}>
+          Le compte du propriétaire s'ouvre pour <strong>{signup.contact_name}</strong> ({signup.email}), dans le bureau de {signup.city ?? signup.country}.
+        </p>
         <p className="t-caption t-tertiary" style={{ margin: 0 }}>
           La grille doit être par unité d'œuvre, jamais un forfait sec : l'article 3 de la
           circulaire BCT 2016-09 fait refuser le transfert d'un forfait sans unité quantifiable.

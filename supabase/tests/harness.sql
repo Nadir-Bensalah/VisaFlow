@@ -15,6 +15,9 @@ create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
   email text
 );
+-- Ce que la console lit sur le compte lui-même : la dernière connexion.
+alter table auth.users add column if not exists last_sign_in_at timestamptz;
+
 
 -- L'utilisateur courant du test, posé par set_config.
 create or replace function auth.uid() returns uuid

@@ -77,6 +77,9 @@ begin
       'portal_agency',
       -- Le suivi d'une demande par son jeton, avant qu'elle ne devienne dossier.
       'portal_request',
+      -- La demande de souscription d'une agence : un formulaire public, sans
+      -- compte, limité à cinq par téléphone et par jour, qui ne rend rien.
+      'request_agency_signup',
       -- L'outil du banc lui-même, absent de la production.
       'assert'
     );

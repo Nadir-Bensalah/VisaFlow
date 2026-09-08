@@ -43,7 +43,10 @@ export function Souscrire() {
 
   const users = Number(f.teamSize) || 0
   const estimation = users > 0 ? users * PRIX_UTILISATEUR_MOIS * 12 : 0
-  const valide = f.agencyName.trim() !== '' && f.contactName.trim() !== '' && f.phone.trim().length >= 8
+  // L'e-mail est obligatoire : c'est l'identifiant de connexion du compte
+  // qu'on ouvrira au propriétaire. Sans lui, l'agence ne pourrait pas entrer.
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())
+  const valide = f.agencyName.trim() !== '' && f.contactName.trim() !== '' && f.phone.trim().length >= 8 && emailOk
 
   const envoyer = async () => {
     setError('')
@@ -60,7 +63,7 @@ export function Souscrire() {
         p_agency_name: f.agencyName.trim(),
         p_contact_name: f.contactName.trim(),
         p_phone: f.phone.trim(),
-        p_email: f.email.trim() || null,
+        p_email: f.email.trim().toLowerCase(),
         p_country: f.country,
         p_city: f.city.trim() || null,
         p_services: [f.visas ? 'visas' : null, f.fret ? 'fret' : null].filter(Boolean),
@@ -137,8 +140,8 @@ export function Souscrire() {
                   <Field label={t('sub.phone')} hint={t('sub.phoneHint')}>
                     <Input type="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} />
                   </Field>
-                  <Field label={t('sub.email')}>
-                    <Input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
+                  <Field label={t('sub.email')} hint={t('sub.emailHint')}>
+                    <Input type="email" required value={f.email} onChange={(e) => set('email', e.target.value)} />
                   </Field>
                 </div>
 

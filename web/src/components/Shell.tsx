@@ -40,7 +40,7 @@ function Count({ value }: { value: number }) {
 }
 
 export function Shell() {
-  const { db, live, setLive, signOut, syncError, retry, support, exitSupport } = useStore()
+  const { db, live, setLive, signOut, syncError, retry, support, exitSupport, officeFilter, setOfficeFilter } = useStore()
   const v = useVisible()
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
@@ -216,6 +216,22 @@ export function Shell() {
           </button>
 
           <div className="row gap-2 row-nowrap" style={{ marginInlineStart: 'auto' }}>
+            {/* La direction choisit le bureau qu'elle regarde. Un agent n'a
+                pas ce choix : il ne voit que le sien, et le sélecteur n'existe
+                pas pour lui. */}
+            {v.scope === 'agence' && db.agency.offices.filter((o) => o.active !== false).length > 1 && (
+              <Select
+                aria-label={t('settings.offices')}
+                value={officeFilter ?? ''}
+                onChange={(e) => setOfficeFilter(e.target.value || null)}
+                style={{ width: 'auto', minHeight: 32, maxWidth: 180 }}
+              >
+                <option value="">{t('equipe.allOffices')}</option>
+                {db.agency.offices.filter((o) => o.active !== false).map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </Select>
+            )}
             <NotificationBell />
             <button
               type="button"

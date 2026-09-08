@@ -9,13 +9,16 @@ import { versionLabel } from '@/lib/version'
 import { TariffsSection } from '@/components/TariffsSection'
 import { BrandSection } from '@/components/BrandSection'
 import { EncaissementSection } from '@/components/EncaissementSection'
+import { OfficesSection } from '@/components/OfficesSection'
+import { InviteMember } from '@/components/InviteMember'
+import { HAS_BACKEND } from '@/lib/supabase'
 import { ComplianceSection } from '@/components/ComplianceSection'
 import { Icon } from '@/components/Icon'
 import { tenantUrl } from '@/tenant'
 import { roleKey } from '@/lib/permissions'
 import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, Locale, MessageTemplate, Role, User, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'donnees' | 'journal'
+type Section = 'agence' | 'bureaux' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'donnees' | 'journal'
 
 const EMPTY_I18N: I18nText = { fr: '' }
 
@@ -31,8 +34,10 @@ export function Settings() {
 
   const sections: { value: Section; label: string; visible: boolean }[] = [
     { value: 'agence', label: t('settings.agency'), visible: true },
+    // Les bureaux : le périmètre de chacun. Les créer, c'est décider qui voit quoi.
+    { value: 'bureaux', label: t('settings.offices'), visible: v.can('settings:manage') },
     { value: 'marque', label: t('brand.title'), visible: v.can('settings:manage') },
-    { value: 'equipe', label: t('settings.team'), visible: v.can('team:manage') || v.can('audit:view') },
+    { value: 'equipe', label: t('settings.team'), visible: v.can('team:manage') || v.can('team:invite') || v.can('audit:view') },
     { value: 'visas', label: t('settings.visaTypes'), visible: v.can('catalog:manage') },
     { value: 'consulats', label: t('consulates.title'), visible: v.can('catalog:manage') },
     // Un barème change le montant de toutes les factures à venir : c'est un
@@ -75,6 +80,7 @@ export function Settings() {
       </div>
 
       {current === 'agence' && <AgencySection />}
+      {current === 'bureaux' && <OfficesSection />}
       {current === 'equipe' && <TeamSection />}
       {current === 'visas' && <CatalogSection />}
       {current === 'consulats' && <ConsulatesSection />}
@@ -225,13 +231,21 @@ export function Settings() {
   function TeamSection() {
     const [editing, setEditing] = useState<User | 'nouveau' | null>(null)
     const [removing, setRemoving] = useState<User | null>(null)
+    const [inviting, setInviting] = useState(false)
     const canManage = v.can('team:manage')
+    // En réel, un membre est un compte de connexion : il naît par invitation
+    // (fonction de bord), jamais par une ligne ajoutée à la main. En démo, on
+    // ajoute localement.
+    const canInvite = v.can('team:invite')
+    const bouton = HAS_BACKEND
+      ? (canInvite ? <Button icon="plus" size="sm" onClick={() => setInviting(true)}>{t('equipe.invite')}</Button> : undefined)
+      : (canManage ? <Button icon="plus" size="sm" onClick={() => setEditing('nouveau')}>{t('crud.newMember')}</Button> : undefined)
 
     return (
       <>
         <Card
           title={t('settings.team')}
-          action={canManage ? <Button icon="plus" size="sm" onClick={() => setEditing('nouveau')}>{t('crud.newMember')}</Button> : undefined}
+          action={bouton}
           flush
         >
           <div className="tablewrap">
@@ -255,7 +269,12 @@ export function Settings() {
                     <td className="t-small">{t(roleKey(u.role))}</td>
                     <td className="t-small t-secondary col-optional">{db.agency.offices.find((o) => o.id === u.officeId)?.name}</td>
                     <td className="t-small t-tertiary col-optional">{u.locale.toUpperCase()}</td>
-                    <td>{u.active ? <Pill tone="green" dot>{t('misc.active')}</Pill> : <Pill tone="gray">{t('misc.inactive')}</Pill>}</td>
+                    <td>
+                      <span className="row gap-1 wrap">
+                        {u.active ? <Pill tone="green" dot>{t('misc.active')}</Pill> : <Pill tone="gray">{t('misc.inactive')}</Pill>}
+                        {u.mustResetPassword && <Pill tone="orange">{t('equipe.provisional')}</Pill>}
+                      </span>
+                    </td>
                     {canManage && (
                       <td style={{ textAlign: 'end' }}>
                         <span className="row gap-1" style={{ justifyContent: 'flex-end' }}>
@@ -272,6 +291,7 @@ export function Settings() {
         </Card>
 
         {editing && <MemberEditor member={editing === 'nouveau' ? null : editing} onClose={() => setEditing(null)} />}
+        {inviting && <InviteMember onClose={() => setInviting(false)} />}
 
         {removing && (
           <Modal

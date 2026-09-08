@@ -40,10 +40,11 @@ import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
 import { AdminGate } from './pages/admin/AdminGate'
 import { AppSkeleton } from '@/components/AppSkeleton'
+import { ChangePassword } from './pages/ChangePassword'
 
 /** Personne n'entre dans l'espace agence sans session. */
 function RequireSession({ children }: { children: ReactNode }) {
-  const { signedIn } = useStore()
+  const { signedIn, db, currentUserId, readOnly } = useStore()
   const auth = useAuth()
   // Sur un rechargement dur, la session Supabase met un instant à se restaurer.
   // On attend ce verdict avant de renvoyer vers la connexion, sinon on éjecte
@@ -52,6 +53,11 @@ function RequireSession({ children }: { children: ReactNode }) {
     return <AppSkeleton />
   }
   if (!signedIn) return <Navigate to="/connexion" replace />
+  // Un compte invité entre avec un mot de passe provisoire : il en choisit un
+  // à lui avant de voir quoi que ce soit. La vue support (lecture seule) n'est
+  // pas concernée : l'admin regarde avec son propre compte.
+  const me = db.users.find((u) => u.id === currentUserId)
+  if (HAS_BACKEND && !readOnly && me?.mustResetPassword) return <ChangePassword />
   return <>{children}</>
 }
 

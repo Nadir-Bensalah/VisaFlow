@@ -181,6 +181,12 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
     case 'removeUser':
       await patch('profiles', args[0], { active: false })
       return true
+    case 'saveOffice':
+      await upsert('offices', args[0], ctx.agencyId)
+      // Un bureau créé reçoit son identifiant de la base : on recharge pour
+      // remplacer l'identifiant local optimiste.
+      if (!args[0].id) ctx.reload()
+      return true
     case 'updateAgency':
       await patch('agencies', ctx.agencyId, stripAgency(args[0]))
       return true
