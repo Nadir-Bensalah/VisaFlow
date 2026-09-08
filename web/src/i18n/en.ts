@@ -264,7 +264,7 @@ export const en: Dict = {
     track: 'Track my application', trackHint: 'You already have a request in progress.',
     staff: 'Agency workspace', hours: 'Monday to Saturday, 8am to 6pm',
   },
-  notes: { called: 'They called', counter: 'Received at the counter' },
+  notes: { logCall: 'Log a call', callLogged: 'Call logged.', whatSaid: 'What was said', callPlaceholder: 'Client calls back tomorrow at 3pm about the statement.', called: 'They called', counter: 'Received at the counter' },
   misc: {
     everything: 'All', active: 'Active', inactive: 'Inactive', required: 'Required', optional: 'Optional',
     yes: 'Yes', no: 'No', demoData: 'Demo data', resetDemo: 'Reset the demo', resetDone: 'Demo reset.',

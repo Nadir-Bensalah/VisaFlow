@@ -1,11 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
+import { useState as useReactState } from 'react'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { useState } from 'react'
-import { Avatar, Button, Card, Empty, Pill } from '@/components/ui'
 import { ClientEditor } from '@/components/ClientEditor'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
+import { Avatar, Button, Card, Empty, Field, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import { daysUntil } from '@/lib/derive'
 
@@ -15,6 +16,7 @@ export function ClientDetail() {
   const v = useVisible()
   const { t, tt, formatDate } = useI18n()
   const [editing, setEditing] = useState(false)
+  const [callOpen, setCallOpen] = useState(false)
 
   const client = v.clients.find((c) => c.id === id)
   if (!client) return <Empty title={t('clients.none')} action={<Link to="/clients" className="btn btn--secondary">{t('action.back')}</Link>} />
@@ -29,10 +31,16 @@ export function ClientDetail() {
       <PageHead
         title={`${client.firstName} ${client.lastName}`}
         subtitle={client.nativeName ?? client.nationality}
-        action={v.can('client:write') ? <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button> : undefined}
+        action={v.can('case:write') ? (
+          <span className="row gap-2">
+            <Button icon="phone" onClick={() => setCallOpen(true)}>{t('notes.logCall')}</Button>
+            {v.can('client:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
+          </span>
+        ) : undefined}
       />
 
       {editing && <ClientEditor client={client} onClose={() => setEditing(false)} />}
+      {callOpen && <CallNote cases={cases} onClose={() => setCallOpen(false)} />}
 
       <div className="grid grid--main">
         <div className="stack">
@@ -115,5 +123,39 @@ export function ClientDetail() {
         </div>
       </div>
     </>
+  )
+}
+
+/* Noter un appel, en un geste. C'est le besoin le plus fréquent de l'employée
+   de comptoir, et il n'existait nulle part : le téléphone sonne cent fois par
+   jour. La note se range sur le dossier ouvert le plus récent du client. */
+function CallNote({ cases, onClose }: { cases: import("@/data/types").VisaCase[]; onClose: () => void }) {
+  const { actions } = useStore()
+  const { t } = useI18n()
+  const toast = useToast()
+  const [text, setText] = useReactState('')
+  const open = cases.filter((c) => c.status === 'ouvert')
+  const [caseId, setCaseId] = useReactState(open[0]?.id ?? cases[0]?.id ?? '')
+  return (
+    <Modal title={t('notes.logCall')} onClose={onClose} footer={<>
+      <Button onClick={onClose}>{t('action.cancel')}</Button>
+      <Button variant="primary" disabled={!text.trim() || !caseId} onClick={() => {
+        actions.addNote(caseId, text.trim(), 'appel')
+        onClose(); toast(t('notes.callLogged'))
+      }}>{t('action.confirm')}</Button>
+    </>}>
+      <div className="col gap-4">
+        {cases.length > 1 && (
+          <Field label={t('cases.title')}>
+            <Select value={caseId} onChange={(e) => setCaseId(e.target.value)}>
+              {cases.map((c) => <option key={c.id} value={c.id}>{c.reference}</option>)}
+            </Select>
+          </Field>
+        )}
+        <Field label={t('notes.whatSaid')}>
+          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('notes.callPlaceholder')} autoFocus />
+        </Field>
+      </div>
+    </Modal>
   )
 }

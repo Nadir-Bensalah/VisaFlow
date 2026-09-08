@@ -604,7 +604,7 @@ export const fr = {
     staff: 'Espace de l’agence',
     hours: 'Du lundi au samedi, de 8 h à 18 h',
   },
-  notes: { called: 'Il a appelé', counter: 'Reçu au comptoir' },
+  notes: { logCall: 'Noter un appel', callLogged: 'Appel noté.', whatSaid: 'Ce qui a été dit', callPlaceholder: 'Le client rappelle demain à 15h pour le relevé.', called: 'Il a appelé', counter: 'Reçu au comptoir' },
   misc: {
     everything: 'Tout',
     active: 'Actif',

@@ -263,7 +263,7 @@ export const zh: Dict = {
     track: '查询我的申请', trackHint: '你已有正在处理的请求。',
     staff: '公司工作区', hours: '周一至周六 8:00 至 18:00',
   },
-  notes: { called: '客户来电', counter: '柜台收到' },
+  notes: { logCall: '记录来电', callLogged: '来电已记录。', whatSaid: '通话内容', callPlaceholder: '客户明天下午3点再来电询问流水。', called: '客户来电', counter: '柜台收到' },
   misc: {
     everything: '全部', active: '启用', inactive: '停用', required: '必需', optional: '可选',
     yes: '是', no: '否', demoData: '演示数据', resetDemo: '重置演示', resetDone: '演示已重置。',

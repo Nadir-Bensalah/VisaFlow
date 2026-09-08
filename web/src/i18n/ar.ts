@@ -264,7 +264,7 @@ export const ar: Dict = {
     track: 'متابعة ملفي', trackHint: 'لديك مطلب جار.',
     staff: 'فضاء الوكالة', hours: 'من الاثنين إلى السبت، من 8 صباحا إلى 6 مساء',
   },
-  notes: { called: 'اتصل', counter: 'استُلم بالمكتب' },
+  notes: { logCall: 'تسجيل مكالمة', callLogged: 'سُجّلت المكالمة.', whatSaid: 'ما قيل', callPlaceholder: 'الحريف يعاود الاتصال غدًا على الساعة 3 بخصوص الكشف.', called: 'اتصل', counter: 'استُلم بالمكتب' },
   misc: {
     everything: 'الكل', active: 'مفعل', inactive: 'معطل', required: 'إجباري', optional: 'اختياري',
     yes: 'نعم', no: 'لا', demoData: 'معطيات تجريبية', resetDemo: 'إعادة ضبط التجربة', resetDone: 'تمت إعادة الضبط.',
