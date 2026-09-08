@@ -115,6 +115,26 @@ struct VisaKind: Codable, Sendable, Hashable {
     }
 }
 
+/// Le rang dans la file de créneaux. C'est la première question du client, et
+/// personne d'autre en Tunisie ne sait y répondre.
+struct QueuePlace: Codable, Sendable, Hashable {
+    var rank: Int
+    var total: Int
+    var country: [String: String]
+    var city: String
+    var waitDays: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case rank, total, country, city
+        case waitDays = "wait_days"
+    }
+
+    func place(_ locale: String) -> String {
+        let c = country[locale] ?? country["fr"] ?? ""
+        return city.isEmpty ? c : "\(c) · \(city)"
+    }
+}
+
 /// Ce que rend `portal_case` côté serveur, tel quel.
 struct CaseBundle: Codable, Sendable {
     var visaCase: VisaCase
@@ -122,11 +142,12 @@ struct CaseBundle: Codable, Sendable {
     var visa: VisaKind
     var documents: [CaseDocument]
     var appointment: Appointment?
+    var queue: QueuePlace?
     var messages: [PortalMessage]
 
     enum CodingKeys: String, CodingKey {
         case visaCase = "case"
-        case agency, visa, documents, appointment, messages
+        case agency, visa, documents, appointment, queue, messages
     }
 
     var missing: [CaseDocument] { documents.filter { $0.state.isPending } }

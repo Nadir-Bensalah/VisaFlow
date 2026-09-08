@@ -21,6 +21,7 @@ struct CaseDetailView: View {
                 if let bundle {
                     header(bundle)
                     steps(bundle)
+                    if let place = bundle.queue { queueRank(place) }
                     missing(bundle)
                     if let appointment = bundle.appointment { rendezVous(appointment) }
                     if bundle.visaCase.balance > 0 { balance(bundle) }
@@ -101,6 +102,26 @@ struct CaseDetailView: View {
                     current: index == current
                 )
             })
+        }
+    }
+
+    // Le rang dans la file. Répond à « combien de temps encore ? », la
+    // question qui, sinon, fait décrocher le téléphone à l'agence.
+    private func queueRank(_ place: QueuePlace) -> some View {
+        SectionCard("dossier.file") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(place.rank)")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(Token.Palette.text)
+                Text(String(format: NSLocalizedString("file.rang", comment: ""), place.rank, place.total, place.place(session.contentLocale)))
+                    .font(.body)
+                    .foregroundStyle(Token.Palette.secondary)
+                if let d = place.waitDays {
+                    Text(String(format: NSLocalizedString("file.attente", comment: ""), d))
+                        .font(.caption)
+                        .foregroundStyle(Token.Palette.tertiary)
+                }
+            }
         }
     }
 

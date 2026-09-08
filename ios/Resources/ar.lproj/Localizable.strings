@@ -110,3 +110,7 @@
 "erreur.bloque" = "محاولات كثيرة. انتظر بضع دقائق.";
 "erreur.introuvable" = "غير موجود.";
 "suivi.avancement" = "التقدم";
+
+"dossier.file" = "مرتبتك";
+"file.rang" = "أنت رقم %d من %d لدى %@.";
+"file.attente" = "%d يومًا في المعدل، مقاسة.";

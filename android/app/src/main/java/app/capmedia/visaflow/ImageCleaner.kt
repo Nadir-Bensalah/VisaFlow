@@ -18,9 +18,17 @@ object ImageCleaner {
         // la pièce que la perdre, et un PDF ne porte pas de GPS.
         val bitmap: Bitmap = runCatching { BitmapFactory.decodeByteArray(data, 0, data.size) }
             .getOrNull() ?: return data
+        // On réduit à 2000 px sur le grand côté : un passeport reste lisible,
+        // mais une connexion faible ne s'étrangle pas sur une photo de douze
+        // mégapixels. Le redimensionnement crée un bitmap neuf, sans EXIF.
+        val max = 2000
+        val scaled = if (maxOf(bitmap.width, bitmap.height) > max) {
+            val ratio = max.toFloat() / maxOf(bitmap.width, bitmap.height)
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * ratio).toInt(), (bitmap.height * ratio).toInt(), true)
+        } else bitmap
         return ByteArrayOutputStream().use { out ->
-            // JPEG de bonne qualité, sans le moindre attribut EXIF recopié.
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            scaled.compress(Bitmap.CompressFormat.JPEG, 82, out)
+            if (scaled !== bitmap) scaled.recycle()
             bitmap.recycle()
             out.toByteArray()
         }

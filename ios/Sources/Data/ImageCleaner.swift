@@ -13,7 +13,6 @@ enum ImageCleaner {
     static func stripped(_ data: Data) -> Data {
         guard
             let source = CGImageSourceCreateWithData(data as CFData, nil),
-            let type = CGImageSourceGetType(source),
             let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else {
             // Un PDF ou un format que l'on ne sait pas relire part tel quel :
@@ -22,10 +21,20 @@ enum ImageCleaner {
             return data
         }
 
+        // On réduit à 2000 px sur le grand côté : un passeport reste lisible,
+        // mais une connexion à 25 Mbps en Libye ne s'étrangle pas sur une photo
+        // de douze mégapixels. thumbnail crée une image déjà sans métadonnées.
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2000,
+        ]
+        let scaled = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) ?? image
+
         let out = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(out, type, 1, nil) else { return data }
-        // On n'écrit aucune propriété : ni EXIF, ni GPS, ni TIFF. Que les pixels.
-        CGImageDestinationAddImage(dest, image, [:] as CFDictionary)
+        // On force le JPEG en sortie : petit, universel, et sans profil EXIF.
+        guard let dest = CGImageDestinationCreateWithData(out, UTType.jpeg.identifier as CFString, 1, nil) else { return data }
+        CGImageDestinationAddImage(dest, scaled, [kCGImageDestinationLossyCompressionQuality: 0.8] as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { return data }
         return out as Data
     }

@@ -110,3 +110,7 @@
 "erreur.bloque" = "Trop de tentatives. Attendez quelques minutes.";
 "erreur.introuvable" = "Introuvable.";
 "suivi.avancement" = "Avancement";
+
+"dossier.file" = "Votre place";
+"file.rang" = "Vous êtes %d sur %d pour %@.";
+"file.attente" = "%d jours en moyenne, mesuré.";

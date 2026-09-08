@@ -110,3 +110,7 @@
 "erreur.bloque" = "Too many attempts. Wait a few minutes.";
 "erreur.introuvable" = "Not found.";
 "suivi.avancement" = "Progress";
+
+"dossier.file" = "Your place";
+"file.rang" = "You are number %d of %d for %@.";
+"file.attente" = "%d days on average, measured.";

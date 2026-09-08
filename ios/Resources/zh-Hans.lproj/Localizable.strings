@@ -110,3 +110,7 @@
 "erreur.bloque" = "尝试次数过多，请稍候几分钟。";
 "erreur.introuvable" = "未找到。";
 "suivi.avancement" = "进度";
+
+"dossier.file" = "您的排位";
+"file.rang" = "您在 %3$@ 排第 %1$d 位，共 %2$d 位。";
+"file.attente" = "实测平均 %d 天。";
