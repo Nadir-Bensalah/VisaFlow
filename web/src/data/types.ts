@@ -530,7 +530,16 @@ export type ShipmentStage =
   | 'livre'
 
 export type ShipmentStatus = 'en_cours' | 'livree' | 'bloquee' | 'annulee'
-export type Incoterm = 'EXW' | 'FOB' | 'CFR' | 'CIF' | 'DAP' | 'DDP'
+/** Les onze règles Incoterms 2020. Les quatre dernières sont réservées à la
+    mer et aux voies navigables : un « FOB Shanghai » sur un vol n'a aucun
+    sens, il n'y a pas de navire, donc pas de point de transfert.
+    En groupage, la règle correcte est FCA au CFS, jamais FOB. */
+export type Incoterm =
+  | 'EXW' | 'FCA' | 'CPT' | 'CIP' | 'DAP' | 'DPU' | 'DDP'
+  | 'FAS' | 'FOB' | 'CFR' | 'CIF'
+
+/** Celles qui n'ont de sens que sur l'eau. */
+export const SEA_ONLY_INCOTERMS: Incoterm[] = ['FAS', 'FOB', 'CFR', 'CIF']
 
 export interface ShipmentDocument {
   id: string

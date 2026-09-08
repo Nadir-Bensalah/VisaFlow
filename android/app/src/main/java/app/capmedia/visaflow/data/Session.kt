@@ -19,6 +19,7 @@ class Session(
     val api: Api,
     private val store: SecureStore,
     private val prefs: android.content.SharedPreferences,
+    private val demoSignedIn: Boolean = false,
 ) : ViewModel() {
 
     sealed interface State {
@@ -51,12 +52,21 @@ class Session(
         private set
 
     init {
-        val token = store.read(SecureStore.TOKEN)
-        val phone = store.read(SecureStore.PHONE)
-        if (!token.isNullOrBlank() && !phone.isNullOrBlank()) {
-            deviceToken = token
-            state = State.Connecte(phone)
+        // Affordance de test, jumelle du `-connecte` de l'iOS : les captures et
+        // les tests d'interface entrent directement, sans passer par le code.
+        // Elle n'existe qu'en version de mise au point.
+        if (demoSignedIn) {
+            deviceToken = "demo-device-token"
+            state = State.Connecte("+216 98 111 222")
             refresh()
+        } else {
+            val token = store.read(SecureStore.TOKEN)
+            val phone = store.read(SecureStore.PHONE)
+            if (!token.isNullOrBlank() && !phone.isNullOrBlank()) {
+                deviceToken = token
+                state = State.Connecte(phone)
+                refresh()
+            }
         }
     }
 
@@ -143,13 +153,14 @@ class Session(
         private const val KEY_LANGUAGE = "app.language"
         private const val KEY_NOTIFICATIONS = "app.notifications"
 
-        fun factory(context: Context, api: Api): ViewModelProvider.Factory =
+        fun factory(context: Context, api: Api, demoSignedIn: Boolean = false): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T = Session(
                     api = api,
                     store = SecureStore(context),
                     prefs = context.getSharedPreferences("visaflow", Context.MODE_PRIVATE),
+                    demoSignedIn = demoSignedIn,
                 ) as T
             }
     }

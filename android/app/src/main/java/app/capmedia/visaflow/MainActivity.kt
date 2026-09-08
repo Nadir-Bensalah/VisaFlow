@@ -51,7 +51,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { VisaFlowApp() }
+        // `adb shell am start … --ez connecte true` ouvre l'app déjà connectée,
+        // pour les captures et les tests d'interface.
+        val demo = intent?.getBooleanExtra("connecte", false) == true
+        setContent { VisaFlowApp(demoSignedIn = demo) }
     }
 }
 
@@ -72,9 +75,9 @@ private val Scheme = lightColorScheme(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VisaFlowApp() {
+fun VisaFlowApp(demoSignedIn: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val session: Session = viewModel(factory = Session.factory(context, DemoApi()))
+    val session: Session = viewModel(factory = Session.factory(context, DemoApi(), demoSignedIn))
 
     MaterialTheme(colorScheme = Scheme) {
         when (val state = session.state) {

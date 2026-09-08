@@ -107,5 +107,23 @@ begin
     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');
   perform assert(n = 0, 'aucune fonction SECURITY DEFINER sans search_path figé');
 
+  -- ---------------------------------------------------------------
+  -- La clé de service, qui doit tout pouvoir
+  -- ---------------------------------------------------------------
+  -- Elle contourne la sécurité au niveau des lignes, c'est sa raison d'être.
+  -- Sans droits, les fonctions de bord échouent en silence : elles écrivent
+  -- par l'API REST, et une erreur 403 n'y ressemble pas à une panne.
+  select count(distinct table_name) into n
+  from information_schema.role_table_grants
+  where table_schema = 'public' and grantee = 'service_role' and privilege_type = 'SELECT';
+  perform assert(n >= total, 'la clé de service lit toutes les tables (' || n || ' sur ' || total || ')');
+
+  select count(distinct table_name) into n
+  from information_schema.role_table_grants
+  where table_schema = 'public' and grantee = 'service_role'
+    and privilege_type = 'INSERT'
+    and table_name in ('otp_codes', 'client_devices', 'rate_limits');
+  perform assert(n = 3, 'la clé de service atteint les trois tables verrouillées');
+
   raise notice '--- banc des droits : tout est vert ---';
 end $$;
