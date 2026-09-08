@@ -35,6 +35,8 @@ import { Warehouse } from './pages/Warehouse'
 import { Directory } from './pages/Directory'
 import { Support } from './pages/Support'
 import { Aujourdhui } from './pages/Aujourdhui'
+import { Traductions } from './pages/Traductions'
+import { Prestations } from './pages/Prestations'
 import { Pilotage } from './pages/Pilotage'
 import { Login } from './pages/Login'
 import { AgencyHome } from './pages/public/AgencyHome'
@@ -123,6 +125,8 @@ export default function App() {
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/pieces" element={<Documents />} />
+          <Route path="/traductions" element={<Traductions />} />
+          <Route path="/prestations" element={<Prestations />} />
           <Route path="/rendez-vous" element={<Appointments />} />
           <Route path="/creneaux" element={<Slots />} />
           <Route path="/messages" element={<Messages />} />

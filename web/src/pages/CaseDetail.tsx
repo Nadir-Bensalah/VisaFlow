@@ -5,6 +5,10 @@ import { useVisible } from '@/data/scope'
 import { AuditTrail } from '@/components/AuditTrail'
 import { PrintButton } from '@/components/PrintButton'
 import { HistoryCard } from '@/components/HistoryCard'
+import { CaseJourney } from '@/components/CaseJourney'
+import { TranslationCard } from '@/components/TranslationCard'
+import { TravelPanel } from '@/components/TravelPanel'
+import { CaseMarginCard } from '@/components/CaseMarginCard'
 import { CustomFields } from '@/components/CustomFields'
 import { TrackingLinks } from '@/components/TrackingLinks'
 import { useI18n } from '@/i18n'
@@ -209,6 +213,10 @@ export function CaseDetail() {
             <NoteBox caseId={kase.id} />
           </Card>
 
+          <CaseJourney kase={kase} />
+          <TranslationCard caseId={kase.id} />
+          <TravelPanel caseId={kase.id} clientId={kase.clientId} officeId={kase.officeId} />
+          <CaseMarginCard caseId={kase.id} />
           <CustomFields entityKind="VISA_CASE" entityId={kase.id} />
           <HistoryCard entityKind="VISA_CASE" entityId={kase.id} />
           <TrackingLinks kind="VISA_CASE" entityId={kase.id} />

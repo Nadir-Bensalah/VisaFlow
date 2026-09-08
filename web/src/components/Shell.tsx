@@ -155,6 +155,7 @@ export function Shell() {
         { to: '/dossiers', labelKey: 'nav.cases', icon: 'cases', count: openCases.length },
         { to: '/pipeline', labelKey: 'nav.pipeline', icon: 'pipeline' },
         { to: '/pieces', labelKey: 'nav.documents', icon: 'documents', count: blocked },
+        { to: '/traductions', labelKey: 'trad.title', icon: 'language' },
         { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
         // La file de créneaux passe avant les rendez-vous : c'est le travail
         // d'avant, celui qui porte l'essentiel de la marge.
@@ -178,6 +179,7 @@ export function Shell() {
       labelKey: 'nav.finance',
       collapsible: true,
       entries: [
+        { to: '/prestations', labelKey: 'voy.pageTitle', icon: 'plane' },
         { to: '/factures', labelKey: 'nav.invoices', icon: 'payments', need: 'payment:write' },
         { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
       ],

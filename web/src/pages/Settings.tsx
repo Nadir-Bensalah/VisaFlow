@@ -12,6 +12,7 @@ import { EncaissementSection } from '@/components/EncaissementSection'
 import { OfficesSection } from '@/components/OfficesSection'
 import { ServicesSection } from '@/components/ServicesSection'
 import { PlanCard } from '@/components/PlanCard'
+import { TranslatorsSection } from '@/components/TranslatorsSection'
 import { NotificationRules } from '@/components/NotificationRules'
 import { WebhooksSection } from '@/components/WebhooksSection'
 import { SecuritySection } from '@/components/SecuritySection'
@@ -115,7 +116,7 @@ export function Settings() {
       {current === 'consulats' && <ConsulatesSection />}
       {current === 'marque' && <BrandSection />}
       {current === 'encaissement' && <EncaissementSection />}
-      {current === 'baremes' && <><ServicesSection /><TariffsSection /><CustomsChecklistsAdmin /></>}
+      {current === 'baremes' && <><ServicesSection /><TranslatorsSection /><TariffsSection /><CustomsChecklistsAdmin /></>}
       {current === 'conformite' && <ComplianceSection />}
       {current === 'modeles' && <TemplatesSection />}
       {current === 'papiers' && <DocumentTemplates />}

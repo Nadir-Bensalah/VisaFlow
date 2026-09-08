@@ -13,13 +13,16 @@ import { logistique } from './modules/logistique'
 import { saas } from './modules/saas'
 import { securite } from './modules/securite'
 import { notifs } from './modules/notifs'
+import { parcours } from './modules/parcours'
 import { pilotage } from './modules/pilotage'
 import { cargo2 } from './modules/cargo2'
 import { integrite } from './modules/integrite'
 import { documents } from './modules/documents'
 import { support } from './modules/support'
+import { voyage } from './modules/voyage'
+import { traduction } from './modules/traduction'
 
-const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, support, documents, integrite, cargo2, pilotage]
+const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, parcours, support, documents, integrite, cargo2, pilotage, voyage, traduction]
 
 type Lang = 'fr' | 'en' | 'ar' | 'zh'
 
@@ -33,11 +36,14 @@ function merge(lang: Lang): Record<string, unknown> {
 export type ModuleDict =
   & typeof commerce.fr & typeof crm.fr & typeof cargoref.fr
   & typeof logistique.fr & typeof saas.fr & typeof securite.fr & typeof notifs.fr
+  & typeof parcours.fr
   & typeof pilotage.fr
   & typeof cargo2.fr
   & typeof integrite.fr
   & typeof documents.fr
   & typeof support.fr
+  & typeof voyage.fr
+  & typeof traduction.fr
 
 export const MODULES: Record<Lang, Record<string, unknown>> = {
   fr: merge('fr'), en: merge('en'), ar: merge('ar'), zh: merge('zh'),

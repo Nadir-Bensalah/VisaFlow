@@ -14,6 +14,7 @@ import { CustomFields } from '@/components/CustomFields'
 import { PinButton } from '@/components/PinButton'
 import { PrintButton } from '@/components/PrintButton'
 import { CreditCard } from '@/components/CreditCard'
+import { TravelPanel } from '@/components/TravelPanel'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
 import { Avatar, Button, Card, Empty, Field, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -145,6 +146,7 @@ export function ClientDetail() {
           <ContactsCard clientId={client.id} />
           <CompanySection clientId={client.id} />
           <CreditCard clientId={client.id} />
+          <TravelPanel caseId={null} clientId={client.id} officeId={client.officeId} />
           <AuditTrail entityType="clients" entityId={client.id} />
         </div>
       </div>

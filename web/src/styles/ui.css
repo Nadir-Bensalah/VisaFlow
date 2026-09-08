@@ -1438,3 +1438,41 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .sidebar__chev--open { transform: rotate(90deg); }
 [dir='rtl'] .sidebar__chev--open { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .sidebar__group-toggle svg { transition: none; } }
+
+/* Le parcours d'un dossier : dix-huit lignes qu'on lit en diagonale.
+   Une grille plutôt qu'une liste : les libellés, les détails et les flèches
+   s'alignent, et l'œil descend une colonne au lieu de zigzaguer. */
+.parcours { display: flex; flex-direction: column; }
+.parcours__row {
+  display: grid;
+  grid-template-columns: 18px 18px minmax(90px, auto) 1fr 20px;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+}
+.parcours__row:last-child { border-bottom: 0; }
+.parcours__row--sansobjet { opacity: 0.45; }
+.parcours__dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; flex: none;
+}
+.parcours__dot--green { background: var(--green); }
+.parcours__dot--blue { background: var(--blue); }
+.parcours__dot--red { background: var(--red); }
+.parcours__dot--gray { background: transparent; border: 1.5px dashed var(--line); }
+.parcours__icon { color: var(--text-tertiary); flex: none; }
+.parcours__label { font-weight: var(--w-medium); }
+.parcours__row--afaire .parcours__label,
+.parcours__row--sansobjet .parcours__label { font-weight: 400; color: var(--text-secondary); }
+.parcours__detail { text-align: end; min-width: 0; }
+.parcours__go { display: inline-flex; justify-content: center; color: var(--text-tertiary); }
+.parcours__go:hover { color: var(--blue); }
+
+@media (max-width: 560px) {
+  /* Sur un téléphone, le détail passe sous le libellé : le tronquer sur une
+     seule ligne ferait perdre l'information la plus utile de la ligne. */
+  .parcours__row { grid-template-columns: 18px 18px 1fr 20px; row-gap: 2px; }
+  .parcours__detail { grid-column: 3 / 5; text-align: start; }
+}
