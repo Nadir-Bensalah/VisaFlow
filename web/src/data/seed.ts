@@ -1038,5 +1038,14 @@ export function buildSeed(slug: string): Database {
     requests: buildRequests(agencyId, visaTypes),
     queue, attempts,
     lots, legs, tariffs, bls, declarations, customsArticles, tce, stays,
+    // L'agence de démonstration a branché son compte ClicToPay, comme le ferait
+    // une vraie agence : le sien, jamais celui de l'éditeur.
+    providers: [
+      { id: 'pp_ctp', agencyId, kind: 'clictopay', label: 'ClicToPay · BIAT',
+        currencies: ['TND'], merchantRef: '0012345678', secretName: 'cle_clictopay_tca',
+        mode: 'live', active: true },
+      { id: 'pp_vir', agencyId, kind: 'virement', label: 'Virement BIAT',
+        currencies: ['TND', 'EUR', 'USD'], mode: 'live', active: true },
+    ],
   }
 }

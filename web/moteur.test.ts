@@ -27,6 +27,7 @@ import {
 } from './src/lib/conformite'
 import { arNormalize, sameArabicName, matchClient, findDuplicates } from './src/lib/noms'
 import { slotCandidates, freedSlots } from './src/lib/creneaux'
+import { brandTheme, readableOn, contrastRatio, isDark } from './src/lib/marque'
 
 let passed = 0
 const failures: string[] = []
@@ -391,6 +392,30 @@ ok(freedSlots(dbLibre as never).length === 2,
 const hier = new Date(Date.now() - 86400000).toISOString()
 ok(freedSlots({ ...dbSlot, appointments: [{ id: 'a2', caseId: 'k1', status: 'reporte', at: hier }] } as never).length === 0,
   'un créneau déjà passé n\'est pas un créneau libre')
+
+console.log('--- 11 · La marque de l\'agence ---')
+// Le piège : une agence choisit un bleu marine, le texte reste noir, l'écran
+// devient illisible. Le texte doit se calculer, jamais se demander.
+ok(readableOn('#0B2545') === '#FFFFFF', 'sur un bleu marine, le texte passe en blanc')
+ok(readableOn('#FFF3B0') === '#1D1D1F', 'sur un jaune pâle, le texte reste noir')
+ok(readableOn('#FFFFFF') === '#1D1D1F', 'sur du blanc, le texte reste noir')
+ok(isDark('#0B2545') && !isDark('#FFF3B0'), 'le sombre et le clair sont bien départagés')
+
+const sombre = brandTheme('#0B2545', '#E63946')
+ok(sombre.sidebarText === '#FFFFFF', 'la barre sombre porte un texte blanc')
+ok(contrastRatio(sombre.sidebar, sombre.sidebarText) >= 4.5,
+  'et le contraste tient le seuil de lisibilité WCAG')
+ok(contrastRatio(sombre.sidebar, sombre.sidebarMuted) >= 3,
+  'le texte secondaire reste lisible sans crier')
+ok(sombre.accentText === '#FFFFFF', 'le texte sur l\'accent rouge passe en blanc')
+
+const clair = brandTheme('#FFFFFF', '#0A84FF')
+ok(clair.sidebarText === '#1D1D1F', 'la barre claire garde un texte noir')
+ok(contrastRatio(clair.sidebar, clair.sidebarText) >= 4.5, 'et elle aussi est lisible')
+
+// Une couleur invalide ne casse pas l'écran : on retombe sur celle du produit.
+ok(brandTheme('rouge', 'bleu').sidebar === '#FFFFFF',
+  'une couleur mal saisie retombe sur le thème du produit au lieu de casser')
 
 console.log('')
 if (failures.length > 0) {

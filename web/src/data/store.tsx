@@ -12,7 +12,7 @@ import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
   PassportCustody, RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
-  VisaCase, VisaType, DemurrageTariff, SchengenStay,
+  VisaCase, VisaType, DemurrageTariff, SchengenStay, PaymentProvider,
 } from './types'
 
 /* Magasin local. Toute l'application passe par ici, jamais par le stockage
@@ -148,6 +148,8 @@ interface Actions {
   /** Enregistre ou corrige un séjour du client, pour le compteur 90/180. */
   saveStay: (stay: Omit<SchengenStay, 'id' | 'agencyId'> & { id?: string }) => void
   removeStay: (stayId: string) => void
+  /** Crée ou met à jour un moyen d'encaissement de l'agence. */
+  saveProvider: (p: Omit<PaymentProvider, 'id' | 'agencyId'> & { id?: string }) => void
   /** Clôt un barème à aujourd'hui. On ne le supprime jamais : un compteur
       passé doit rester calculable avec le tarif qui était en vigueur. */
   closeTariff: (tariffId: string) => void
@@ -1121,6 +1123,15 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         tariffs: prev.tariffs.map((t) => (t.id === tariffId ? { ...t, validTo: nowIso().slice(0, 10) } : t)),
       }))
 
+    const saveProvider: Actions['saveProvider'] = (prov) =>
+      setDb((prev) => {
+        if (prov.id) {
+          return { ...prev, providers: prev.providers.map((x) => (x.id === prov.id ? { ...x, ...prov, id: x.id } : x)) }
+        }
+        const created: PaymentProvider = { ...prov, id: rid('pp'), agencyId: prev.agency.id }
+        return { ...prev, providers: [...prev.providers, created] }
+      })
+
     const saveStay: Actions['saveStay'] = (stay) =>
       setDb((prev) => {
         if (stay.id) {
@@ -1271,7 +1282,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
       attachFile, detachFile, attachShipmentFile,
       joinQueue, leaveQueue, setQueuePriority, serveQueue, logAttempt, saveConsulate,
-      removeConsulate, saveTariff, closeTariff, saveStay, removeStay, recordDecision, receivePassport, releasePassport,
+      removeConsulate, saveTariff, closeTariff, saveStay, removeStay, saveProvider, recordDecision, receivePassport, releasePassport,
     }
     // db n'entre pas dans les dependances : toutes les mutations passent par
     // setDb(prev => ...) et lisent donc toujours l'etat le plus recent.

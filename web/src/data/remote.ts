@@ -42,7 +42,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     checklistVersions, cases, documents, custody, notes, messages, templates,
     appointments, payments, rules, events, tasks, shipments, shipmentDocs,
     shipmentEvents, requests, queue, attempts,
-    lots, legs, tariffs, bls, declarations, customsArticles, tce, stays,
+    lots, legs, tariffs, bls, declarations, customsArticles, tce, stays, providers,
   ] = await Promise.all([
     sb.from('agencies').select('*').eq('id', agencyId).single(),
     rows('offices', agencyId),
@@ -80,10 +80,15 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     rows('customs_articles', agencyId),
     rows('tce_titles', agencyId),
     rows('schengen_stays', agencyId),
+    rows('payment_providers', agencyId),
   ])
 
   const agency = camelKeys<any>(agencyRow.data)
   agency.offices = offices
+  // Le logo : la base garde le chemin, l'écran a besoin de l'URL publique.
+  if (agency.logoPath) {
+    agency.logoUrl = sb.storage.from('marques').getPublicUrl(agency.logoPath).data.publicUrl
+  }
 
   // La liste de pièces du front porte ses items ; en base ils vivent dans la
   // version courante de la checklist. On les rapatrie.
@@ -143,6 +148,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     customsArticles,
     tce,
     stays,
+    providers,
   } as Database
 }
 

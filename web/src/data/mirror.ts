@@ -140,6 +140,10 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
     case 'removeStay':
       await remove('schengen_stays', args[0])
       return true
+    case 'saveProvider':
+      await upsert('payment_providers', args[0], ctx.agencyId)
+      ctx.reload()
+      return true
     case 'saveTariff':
       await upsert('demurrage_tariffs', args[0], ctx.agencyId)
       ctx.reload()
@@ -292,8 +296,10 @@ function stripId(o: Record<string, unknown>) {
 }
 
 function stripAgency(o: Record<string, unknown>) {
-  const { id, offices, whatsapp, ...rest } = o as any
+  const { id, offices, whatsapp, logoUrl, ...rest } = o as any
   // whatsapp et offices ne sont pas des colonnes de agencies (tables/coffre).
+  // logoUrl non plus : la base garde le CHEMIN, l'URL publique s'en déduit au
+  // chargement. Envoyer l'URL ferait échouer la mise à jour.
   return rest
 }
 

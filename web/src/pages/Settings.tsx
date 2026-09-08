@@ -6,13 +6,15 @@ import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Card, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, Switch, Textarea, useToast } from '@/components/ui'
 import { Ago, PageHead } from '@/components/bits'
 import { TariffsSection } from '@/components/TariffsSection'
+import { BrandSection } from '@/components/BrandSection'
+import { EncaissementSection } from '@/components/EncaissementSection'
 import { ComplianceSection } from '@/components/ComplianceSection'
 import { Icon } from '@/components/Icon'
 import { tenantUrl } from '@/tenant'
 import { roleKey } from '@/lib/permissions'
 import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, Locale, MessageTemplate, Role, User, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'donnees' | 'journal'
+type Section = 'agence' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'donnees' | 'journal'
 
 const EMPTY_I18N: I18nText = { fr: '' }
 
@@ -28,11 +30,14 @@ export function Settings() {
 
   const sections: { value: Section; label: string; visible: boolean }[] = [
     { value: 'agence', label: t('settings.agency'), visible: true },
+    { value: 'marque', label: t('brand.title'), visible: v.can('settings:manage') },
     { value: 'equipe', label: t('settings.team'), visible: v.can('team:manage') || v.can('audit:view') },
     { value: 'visas', label: t('settings.visaTypes'), visible: v.can('catalog:manage') },
     { value: 'consulats', label: t('consulates.title'), visible: v.can('catalog:manage') },
     // Un barème change le montant de toutes les factures à venir : c'est un
     // réglage, pas une saisie d'exploitation.
+    // Brancher un compte de paiement engage l'argent de l'agence.
+    { value: 'encaissement', label: t('pay2.providers'), visible: v.can('settings:manage') },
     { value: 'baremes', label: t('tariff.title'), visible: v.can('settings:manage') },
     { value: 'modeles', label: t('settings.templates'), visible: v.can('catalog:manage') },
     { value: 'whatsapp', label: t('wa.title'), visible: v.can('settings:manage') },
@@ -72,6 +77,8 @@ export function Settings() {
       {current === 'equipe' && <TeamSection />}
       {current === 'visas' && <CatalogSection />}
       {current === 'consulats' && <ConsulatesSection />}
+      {current === 'marque' && <BrandSection />}
+      {current === 'encaissement' && <EncaissementSection />}
       {current === 'baremes' && <TariffsSection />}
       {current === 'conformite' && <ComplianceSection />}
       {current === 'modeles' && <TemplatesSection />}

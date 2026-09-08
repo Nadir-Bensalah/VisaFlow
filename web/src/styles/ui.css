@@ -342,12 +342,23 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   background: var(--bg-hover);
   border-radius: var(--radius-pill);
   gap: 2px;
+  /* À onze onglets, la barre des réglages se pliait sur trois lignes et
+     coupait les libellés en morceaux. Elle défile désormais, sur toutes les
+     tailles d'écran et pas seulement sur mobile. */
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
+.segmented::-webkit-scrollbar { display: none; }
 .segmented button {
   border: 0;
   background: transparent;
   border-radius: var(--radius-pill);
   padding: 5px var(--sp-4);
+  /* Un libellé ne se casse pas en trois lignes : il défile avec la barre. */
+  white-space: nowrap;
+  flex: 0 0 auto;
   font-size: var(--size-small);
   font-weight: var(--w-medium);
   color: var(--text-secondary);
@@ -1340,3 +1351,64 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 /* Un dossier incomplet reste visible mais s'efface : on ne le cache pas, on ne
    le met pas non plus en avant. */
 .slot__notReady { opacity: 0.62; }
+
+/* ------------------------------------------------------------------
+   La marque de l'agence.
+
+   Les couleurs de la barre latérale sont posées en variables sur la racine
+   par le Shell, à partir de la couleur CHOISIE par l'agence. Le texte, les
+   séparateurs et l'état actif en sont dérivés : une agence choisit une
+   couleur, pas un système de couleurs, et ne doit pas se retrouver avec du
+   texte noir sur un bleu marine.
+
+   Tant qu'aucune couleur n'est choisie, les variables valent le thème du
+   produit et rien ne change.
+   ------------------------------------------------------------------ */
+.sidebar[data-marque='oui'] {
+  background: var(--marque-sidebar);
+  border-inline-end-color: var(--marque-sidebar-line);
+}
+.sidebar[data-marque='oui'] .sidebar__brand .t-medium,
+.sidebar[data-marque='oui'] .navitem,
+.sidebar[data-marque='oui'] .sidebar__foot .t-small { color: var(--marque-sidebar-text); }
+.sidebar[data-marque='oui'] .sidebar__group-label,
+.sidebar[data-marque='oui'] .navitem__icon,
+.sidebar[data-marque='oui'] .navitem__count,
+.sidebar[data-marque='oui'] .sidebar__brand .t-caption,
+.sidebar[data-marque='oui'] .sidebar__foot .t-caption { color: var(--marque-sidebar-muted); }
+.sidebar[data-marque='oui'] .navitem:hover { background: var(--marque-sidebar-active); }
+.sidebar[data-marque='oui'] .navitem--active {
+  background: var(--marque-sidebar-active);
+  color: var(--marque-sidebar-text);
+}
+.sidebar[data-marque='oui'] .navitem--active .navitem__icon,
+.sidebar[data-marque='oui'] .navitem--active .navitem__count { color: var(--marque-sidebar-text); }
+.sidebar[data-marque='oui'] .navitem__count { background: var(--marque-sidebar-active); }
+.sidebar[data-marque='oui'] .sidebar__foot { border-top-color: var(--marque-sidebar-line); }
+
+/* Le logo remplace le carré d'initiales dès qu'il existe. */
+.sidebar__logo {
+  height: 30px; max-width: 132px; width: auto;
+  object-fit: contain; flex: 0 0 auto; border-radius: 6px;
+}
+
+/* L'aperçu de la marque dans les réglages : on voit ce qu'on choisit. */
+.brand__preview {
+  display: flex; width: 100%; max-width: 420px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-card);
+  overflow: hidden; min-height: 190px;
+}
+.brand__previewSide {
+  width: 148px; flex: none; padding: var(--sp-3);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.brand__previewMark {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+}
+.brand__previewRow { height: 22px; border-radius: 6px; padding: 0 8px; display: flex; align-items: center; font-size: 11px; }
+.brand__previewBody { flex: 1; padding: var(--sp-3); background: var(--bg-app, var(--bg-subtle)); }
+.brand__swatch {
+  width: 40px; height: 32px; padding: 0; border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-field); cursor: pointer; background: none;
+}

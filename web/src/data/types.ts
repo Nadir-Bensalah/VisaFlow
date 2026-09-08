@@ -140,6 +140,20 @@ export interface Agency {
   /** Fin de l'essai. Passe ce jour, l'agence doit choisir une formule. */
   trialEndsAt?: string
   createdAt: string
+  /* ---- La marque de l'agence ---- */
+  /** Le titre affiché, quand il diffère de la raison sociale. */
+  displayName?: string
+  /** Chemin du logo dans le seau public « marques ». */
+  logoPath?: string
+  /** URL publique du logo, dérivée du chemin au chargement. */
+  logoUrl?: string
+  /** Couleur de la barre latérale. Le contraste du texte est CALCULÉ, pas demandé. */
+  sidebarColor?: string
+  /** Couleur d'accent, celle qui signale l'action. */
+  accentColor?: string
+  /** Devises acceptées à l'encaissement. `currency` reste la devise de référence. */
+  currencies?: string[]
+
   /** Etapes d'installation deja faites, pour l'ecran du premier jour. */
   setupDone: string[]
   setupHidden?: boolean
@@ -938,6 +952,34 @@ export interface SchengenStay {
   note?: string
 }
 
+export type ProviderKind =
+  | 'clictopay' | 'paymee' | 'konnect' | 'flouci'   // Tunisie
+  | 'sadad' | 'moamalat'                            // Libye
+  | 'stripe' | 'adyen' | 'paypal'                   // hors zone
+  | 'virement' | 'cheque' | 'especes' | 'autre'
+
+/**
+ * Un moyen d'encaissement de l'agence, avec SON compte chez SON prestataire.
+ * VisaFlow fabrique le lien et enregistre la réponse : l'argent va de la banque
+ * à l'agence sans jamais passer par la plateforme. Encaisser pour autrui
+ * supposerait un agrément BCT, et les fonds de Paymee ont été gelés par la CTAF
+ * en février 2023 pour exactement cela.
+ */
+export interface PaymentProvider {
+  id: string
+  agencyId: string
+  kind: ProviderKind
+  label: string
+  currencies: string[]
+  /** L'identifiant PUBLIC du commerçant. Jamais un secret. */
+  merchantRef?: string
+  /** Le NOM du secret dans le coffre, jamais sa valeur. */
+  secretName?: string
+  mode: 'test' | 'live'
+  active: boolean
+  note?: string
+}
+
 /** Etat complet du magasin, un seul objet serialisable. */
 export interface Database {
   version: number
@@ -973,4 +1015,6 @@ export interface Database {
   tce: TceTitle[]
   /** Les séjours, pour le compteur 90 jours sur 180. */
   stays: SchengenStay[]
+  /** Les moyens d'encaissement de l'agence, avec SES comptes. */
+  providers: PaymentProvider[]
 }

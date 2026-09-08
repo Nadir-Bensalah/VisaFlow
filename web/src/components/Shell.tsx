@@ -7,6 +7,7 @@ import type { Locale } from '@/data/types'
 import { Icon, type IconName } from './Icon'
 import { Avatar, IconButton, Select } from './ui'
 import { CommandPalette } from './CommandPalette'
+import { brandTheme, themeVariables } from '@/lib/marque'
 import { NotificationBell } from './NotificationBell'
 import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
@@ -46,6 +47,14 @@ export function Shell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const location = useLocation()
+
+  /* La marque de l'agence. Elle choisit une couleur ; le texte, les
+     séparateurs et l'état actif se calculent, sinon un bleu marine laisserait
+     du texte noir illisible. Tant qu'aucune couleur n'est choisie, les
+     variables valent le thème du produit et rien ne bouge. */
+  const marque = !!(db.agency.sidebarColor || db.agency.accentColor)
+  const theme = brandTheme(db.agency.sidebarColor, db.agency.accentColor)
+  const themeVars = marque ? themeVariables(theme) : {}
 
   const openCases = v.cases.filter((c) => c.status === 'ouvert')
   // Le meme nombre que l'ecran Pieces : des pieces, pas des dossiers.
@@ -133,11 +142,25 @@ export function Shell() {
         </div>
       )}
 
-      <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`} aria-label={db.agency.name}>
+      <aside
+        className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`}
+        aria-label={db.agency.name}
+        data-marque={marque ? 'oui' : undefined}
+        style={themeVars as React.CSSProperties}
+      >
         <div className="sidebar__brand">
-          <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
+          {/* Le logo remplace le carré d'initiales dès qu'il existe. */}
+          {db.agency.logoUrl ? (
+            <img className="sidebar__logo" src={db.agency.logoUrl} alt={db.agency.displayName ?? db.agency.name} />
+          ) : (
+            <span className="sidebar__mark" style={{ background: theme.accent, color: theme.accentText }}>
+              {db.agency.mark}
+            </span>
+          )}
           <span className="col" style={{ minWidth: 0 }}>
-            <span className="t-title t-truncate" style={{ fontSize: 'var(--size-control)' }}>{db.agency.name}</span>
+            <span className="t-title t-truncate t-medium" style={{ fontSize: 'var(--size-control)' }}>
+              {db.agency.displayName ?? db.agency.name}
+            </span>
             <span className="t-caption t-tertiary t-truncate">{db.agency.slug}.visaflow.app</span>
           </span>
         </div>
