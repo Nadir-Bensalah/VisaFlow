@@ -1028,38 +1028,122 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 /* L'espace super-admin a sa propre chrome, plus dense et plus sombre que
    l'espace agence : on n'y est pas dans une agence, on est au-dessus. */
 
-.admin { min-height: 100vh; background: var(--bg-sunken, #0f1115); color: #e7e9ee; }
-.admin__wrap { max-width: 1100px; margin: 0 auto; padding: 0 var(--sp-5); }
-.admin__bar { background: #16181f; border-bottom: 1px solid rgba(255,255,255,0.08); padding: var(--sp-4) 0; margin-bottom: var(--sp-6); position: sticky; top: 0; z-index: 10; }
-.admin__mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+/* ------------------------------------------------------------------ */
+/* La console plateforme                                                */
+/* ------------------------------------------------------------------ */
+/*
+   Elle était dessinée en sombre, avec des couleurs écrites en dur, à une époque
+   où le jeton de fond valait une couleur foncée. Ce jeton est devenu clair, et
+   la console s'est retrouvée avec des cartes noires posées sur un fond gris et
+   des libellés gris foncé sur noir, illisibles.
+
+   Elle parle maintenant la même langue que le reste du produit : fond clair,
+   cartes blanches, mêmes rayons, mêmes contrastes. Une seule chose reste
+   sombre, et c'est délibéré : la barre du haut. C'est le repère qui dit qu'on
+   est dans la console de la plateforme et pas dans l'espace d'une agence. Deux
+   écrans qui se ressemblent trop, c'est un jour où l'on croit corriger une
+   agence alors qu'on touche à toutes.
+*/
+.admin {
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+.admin__wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--sp-6); }
+
+.admin__bar {
+  background: var(--bg-dark);
+  color: var(--text-on-dark);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--sp-4) 0;
+  margin-bottom: var(--sp-8);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.admin__bar .t-tertiary,
+.admin__bar .t-caption { color: rgba(245, 245, 247, 0.62); }
+.admin__bar .btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-on-dark);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.admin__bar .btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+.admin__mark {
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: var(--radius-badge);
+  background: var(--blue); color: var(--text-white);
+  font-weight: 700; font-size: 13px; flex: 0 0 auto;
+}
 .admin__mark--lg { width: 52px; height: 52px; border-radius: 14px; font-size: 18px; margin-bottom: var(--sp-4); }
-.admin .btn { background: rgba(255,255,255,0.06); color: #e7e9ee; border-color: rgba(255,255,255,0.12); }
-.admin .btn:hover { background: rgba(255,255,255,0.12); }
 
-.admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); }
-.admin__metric { background: #16181f; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
-.admin__metric--accent { border-color: color-mix(in oklab, var(--accent) 55%, transparent); background: color-mix(in oklab, var(--accent) 16%, #16181f); }
-.admin__metric--accent .admin__metric-value { color: #fff; }
-.admin__metric-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.admin__metric .t-tertiary { color: #9aa0ab; }
+/* Les chiffres de tête. Le nombre porte le regard, le libellé le nomme :
+   l'inverse fait une page qu'on lit au lieu d'une page qu'on consulte. */
+.admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--sp-4); }
+.admin__metric {
+  background: var(--bg-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card-sm);
+  padding: var(--sp-5);
+  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.admin__metric > .t-caption:first-child { color: var(--text-tertiary); }
+.admin__metric-value {
+  font-size: 30px; font-weight: 600; letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+  margin: 2px 0 1px;
+}
+.admin__metric .t-tertiary { color: var(--text-tertiary); }
+/* Le chiffre qui compte pour la plateforme : la couleur suffit, pas besoin
+   d'un fond qui hurle à côté de cinq voisins identiques. */
+.admin__metric--accent { border-color: color-mix(in oklab, var(--blue) 32%, var(--hairline)); }
+.admin__metric--accent .admin__metric-value { color: var(--blue); }
 
-.admin .card { background: #16181f; border-color: rgba(255,255,255,0.07); color: #e7e9ee; box-shadow: none; }
-.admin .card__head { border-color: rgba(255,255,255,0.07); }
+.admin .card {
+  background: var(--bg-white);
+  border-color: var(--hairline);
+  color: var(--text-primary);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.admin .card__head { border-color: var(--hairline); }
+
 .admin__scroll { overflow-x: auto; }
-.admin__table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.admin__table th { text-align: left; padding: var(--sp-2) var(--sp-4); color: #9aa0ab; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
-.admin__table td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.admin__table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.admin__table th {
+  text-align: left; padding: var(--sp-3) var(--sp-4);
+  color: var(--text-tertiary); font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--hairline); white-space: nowrap;
+}
+.admin__table td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+.admin__table tbody tr:last-child td { border-bottom: 0; }
+.admin__table tbody tr:hover td { background: var(--bg-sunken); }
 .admin__table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .admin__row--off { opacity: 0.5; }
 
-.admin--gate { display: grid; place-items: center; }
-.admin__signin { background: #16181f; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: var(--sp-8); width: min(400px, 92vw); display: flex; flex-direction: column; align-items: center; text-align: center; }
+/* La porte d'entrée. Elle reste sobre : c'est l'accès le plus puissant du
+   produit, ce n'est pas le moment de faire joli. */
+.admin--gate { display: grid; place-items: center; background: var(--bg-page); }
+.admin__signin {
+  background: var(--bg-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: var(--sp-8);
+  width: min(400px, 92vw);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
 .admin__signin h1 { font-size: 22px; margin-bottom: var(--sp-2); }
-.admin__signin .field__label { color: #9aa0ab; text-align: left; }
-.admin__signin .input { background: #0f1115; border-color: rgba(255,255,255,0.12); color: #e7e9ee; }
+.admin__signin .field__label { color: var(--text-secondary); text-align: left; }
 
-/* La bannière de synchro : un chargement qui échoue ou une écriture qui rate
-   ne doit jamais passer inaperçu. Fixée en haut, elle propose de réessayer. */
 .syncbar {
   position: sticky; top: 0; z-index: 60;
   display: flex; align-items: center; gap: var(--sp-3);
