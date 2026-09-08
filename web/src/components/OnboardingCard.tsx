@@ -29,7 +29,7 @@ import type { OnboardingState, OnboardingStepKey } from '@/data/support'
 const META: Record<OnboardingStepKey, { label: TKey; hint: TKey; icon: IconName; to: string }> = {
   profil:          { label: 'sup.stepProfil',         hint: 'sup.stepProfilHint',         icon: 'building',  to: '/reglages?section=agence' },
   bureau:          { label: 'sup.stepBureau',          hint: 'sup.stepBureauHint',         icon: 'pin',       to: '/reglages?section=bureaux' },
-  equipe:          { label: 'sup.stepEquipe',          hint: 'sup.stepEquipeHint',         icon: 'clients',   to: '/reglages?section=equipe' },
+  equipe:          { label: 'sup.stepEquipe',          hint: 'sup.stepEquipeHint',         icon: 'clients',   to: '/equipe' },
   services:        { label: 'sup.stepServices',        hint: 'sup.stepServicesHint',       icon: 'documents', to: '/reglages?section=visas' },
   prix:            { label: 'sup.stepPrix',            hint: 'sup.stepPrixHint',           icon: 'payments',  to: '/reglages?section=visas' },
   marque:          { label: 'sup.stepMarque',          hint: 'sup.stepMarqueHint',         icon: 'sparkle',   to: '/reglages?section=marque' },

@@ -7,6 +7,7 @@ import { Card, Empty, Pill, useToast } from '@/components/ui'
 import { Icon, type IconName } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
 import { OnboardingCard } from '@/components/OnboardingCard'
+import { WorklistCard } from '@/components/WorklistCard'
 import { Ago, Countdown } from '@/components/bits'
 import { blockingDocs, clientName, daysSince, daysUntil, urgency } from '@/lib/derive'
 
@@ -121,6 +122,11 @@ export function Today() {
           </div>
         ))}
       </div>
+
+      {/* Ce qui attend mon geste, calculé par le serveur et adapté au poste :
+          « mes dossiers » pour un conseiller, « ce qui attend mon geste » pour
+          un vérificateur ou un caissier. Absent sans backend. */}
+      <WorklistCard />
 
       {nothing ? (
         <Card>

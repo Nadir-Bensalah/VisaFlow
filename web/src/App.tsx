@@ -35,7 +35,6 @@ import { Deliveries } from './pages/Deliveries'
 import { Warehouse } from './pages/Warehouse'
 import { Directory } from './pages/Directory'
 import { Support } from './pages/Support'
-import { Aujourdhui } from './pages/Aujourdhui'
 import { Traductions } from './pages/Traductions'
 import { Prestations } from './pages/Prestations'
 import { Pilotage } from './pages/Pilotage'
@@ -107,12 +106,11 @@ export default function App() {
         <Route element={<RequireSession><Shell /></RequireSession>}>
           <Route path="/" element={<Today />} />
           <Route path="/tableau-de-bord" element={<Dashboard />} />
-          {/* Le nouvel écran « À traiter » est branché sur le serveur, l'ancien
-              sur l'instantané chargé. Ils cohabitent le temps de comparer leurs
-              chiffres sur une vraie agence : deux compteurs qui se contredisent
-              sont pires qu'un seul mauvais, et c'est à Nadir de trancher lequel
-              devient la page d'accueil. */}
-          <Route path="/aujourdhui" element={<Aujourdhui />} />
+          {/* Les deux écrans d'accueil n'en font plus qu'un. Celui-ci portait
+              les gestes du matin, il a reçu la file de travail calculée par le
+              serveur. L'ancienne adresse redirige : un lien déjà partagé ne
+              doit pas tomber dans le vide. */}
+          <Route path="/aujourdhui" element={<Navigate to="/" replace />} />
           <Route path="/pilotage" element={<Require capability="reports:view"><Pilotage /></Require>} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/demandes" element={<Inbox />} />

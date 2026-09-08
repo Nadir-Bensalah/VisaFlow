@@ -119,7 +119,6 @@ const ONGLETS: { racine: string; membres: Onglet[] }[] = [
     racine: '/',
     membres: [
       { to: '/', labelKey: 'nav.today' },
-      { to: '/aujourdhui', labelKey: 'pil.todayTitle' },
       { to: '/taches', labelKey: 'nav.myTasks', compteur: 'taches' },
     ],
   },

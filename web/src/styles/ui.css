@@ -1515,3 +1515,40 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 }
 .sectiontab--active .sectiontab__count { background: var(--blue); color: #fff; }
 @media (max-width: 640px) { .sectiontabs { padding: 0 var(--sp-4); } }
+
+/* Ce qui attend mon geste. Une ligne par geste, le nombre d'abord :
+   c'est le chiffre qu'on lit, le libellé ne fait que le nommer. */
+.worklist { display: flex; flex-direction: column; }
+.worklist__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 11px var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+.worklist__item:last-child { border-bottom: 0; }
+.worklist__item:hover { background: var(--bg-soft); }
+.worklist__icon { display: inline-flex; color: var(--text-tertiary); flex: none; }
+.worklist__compte {
+  min-width: 30px;
+  font-size: 19px;
+  font-weight: var(--w-medium);
+  text-align: end;
+  flex: none;
+}
+.worklist__item--red .worklist__compte { color: var(--red); }
+.worklist__item--orange .worklist__compte { color: var(--orange); }
+.worklist__item--blue .worklist__compte { color: var(--blue); }
+.worklist__item--green .worklist__compte { color: var(--green); }
+.worklist__item--gray .worklist__compte { color: var(--text-secondary); }
+.worklist__label { min-width: 0; }
+.worklist__style {
+  font-size: var(--size-caption);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+}
+.worklist__style--file { background: var(--blue-soft, var(--bg-soft)); color: var(--blue); }
