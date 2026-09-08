@@ -22,6 +22,9 @@ import {
 import type { DemurrageTariff, ShipmentLeg } from './src/data/types'
 
 import { schengenState, planStay, type Stay } from './src/lib/schengen'
+import {
+  cashCheck, promiseCheck, agencyMay, complianceGaps, onttDeadlines,
+} from './src/lib/conformite'
 
 let passed = 0
 const failures: string[] = []
@@ -243,6 +246,63 @@ ok(dedans.inside, 'un séjour sans date de sortie signifie que le client est ded
 ok(dedans.used === 8, 'huit jours déjà passés sur place')
 ok(dedans.mustLeaveBy === '2026-11-29',
   'la date limite de sortie est calculée : au-delà, séjour irrégulier')
+
+console.log('--- 8 · La conformité, celle qui coûte de l\'argent ---')
+// Article 83 ter : 20 % du montant, PLANCHER 2 000 DT. L'étude s'illustre de
+// travers en annonçant 1 200 DT sur 6 000 : c'est sous le plancher.
+const sous = cashCheck(0, 1000)
+ok(sous.applies && !sous.over, 'mille dinars en liquide ne déclenchent rien')
+ok(sous.applies && !sous.over && sous.headroom === 4000, 'il reste quatre mille dinars de marge')
+
+const gros = cashCheck(0, 6000)
+ok(gros.applies && gros.over, 'six mille dinars en liquide franchissent le seuil')
+ok(gros.applies && gros.over && gros.penalty === 2000,
+  'l\'amende est de 2 000 DT, le plancher, et non 1 200 comme l\'étude l\'illustre')
+ok(gros.applies && gros.over && gros.cashMax === 4999 && gros.transferMin === 1001,
+  'on propose 4 999 en liquide et 1 001 par virement')
+
+const tresGros = cashCheck(0, 15000)
+ok(tresGros.applies && tresGros.over && tresGros.penalty === 3000,
+  'au-delà de dix mille dinars, c\'est le pourcentage qui l\'emporte sur le plancher')
+
+// Le seuil s'apprécie sur l'opération : trois versements comptent ensemble.
+const cumul = cashCheck(4000, 2000)
+ok(cumul.applies && cumul.over,
+  'quatre mille déjà encaissés plus deux mille franchissent le seuil')
+ok(cumul.applies && cumul.over && cumul.cashMax === 999,
+  'il ne reste que 999 dinars encaissables en liquide')
+
+ok(cashCheck(0, 9000, 'EUR').applies === false,
+  'un encaissement en devise ne relève pas de cette règle')
+
+ok(!promiseCheck('Votre visa en 48 heures, accord garanti !').clean,
+  'promettre un visa en 48 heures est une publicité trompeuse')
+ok(promiseCheck('Votre visa en 48 heures').reasons.includes('delai_promis'),
+  'le délai promis est nommé')
+ok(promiseCheck('Accord garanti').reasons.includes('resultat_garanti'),
+  'le résultat garanti est nommé')
+ok(promiseCheck('Nous transmettons votre dossier au consulat dès réception des pièces.').clean,
+  'une phrase honnête passe')
+ok(promiseCheck('Le délai de traitement annoncé par le consulat est de 15 jours.').clean,
+  'citer le délai DU CONSULAT n\'est pas promettre un résultat')
+
+ok(agencyMay('A', 'omra'), 'une agence A peut faire de l\'Omra')
+ok(!agencyMay('B', 'omra'), 'une agence B ne peut pas faire d\'Omra')
+ok(!agencyMay('B', 'circuit'), 'ni organiser de circuit')
+ok(agencyMay('B', 'visa'), 'mais elle peut traiter des visas')
+ok(agencyMay(undefined, 'omra'),
+  'sans catégorie déclarée on ne bloque rien : l\'écran le dit, il n\'interdit pas')
+
+ok(complianceGaps({}).includes('politique_remboursement'),
+  'la politique de remboursement manque tant que l\'agence ne l\'a pas déclarée')
+ok(complianceGaps({
+  taxId: '1', rcNumber: '2', rcCourt: 'Tunis', legalForm: 'SARL', capital: 10000,
+  licenseCategory: 'A', licenseNumber: 'L1', inpdpRef: 'I1', refundPolicy: { fr: 'x' },
+}).length === 0, 'une agence complète n\'a plus de manque')
+
+const ontt = onttDeadlines({ onttChangeAt: '2020-01-01', onttFinancialsAt: '2020-01-01' })
+ok(ontt.changeDue === '2020-01-31', 'le changement se déclare sous trente jours')
+ok(ontt.changeLate && ontt.financialsLate, 'et un retard de six ans est signalé comme tel')
 
 console.log('')
 if (failures.length > 0) {

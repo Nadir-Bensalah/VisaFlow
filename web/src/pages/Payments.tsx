@@ -5,10 +5,13 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Segmented, useToast } from '@/components/ui'
 import { PageHead } from '@/components/bits'
+import { CashGuard } from '@/components/CashGuard'
+import { cashCheck } from '@/lib/conformite'
 import { Pill } from '@/components/ui'
 import { clientName, kpis } from '@/lib/derive'
 
 export function Payments() {
+  const [cashGuard, setCashGuard] = useState<import('@/data/types').Payment | null>(null)
   const { db, actions } = useStore()
   const v = useVisible()
   const { t, tt, formatMoney, formatDate } = useI18n()
@@ -82,7 +85,20 @@ export function Payments() {
                       <td className="num t-medium">{formatMoney(p.amount)}</td>
                       <td style={{ textAlign: 'end' }}>
                         {p.state !== 'regle' && (
-                          <Button size="sm" variant="primary" onClick={(e) => { e.stopPropagation(); actions.markPaymentPaid(p.id, 'especes'); toast(t('action.markPaid')) }}>
+                          <Button size="sm" variant="primary" onClick={(e) => {
+                            e.stopPropagation()
+                            // Au-delà de 5 000 DT en liquide sur un même dossier,
+                            // l'amende est de 2 000 DT minimum. On le dit avant
+                            // le geste, pas au contrôle fiscal.
+                            const deja = v.payments
+                              .filter((x) => x.id !== p.id && x.caseId === p.caseId
+                                && x.method === 'especes' && x.state !== 'rembourse')
+                              .reduce((s, x) => s + x.amount, 0)
+                            const c = cashCheck(deja, p.amount, db.agency.currency)
+                            if (c.applies && c.over) { setCashGuard(p); return }
+                            actions.markPaymentPaid(p.id, 'especes')
+                            toast(t('action.markPaid'))
+                          }}>
                             {t('action.markPaid')}
                           </Button>
                         )}
@@ -95,6 +111,7 @@ export function Payments() {
           </div>
         )}
       </Card>
+      {cashGuard && <CashGuard payment={cashGuard} onClose={() => setCashGuard(null)} />}
     </>
   )
 }

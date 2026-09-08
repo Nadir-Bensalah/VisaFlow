@@ -506,7 +506,9 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .modal--wide { max-width: 760px; }
 .modal__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--hairline); }
 .modal__body { padding: var(--sp-6); max-height: 70vh; overflow-y: auto; }
-.modal__foot { display: flex; justify-content: flex-end; gap: var(--sp-3); padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--hairline); background: var(--bg-elevated); }
+/* Le pied passe à la ligne : à trois boutons libellés en français, la rangée
+   débordait et le premier bouton se faisait rogner hors de la modale. */
+.modal__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-3); padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--hairline); background: var(--bg-elevated); }
 
 .palette { width: 100%; max-width: 640px; background: var(--bg-white); border-radius: var(--radius-card); box-shadow: var(--shadow-modal); overflow: hidden; animation: rise var(--dur) var(--ease); }
 .palette__input { width: 100%; border: 0; border-bottom: 1px solid var(--hairline); padding: var(--sp-5) var(--sp-6); font-size: var(--size-lead); outline: none; font-family: inherit; }

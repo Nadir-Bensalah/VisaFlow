@@ -136,6 +136,38 @@ export interface Agency {
   /** Etapes d'installation deja faites, pour l'ecran du premier jour. */
   setupDone: string[]
   setupHidden?: boolean
+
+  /* ---- Ce que le droit tunisien impose de déclarer ---- */
+  /** Matricule fiscal, mention obligatoire de toute facture. */
+  taxId?: string
+  /** Registre de commerce et tribunal, article 25 de la loi 91-64. */
+  rcNumber?: string
+  rcCourt?: string
+  legalForm?: string
+  capital?: number
+  /**
+   * A ou B. Une agence B ne peut ni organiser de circuit, ni faire de la
+   * réception, NI DE L'OMRA. La catégorie C n'existe pas.
+   */
+  licenseCategory?: 'A' | 'B'
+  licenseNumber?: string
+  /**
+   * Adhésion EFFECTIVE au réseau TTN. Tant qu'elle est fausse, la facture
+   * papier reste régulière : l'obligation du 1er janvier 2026 ne vise que les
+   * adhérents, pas ceux qui ont seulement déposé leur demande.
+   */
+  ttnMember?: boolean
+  ttnRef?: string
+  /**
+   * Politique de remboursement en cas de refus de visa, DÉCLARÉE PAR L'AGENCE.
+   * Aucune valeur par défaut : aucun texte tunisien ne la fixe, et en inventer
+   * une la rendrait opposable à l'agence à sa place.
+   */
+  refundPolicy?: I18nText
+  /** Dernier changement de siège ou de représentant : à déclarer sous 30 jours. */
+  onttChangeAt?: string
+  /** Dernier dépôt d'états financiers : à refaire sous 3 mois. */
+  onttFinancialsAt?: string
 }
 
 export interface User {
