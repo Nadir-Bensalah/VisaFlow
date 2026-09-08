@@ -37,7 +37,7 @@ class Session(
     var agencySlug by mutableStateOf(prefs.getString(KEY_AGENCY, "tca") ?: "tca")
         private set
 
-    var language by mutableStateOf(prefs.getString(KEY_LANGUAGE, "fr") ?: "fr")
+    var language by mutableStateOf(prefs.getString(KEY_LANGUAGE, null) ?: Companion.deviceDefaultLanguage())
         private set
 
     var notificationsEnabled by mutableStateOf(prefs.getBoolean(KEY_NOTIFICATIONS, true))
@@ -149,6 +149,20 @@ class Session(
     }
 
     companion object {
+        /**
+         * Au tout premier lancement, aucune langue n'est encore choisie. On suit
+         * alors la langue du téléphone, pas un français par défaut : un client
+         * libyen ouvre l'app en arabe, pas dans une langue qui le fait fuir. Repli
+         * sur le français si la langue du téléphone n'est pas prise en charge.
+         */
+        fun deviceDefaultLanguage(): String =
+            when (java.util.Locale.getDefault().language) {
+                "ar" -> "ar"
+                "en" -> "en"
+                "zh" -> "zh"
+                else -> "fr"
+            }
+
         private const val KEY_AGENCY = "device.agency"
         private const val KEY_LANGUAGE = "app.language"
         private const val KEY_NOTIFICATIONS = "app.notifications"

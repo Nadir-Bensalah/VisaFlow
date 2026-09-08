@@ -49,6 +49,9 @@ import app.capmedia.visaflow.feature.home.HomeScreen
 import app.capmedia.visaflow.feature.messages.MessagesScreen
 import app.capmedia.visaflow.feature.settings.SettingsScreen
 import app.capmedia.visaflow.feature.shipment.ShipmentDetailScreen
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,11 +95,36 @@ fun VisaFlowApp(demoSignedIn: Boolean = false) {
     }
     val session: Session = viewModel(factory = Session.factory(context, api, demoSignedIn))
 
-    MaterialTheme(colorScheme = Scheme) {
-        when (val state = session.state) {
-            is Session.State.Anonyme -> Surface { PhoneScreen(session) }
-            is Session.State.AttenteCode -> Surface { CodeScreen(session, state.phone) }
-            is Session.State.Connecte -> SignedIn(session)
+    // La langue choisie doit vraiment repeindre l'app : les textes (stringResource
+    // lit les ressources du contexte) ET le sens de lecture. Sans ça, choisir
+    // l'arabe ne changeait rien, l'app restait en français aligné à gauche.
+    val locale = remember(session.language) {
+        when (session.language) {
+            "ar" -> java.util.Locale("ar")
+            "en" -> java.util.Locale.ENGLISH
+            "zh" -> java.util.Locale.SIMPLIFIED_CHINESE
+            else -> java.util.Locale.FRENCH
+        }
+    }
+    val localized = remember(locale) {
+        val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        config.setLayoutDirection(locale)
+        context.createConfigurationContext(config)
+    }
+    val direction = if (session.language == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+
+    CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalContext provides localized,
+        androidx.compose.ui.platform.LocalConfiguration provides localized.resources.configuration,
+        LocalLayoutDirection provides direction,
+    ) {
+        MaterialTheme(colorScheme = Scheme) {
+            when (val state = session.state) {
+                is Session.State.Anonyme -> Surface { PhoneScreen(session) }
+                is Session.State.AttenteCode -> Surface { CodeScreen(session, state.phone) }
+                is Session.State.Connecte -> SignedIn(session)
+            }
         }
     }
 }
