@@ -728,6 +728,13 @@ export const fr = {
     trackShipment: 'Suivre ma cargaison',
   },
   login: {
+    forgot: 'Mot de passe oublié ?',
+    forgotTitle: 'Retrouver son accès',
+    forgotHint: 'Donnez l’adresse de votre compte. Nous vous envoyons un lien pour choisir un nouveau mot de passe.',
+    forgotSend: 'Envoyer le lien',
+    forgotSent: 'C’est envoyé. Ouvrez votre boîte, le lien vaut une heure.',
+    forgotBack: 'Revenir à la connexion',
+    forgotOffline: 'Cette démonstration n’envoie pas de courriel.',
     title: 'Connexion',
     subtitle: 'Choisissez un compte de démonstration pour entrer.',
     email: 'Adresse e-mail',

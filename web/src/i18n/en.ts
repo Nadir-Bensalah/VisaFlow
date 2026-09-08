@@ -526,6 +526,13 @@ export const en: Dict = {
     yourShipment: 'Your goods', trackShipment: 'Track my shipment',
   },
   login: {
+    forgot: 'Forgotten password?',
+    forgotTitle: 'Recover your access',
+    forgotHint: 'Enter your account address. We send you a link to choose a new password.',
+    forgotSend: 'Send the link',
+    forgotSent: 'Sent. Check your inbox, the link lasts one hour.',
+    forgotBack: 'Back to sign in',
+    forgotOffline: 'This demonstration does not send email.',
     subtitleReal: 'Sign in with your agency account.', wrong: 'Wrong credentials.', signingIn: 'Signing in…',
     title: 'Sign in', subtitle: 'Pick a demo account to get in.', email: 'Email address', password: 'Password',
     demo: 'Demo accounts', demoHint: 'No real data. Everything stays in your browser.',

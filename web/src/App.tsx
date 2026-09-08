@@ -68,7 +68,10 @@ function RequireSession({ children }: { children: ReactNode }) {
   // à lui avant de voir quoi que ce soit. La vue support (lecture seule) n'est
   // pas concernée : l'admin regarde avec son propre compte.
   const me = db.users.find((u) => u.id === currentUserId)
-  if (HAS_BACKEND && !readOnly && me?.mustResetPassword) return <ChangePassword />
+  // Deux chemins mènent au même écran : le mot de passe provisoire d'une
+  // invitation, et le retour d'un lien « mot de passe oublié ». Dans les deux
+  // cas la session existe, et dans les deux cas elle ne doit servir qu'à ça.
+  if (HAS_BACKEND && !readOnly && (auth.recovering || me?.mustResetPassword)) return <ChangePassword />
   return <>{children}</>
 }
 

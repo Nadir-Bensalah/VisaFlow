@@ -526,6 +526,13 @@ export const zh: Dict = {
     yourShipment: '您的货物', trackShipment: '跟踪我的货物',
   },
   login: {
+    forgot: '忘记密码？',
+    forgotTitle: '找回访问权限',
+    forgotHint: '输入您的账号邮箱，我们会发送设置新密码的链接。',
+    forgotSend: '发送链接',
+    forgotSent: '已发送。请查收邮箱，链接一小时内有效。',
+    forgotBack: '返回登录',
+    forgotOffline: '此演示不发送邮件。',
     subtitleReal: '用您机构的账号登录。', wrong: '凭据不正确。', signingIn: '登录中…',
     title: '登录', subtitle: '选择一个演示账号进入。', email: '邮箱地址', password: '密码',
     demo: '演示账号', demoHint: '没有真实数据，一切都保存在你的浏览器里。',

@@ -19,6 +19,13 @@ interface AuthValue {
   adminChecked: boolean
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
+  /** Vrai quand on revient d'un lien « mot de passe oublié » : la session est
+      ouverte, mais elle ne sert qu'à en choisir un nouveau. */
+  recovering: boolean
+  /** Envoie le lien de réinitialisation. Rend un message d'erreur, ou null. */
+  sendRecovery: (email: string) => Promise<string | null>
+  /** Pose le nouveau mot de passe et referme la parenthèse de récupération. */
+  finishRecovery: () => void
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -31,6 +38,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // session, plutôt qu'un booléen à part, supprime la course où la console
   // montait avec un statut périmé de la session précédente.
   const [adminCheckedFor, setAdminCheckedFor] = useState<string | null>(null)
+  /* Le retour d'un lien « mot de passe oublié ». Supabase ouvre alors une vraie
+     session, ce qui est déroutant : sans ce drapeau, la personne se retrouverait
+     dans l'application sans avoir choisi de mot de passe, et le lien resterait
+     valable dans sa boîte. */
+  const [recovering, setRecovering] = useState(false)
 
   useEffect(() => {
     if (!supabase) { setReady(true); return }
@@ -47,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next)
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      if (event === 'SIGNED_OUT') setRecovering(false)
       if (event === 'SIGNED_IN' && next) void sessionTouch()
     })
     return () => { alive = false; sub.subscription.unsubscribe() }
@@ -82,8 +96,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signOut() {
       await supabase?.auth.signOut()
+      setRecovering(false)
     },
-  }), [ready, session, isPlatformAdmin, adminCheckedFor])
+    recovering,
+    async sendRecovery(email) {
+      if (!supabase) return 'Aucun backend configuré.'
+      /* Le lien doit revenir sur CETTE page, pas sur une adresse devinée : le
+         site vit sous un sous-chemin sur les pages GitHub, et une adresse fausse
+         mène à une page blanche avec un jeton valable dans l'URL. */
+      const retour = `${window.location.origin}${import.meta.env.BASE_URL ?? '/'}connexion`
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: retour.replace(/\/{2,}/g, '/').replace(':/', '://'),
+      })
+      return error ? error.message : null
+    },
+    finishRecovery() { setRecovering(false) },
+  }), [ready, session, isPlatformAdmin, adminCheckedFor, recovering])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

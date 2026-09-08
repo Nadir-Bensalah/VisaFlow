@@ -21,6 +21,11 @@ export function Login() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  /* L'écran de récupération vit ici plutôt que sur une adresse à part : une page
+     de plus, c'est une page à traduire, à protéger et à tenir à jour, pour un
+     formulaire d'un seul champ. */
+  const [oubli, setOubli] = useState(false)
+  const [envoye, setEnvoye] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -53,7 +58,35 @@ export function Login() {
           {real ? t('login.subtitleReal') : t('login.subtitle')}
         </p>
 
-        {real ? (
+        {real && oubli ? (
+          <form
+            className="col gap-4"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              setBusy(true); setError(null)
+              const err = await auth.sendRecovery(email)
+              setBusy(false)
+              if (err) setError(err); else setEnvoye(true)
+            }}
+          >
+            <p className="t-small t-secondary" style={{ margin: 0 }}>{t('login.forgotHint')}</p>
+            <Field label={t('login.email')} error={error ?? undefined}>
+              <Input type="email" autoComplete="username" value={email}
+                onChange={(e) => setEmail(e.target.value)} placeholder="vous@agence.tn" />
+            </Field>
+            {envoye ? (
+              <p className="t-small" style={{ color: 'var(--green)', margin: 0 }}>{t('login.forgotSent')}</p>
+            ) : (
+              <Button type="submit" variant="primary" block disabled={busy || !email}>
+                {busy ? t('login.signingIn') : t('login.forgotSend')}
+              </Button>
+            )}
+            <button type="button" className="linkish t-small"
+              onClick={() => { setOubli(false); setEnvoye(false); setError(null) }}>
+              {t('login.forgotBack')}
+            </button>
+          </form>
+        ) : real ? (
           <form className="col gap-4" onSubmit={signInReal}>
             <Field label={t('login.email')}>
               <Input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@agence.tn" />
@@ -64,6 +97,9 @@ export function Login() {
             <Button type="submit" variant="primary" block disabled={busy || !email || !password}>
               {busy ? t('login.signingIn') : t('action.signIn')}
             </Button>
+            <button type="button" className="linkish t-small" onClick={() => { setOubli(true); setError(null) }}>
+              {t('login.forgot')}
+            </button>
           </form>
         ) : (
           <>

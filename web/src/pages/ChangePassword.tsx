@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { rpc } from '@/data/remote'
 import { useStore } from '@/data/store'
+import { useAuth } from '@/data/auth'
 import { useI18n } from '@/i18n'
 import { Button, Card, Field, Input } from '@/components/ui'
 import { Illustration } from '@/components/Illustration'
@@ -16,6 +17,7 @@ import { Illustration } from '@/components/Illustration'
 export function ChangePassword() {
   const { t } = useI18n()
   const { retry } = useStore()
+  const auth = useAuth()
   const [p1, setP1] = useState('')
   const [p2, setP2] = useState('')
   const [busy, setBusy] = useState(false)
@@ -33,9 +35,12 @@ export function ChangePassword() {
     if (err) { setError(err.message); setBusy(false); return }
     try {
       await rpc('password_reset_done', {})
-    } catch (e2) {
-      setError(e2 instanceof Error ? e2.message : t('sync.ecriture')); setBusy(false); return
+    } catch {
+      /* Le drapeau n'existe que pour une invitation. Quelqu'un qui revient d'un
+         lien « mot de passe oublié » n'en a pas, et l'appel échoue sans que ce
+         soit un problème : son mot de passe est déjà changé. */
     }
+    auth.finishRecovery()
     // Le profil rechargé n'a plus le drapeau : la porte s'ouvre.
     retry()
   }
