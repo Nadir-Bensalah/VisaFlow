@@ -12,7 +12,7 @@ import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
   PassportCustody, RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
-  VisaCase, VisaType,
+  VisaCase, VisaType, DemurrageTariff,
 } from './types'
 
 /* Magasin local. Toute l'application passe par ici, jamais par le stockage
@@ -143,6 +143,11 @@ interface Actions {
   logAttempt: (input: { consulateId: string; centre: Consulate['centre']; result: AttemptResult; caseId?: string; slotAt?: string; note?: string }) => void
   saveConsulate: (consulate: Omit<Consulate, 'agencyId' | 'id'> & { id?: string }) => void
   removeConsulate: (consulateId: string) => void
+  /** Crée ou met à jour un barème de stationnement. */
+  saveTariff: (tariff: Omit<DemurrageTariff, 'id' | 'agencyId'> & { id?: string }) => void
+  /** Clôt un barème à aujourd'hui. On ne le supprime jamais : un compteur
+      passé doit rester calculable avec le tarif qui était en vigueur. */
+  closeTariff: (tariffId: string) => void
   /** Enregistre la decision avec un code ferme, et arme l'echeance de recours. */
   recordDecision: (caseId: string, status: 'accepte' | 'refuse' | 'annule', input?: { code?: RefusalCode; reason?: string }) => void
   /** Enregistre un passeport reçu en caution. */
@@ -1096,6 +1101,23 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         return { ...prev, consulates: prev.consulates.filter((c) => c.id !== consulateId) }
       })
 
+    const saveTariff: Actions['saveTariff'] = (tariff) =>
+      setDb((prev) => {
+        if (tariff.id) {
+          return { ...prev, tariffs: prev.tariffs.map((t) => (t.id === tariff.id ? { ...t, ...tariff, id: t.id } : t)) }
+        }
+        const created: DemurrageTariff = { ...tariff, id: rid('tar'), agencyId: prev.agency.id }
+        return { ...prev, tariffs: [...prev.tariffs, created] }
+      })
+
+    const closeTariff: Actions['closeTariff'] = (tariffId) =>
+      setDb((prev) => ({
+        ...prev,
+        // Fin de validité à aujourd'hui, jamais une suppression : les
+        // dépassements déjà courus ont été chiffrés avec ce barème.
+        tariffs: prev.tariffs.map((t) => (t.id === tariffId ? { ...t, validTo: nowIso().slice(0, 10) } : t)),
+      }))
+
     const recordDecision: Actions['recordDecision'] = (caseId, status, input) =>
       setDb((prev) => {
         const target = prev.cases.find((c) => c.id === caseId)
@@ -1234,7 +1256,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
       attachFile, detachFile, attachShipmentFile,
       joinQueue, leaveQueue, setQueuePriority, serveQueue, logAttempt, saveConsulate,
-      removeConsulate, recordDecision, receivePassport, releasePassport,
+      removeConsulate, saveTariff, closeTariff, recordDecision, receivePassport, releasePassport,
     }
     // db n'entre pas dans les dependances : toutes les mutations passent par
     // setDb(prev => ...) et lisent donc toujours l'etat le plus recent.

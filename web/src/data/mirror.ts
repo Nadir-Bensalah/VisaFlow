@@ -133,6 +133,14 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
     case 'removeConsulate':
       await patch('consulates', args[0], { active: false })
       return true
+    case 'saveTariff':
+      await upsert('demurrage_tariffs', args[0], ctx.agencyId)
+      ctx.reload()
+      return true
+    case 'closeTariff':
+      // On clôt la période de validité, on ne supprime pas la ligne.
+      await patch('demurrage_tariffs', args[0], { valid_to: new Date().toISOString().slice(0, 10) })
+      return true
     case 'saveVisaType':
       await upsert('visa_types', args[0], ctx.agencyId)
       ctx.reload()
