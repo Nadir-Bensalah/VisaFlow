@@ -47,7 +47,13 @@ export function Souscrire() {
 
   const envoyer = async () => {
     setError('')
-    if (!HAS_BACKEND) { setStep('fini'); return }
+    if (!HAS_BACKEND) {
+      // Sans backend branché, la demande n'irait NULLE PART. Afficher « c'est
+      // envoyé » ferait remplir le formulaire dans le vide, et l'agence
+      // attendrait un rappel qui ne viendrait jamais. On le dit.
+      setError(t('sub.demoOnly'))
+      return
+    }
     setBusy(true)
     try {
       await rpc('request_agency_signup', {

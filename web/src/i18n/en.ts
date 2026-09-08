@@ -2,6 +2,7 @@ import type { Dict } from './fr'
 
 export const en: Dict = {
   sub: {
+    demoOnly: 'This is a demonstration: your request was not sent. Write to contact@capmedia.tn and we will call you back.',
     title: 'Subscribe to VisaFlow',
     subtitle: 'Two minutes. We call you back with a priced proposal.',
     agencyName: 'Agency name',

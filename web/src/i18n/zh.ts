@@ -2,6 +2,7 @@ import type { Dict } from './fr'
 
 export const zh: Dict = {
   sub: {
+    demoOnly: '这是演示版：你的申请并未发送。请联系 contact@capmedia.tn，我们会回电。',
     title: '订阅 VisaFlow',
     subtitle: '两分钟填写，我们会带着报价回电。',
     agencyName: '机构名称',

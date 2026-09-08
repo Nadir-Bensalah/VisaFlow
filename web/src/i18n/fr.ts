@@ -3,6 +3,7 @@
 
 export const fr = {
   sub: {
+    demoOnly: 'Ceci est une démonstration : votre demande n’a pas été envoyée. Écrivez à contact@capmedia.tn, on vous rappelle.',
     title: 'Souscrire à VisaFlow',
     subtitle: 'Deux minutes. On vous rappelle avec une proposition chiffrée.',
     agencyName: 'Nom de l’agence',

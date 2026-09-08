@@ -2,6 +2,7 @@ import type { Dict } from './fr'
 
 export const ar: Dict = {
   sub: {
+    demoOnly: 'هذه نسخة تجريبية: لم يُرسل طلبك. راسلنا على contact@capmedia.tn وسنعاود الاتصال بك.',
     title: 'الاشتراك في VisaFlow',
     subtitle: 'دقيقتان. نعاود الاتصال بك بعرض مسعَّر.',
     agencyName: 'اسم الوكالة',
