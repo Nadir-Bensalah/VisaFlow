@@ -405,6 +405,7 @@ export const fr = {
     call: 'Appeler',
   },
   nav: {
+    money: 'L’argent',
     commercial: 'Commercial',
     visa: 'Visa',
     fret: 'Fret',
@@ -417,7 +418,7 @@ export const fr = {
     deliveries: 'Livraisons',
     warehouse: 'Entrepôt',
     support: 'Assistance',
-    today: 'À traiter',
+    today: 'Aujourd’hui',
     more: 'Voir plus',
     less: 'Voir moins',
     dashboard: 'Tableau de bord',

@@ -59,6 +59,72 @@ function Count({ value }: { value: number }) {
   return <span className={`navitem__count t-num ${pulse ? 'navitem__count--pulse' : ''}`}>{value}</span>
 }
 
+
+/* LES ONGLETS D'UN GROUPE.
+   Ce qui est sorti de la barre latérale se retrouve ici. On les dessine dans la
+   coquille plutôt que dans chaque page : quinze écrans à modifier auraient donné
+   quinze occasions d'oublier une entrée, et deux barres d'onglets qui ne se
+   ressemblent pas. */
+interface Onglet { to: string; labelKey: TKeyOf; need?: Capability; si?: 'visas' | 'fret'
+  /** La clé du compteur à afficher, résolue plus bas contre les données visibles. */
+  compteur?: 'pieces' | 'rdv' | 'creneaux' | 'taches' | 'dossiers' | 'cargaisons' }
+
+const ONGLETS: { racine: string; membres: Onglet[] }[] = [
+  {
+    racine: '/dossiers',
+    membres: [
+      { to: '/dossiers', labelKey: 'nav.cases' },
+      { to: '/pipeline', labelKey: 'nav.pipeline' },
+      { to: '/pieces', labelKey: 'nav.documents', compteur: 'pieces' },
+      { to: '/traductions', labelKey: 'trad.title' },
+      { to: '/rendez-vous', labelKey: 'nav.appointments', compteur: 'rdv' },
+      { to: '/creneaux', labelKey: 'nav.slots', compteur: 'creneaux' },
+    ],
+  },
+  {
+    racine: '/cargaisons',
+    membres: [
+      { to: '/cargaisons', labelKey: 'nav.shipments' },
+      { to: '/livraisons', labelKey: 'nav.deliveries', need: 'shipment:write' },
+      { to: '/entrepot', labelKey: 'nav.warehouse', need: 'shipment:write' },
+      { to: '/repertoires', labelKey: 'nav.directory', need: 'shipment:write' },
+    ],
+  },
+  {
+    racine: '/commercial',
+    membres: [
+      { to: '/commercial', labelKey: 'nav.leads' },
+      { to: '/devis', labelKey: 'nav.quotes', need: 'payment:write' },
+    ],
+  },
+  {
+    racine: '/factures',
+    membres: [
+      { to: '/factures', labelKey: 'nav.invoices', need: 'payment:write' },
+      { to: '/paiements', labelKey: 'nav.payments', need: 'finance:global' },
+      { to: '/prestations', labelKey: 'voy.pageTitle' },
+    ],
+  },
+  {
+    racine: '/pilotage',
+    membres: [
+      { to: '/pilotage', labelKey: 'pil.title', need: 'reports:view' },
+      { to: '/tableau-de-bord', labelKey: 'nav.dashboard' },
+      { to: '/rapports', labelKey: 'nav.reports', need: 'reports:view' },
+      { to: '/statistiques', labelKey: 'nav.stats', need: 'reports:view' },
+      { to: '/automatisations', labelKey: 'nav.automations', need: 'automation:manage' },
+    ],
+  },
+  {
+    racine: '/',
+    membres: [
+      { to: '/', labelKey: 'nav.today' },
+      { to: '/aujourdhui', labelKey: 'pil.todayTitle' },
+      { to: '/taches', labelKey: 'nav.myTasks', compteur: 'taches' },
+    ],
+  },
+]
+
 export function Shell() {
   const { db, live, setLive, signOut, syncError, retry, support, exitSupport, officeFilter, setOfficeFilter } = useStore()
   const v = useVisible()
@@ -103,6 +169,22 @@ export function Shell() {
   const pendingTasks = v.tasks.filter((x) => !x.done && x.assigneeId === v.user.id).length
   const unanswered = v.messages.filter((m) => m.direction === 'entrant' && daysUntil(m.at) >= -2).length
 
+  /* Le groupe auquel appartient la page ouverte. On prend le groupe qui
+     contient la route exacte, et à défaut celui dont la racine préfixe la
+     route : la fiche d'un dossier reste dans le groupe Visa. */
+  const groupeCourant = ONGLETS.find((g) => g.membres.some((m) => m.to === location.pathname))
+    ?? ONGLETS.find((g) => g.racine !== '/' && location.pathname.startsWith(g.racine))
+  const compteurs: Record<string, number> = {
+    pieces: blocked, rdv: todayAppointments, creneaux: waitingSlots, taches: pendingTasks,
+    dossiers: openCases.length, cargaisons: v.shipments.filter((x) => x.status === 'en_cours').length,
+  }
+  const onglets = (groupeCourant?.membres ?? []).filter((o) => {
+    if (o.need && !v.can(o.need)) return false
+    if (o.si === 'visas' && !db.agency.services.includes('visas')) return false
+    if (o.si === 'fret' && !db.agency.services.includes('fret')) return false
+    return true
+  })
+
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
 
   useEffect(() => {
@@ -128,6 +210,14 @@ export function Shell() {
   const aVisas = fait.includes('visas')
   const aFret = fait.includes('fret')
 
+  /* DOUZE ENTRÉES, PAS VINGT-HUIT.
+     Chaque module livré avait ajouté sa ligne, et personne n'avait jamais
+     soustrait. Le résultat était une barre de vingt-huit entrées où un
+     conseiller ne retrouvait pas les quatre qu'il utilise vraiment.
+     Ce qui sort d'ici ne disparaît pas : chaque entrée est la racine d'un
+     groupe, et les écrans du groupe s'ouvrent en onglets sous la barre du
+     haut (voir ONGLETS plus bas). Une agence de visas seule ne voit aucune
+     ligne de fret, pas même repliée. */
   const groups: NavGroup[] = [
     {
       key: 'tete',
@@ -138,80 +228,31 @@ export function Shell() {
       ],
     },
     {
-      key: 'commercial',
-      labelKey: 'nav.commercial',
-      collapsible: true,
-      entries: [
-        { to: '/commercial', labelKey: 'nav.leads', icon: 'sparkle' },
-        { to: '/devis', labelKey: 'nav.quotes', icon: 'copy', need: 'payment:write' },
-      ],
-    },
-    {
-      key: 'visa',
-      labelKey: 'nav.visa',
-      collapsible: true,
-      visible: aVisas,
-      entries: [
-        { to: '/dossiers', labelKey: 'nav.cases', icon: 'cases', count: openCases.length },
-        { to: '/pipeline', labelKey: 'nav.pipeline', icon: 'pipeline' },
-        { to: '/pieces', labelKey: 'nav.documents', icon: 'documents', count: blocked },
-        { to: '/traductions', labelKey: 'trad.title', icon: 'language' },
-        { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
-        // La file de créneaux passe avant les rendez-vous : c'est le travail
-        // d'avant, celui qui porte l'essentiel de la marge.
-        { to: '/creneaux', labelKey: 'nav.slots', icon: 'clock', count: waitingSlots },
-      ],
-    },
-    {
-      key: 'fret',
-      labelKey: 'nav.fret',
-      collapsible: true,
-      visible: aFret,
-      entries: [
-        { to: '/cargaisons', labelKey: 'nav.shipments', icon: 'ship', count: v.shipments.filter((x) => x.status === 'en_cours').length },
-        { to: '/livraisons', labelKey: 'nav.deliveries', icon: 'box', need: 'shipment:write' },
-        { to: '/entrepot', labelKey: 'nav.warehouse', icon: 'building', need: 'shipment:write' },
-        { to: '/repertoires', labelKey: 'nav.directory', icon: 'grid', need: 'shipment:write' },
-      ],
-    },
-    {
-      key: 'finance',
-      labelKey: 'nav.finance',
-      collapsible: true,
-      entries: [
-        { to: '/prestations', labelKey: 'voy.pageTitle', icon: 'plane' },
-        { to: '/factures', labelKey: 'nav.invoices', icon: 'payments', need: 'payment:write' },
-        { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
-      ],
-    },
-    {
-      key: 'suivi',
+      key: 'metier',
       labelKey: 'nav.workspace',
       collapsible: true,
       entries: [
+        ...(aVisas ? [{ to: '/dossiers', labelKey: 'nav.visa' as const, icon: 'cases' as const, count: openCases.length }] : []),
+        ...(aFret ? [{ to: '/cargaisons', labelKey: 'nav.fret' as const, icon: 'ship' as const, count: v.shipments.filter((x) => x.status === 'en_cours').length }] : []),
+        { to: '/commercial', labelKey: 'nav.commercial', icon: 'sparkle' },
         { to: '/messages', labelKey: 'nav.messages', icon: 'messages', count: unanswered },
-        { to: '/taches', labelKey: 'nav.myTasks', icon: 'tasks', count: pendingTasks },
       ],
     },
     {
-      key: 'pilotage',
+      key: 'gestion',
       labelKey: 'nav.pilotage',
       collapsible: true,
       entries: [
-        { to: '/aujourdhui', labelKey: 'pil.todayTitle', icon: 'today' },
-        { to: '/pilotage', labelKey: 'pil.title', icon: 'reports', need: 'reports:view' },
-        { to: '/tableau-de-bord', labelKey: 'nav.dashboard', icon: 'dashboard' },
-        { to: '/rapports', labelKey: 'nav.reports', icon: 'reports', need: 'reports:view' },
-        { to: '/statistiques', labelKey: 'nav.stats', icon: 'grid', need: 'reports:view' },
-        { to: '/automatisations', labelKey: 'nav.automations', icon: 'automations', need: 'automation:manage' },
+        { to: '/factures', labelKey: 'nav.money', icon: 'payments', need: 'payment:write' },
+        { to: '/pilotage', labelKey: 'nav.pilotage', icon: 'reports', need: 'reports:view' },
+        { to: '/equipe', labelKey: 'eq.title', icon: 'clients', need: 'settings:view' },
       ],
     },
     {
       key: 'pied',
       entries: [
-        { to: '/equipe', labelKey: 'eq.title', icon: 'clients', need: 'settings:view' },
-        { to: '/aide', labelKey: 'nav.support', icon: 'shield' },
         { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
+        { to: '/aide', labelKey: 'nav.support', icon: 'shield' },
       ],
     },
   ]
@@ -367,6 +408,24 @@ export function Shell() {
             </Select>
           </div>
         </header>
+
+        {onglets.length > 1 && (
+          <nav className="sectiontabs" aria-label={t('nav.workspace')}>
+            {onglets.map((o) => (
+              <NavLink
+                key={o.to}
+                to={o.to}
+                end={o.to === '/' || o.to === '/dossiers' || o.to === '/cargaisons'}
+                className={({ isActive }) => `sectiontab ${isActive ? 'sectiontab--active' : ''}`}
+              >
+                <span>{t(o.labelKey)}</span>
+                {o.compteur !== undefined && compteurs[o.compteur] > 0 && (
+                  <span className="sectiontab__count t-num">{compteurs[o.compteur]}</span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         {support && (
           <div className="supportbar" role="status">

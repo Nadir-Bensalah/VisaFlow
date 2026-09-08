@@ -378,6 +378,7 @@ export const en: Dict = {
     signIn: 'Sign in', signOut: 'Sign out', reset: 'Reset', markPaid: 'Mark as paid', call: 'Call',
   },
   nav: {
+    money: 'Money',
     commercial: 'Sales',
     visa: 'Visa',
     fret: 'Freight',
@@ -390,7 +391,7 @@ export const en: Dict = {
     deliveries: 'Deliveries',
     warehouse: 'Warehouse',
     support: 'Support',
-    today: 'To handle',
+    today: 'Today',
     more: 'Show more',
     less: 'Show less',
     dashboard: 'Dashboard', pipeline: 'Pipeline', cases: 'Applications', clients: 'Clients',

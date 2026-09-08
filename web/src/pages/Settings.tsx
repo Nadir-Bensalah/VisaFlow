@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
-import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
-import { Button, Card, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, Switch, Textarea, useToast } from '@/components/ui'
-import { Ago, PageHead } from '@/components/bits'
-import { versionLabel } from '@/lib/version'
+import { useI18n } from '@/i18n'
+import type { TKey } from '@/i18n'
+import { Card, Empty, Input, Segmented, Tabs } from '@/components/ui'
+import { PageHead } from '@/components/bits'
+import { Icon } from '@/components/Icon'
+
 import { TariffsSection } from '@/components/TariffsSection'
 import { BrandSection } from '@/components/BrandSection'
 import { EncaissementSection } from '@/components/EncaissementSection'
@@ -23,847 +25,256 @@ import { DocumentTemplates } from '@/components/DocumentTemplates'
 import { CustomsChecklistsAdmin } from '@/components/CustomsChecklistsAdmin'
 import { SlaSection } from '@/components/SlaSection'
 import { ComplianceSection } from '@/components/ComplianceSection'
-import { Icon } from '@/components/Icon'
-import { tenantUrl } from '@/tenant'
-import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, MessageTemplate, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'papiers' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
+import { AgencyIdentity } from '@/components/settings/AgencyIdentity'
+import { VisaCatalogSection } from '@/components/settings/VisaCatalogSection'
+import { ConsulatesSection } from '@/components/settings/ConsulatesSection'
+import { MessageTemplatesSection } from '@/components/settings/MessageTemplatesSection'
+import { WhatsAppSection } from '@/components/settings/WhatsAppSection'
+import { DataSection } from '@/components/settings/DataSection'
+import { AuditLogSection } from '@/components/settings/AuditLogSection'
 
-const EMPTY_I18N: I18nText = { fr: '' }
+/* ====================================================================== */
+/* L'écran des réglages, en deux niveaux                                  */
+/* ====================================================================== */
+/*
+ * LE PROBLÈME QU'ON RÉPARE. Quinze onglets sur une seule barre qui défilait.
+ * Chaque module livré en rajoutait un. Personne ne retrouvait rien, et le
+ * patron de l'agence ne savait même pas ce qu'il avait à régler.
+ *
+ * LA FORME RETENUE. Cinq familles, puis un second niveau à l'intérieur de
+ * chacune. Le premier niveau est une barre de pastilles (Segmented), le second
+ * une barre soulignée (Tabs). Deux composants qui existent déjà, deux allures
+ * différentes pour deux niveaux différents, et surtout deux barres qui défilent
+ * horizontalement sans jamais faire déborder la page : c'est déjà réglé dans
+ * leur CSS, donc rien à réinventer sur un téléphone de 375 px.
+ *
+ * L'ADRESSE NE BOUGE PAS. `?section=` continue de porter la SOUS-SECTION, avec
+ * exactement les mêmes valeurs qu'avant. La famille se déduit de la
+ * sous-section, elle ne s'écrit pas dans l'URL. Conséquence : les quinze
+ * anciens liens ouvrent la bonne famille sur la bonne sous-section, sans table
+ * d'alias à maintenir. Une valeur inconnue retombe sur la première sous-section
+ * ouverte à la personne, comme avant.
+ *
+ * LES DROITS NE BOUGENT PAS NON PLUS. Chaque entrée garde la capacité qui la
+ * gardait. Une famille dont aucune entrée n'est visible disparaît de la barre.
+ */
+
+type Family = 'agence' | 'metier' | 'messages' | 'argent' | 'securite'
+
+interface Entry {
+  /** La valeur de `?section=`. Ne jamais renommer : des liens existent. */
+  id: string
+  family: Family
+  label: TKey
+  /** Mots que la personne tape et que le libellé ne contient pas. */
+  keywords?: TKey
+  visible: boolean
+  node: ReactNode
+}
+
+const FAMILIES: { value: Family; label: TKey; hint: TKey }[] = [
+  { value: 'agence', label: 'rg.famAgence', hint: 'rg.famAgenceHint' },
+  { value: 'metier', label: 'rg.famMetier', hint: 'rg.famMetierHint' },
+  { value: 'messages', label: 'rg.famMessages', hint: 'rg.famMessagesHint' },
+  { value: 'argent', label: 'rg.famArgent', hint: 'rg.famArgentHint' },
+  { value: 'securite', label: 'rg.famSecurite', hint: 'rg.famSecuriteHint' },
+]
+
+/** Minuscules sans accents : « Modèles » se trouve en tapant « modeles ». */
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 export function Settings() {
-  const { db, actions, slug } = useStore()
   const v = useVisible()
-  const { t, tt, locale, setLocale, formatMoney } = useI18n()
-  const toast = useToast()
+  const { t } = useI18n()
   const [params, setParams] = useSearchParams()
-  const section = (params.get('section') as Section | null) ?? 'agence'
-  const setSection = (value: Section) => setParams({ section: value }, { replace: true })
-  const [confirming, setConfirming] = useState<null | 'reset'>(null)
+  const [query, setQuery] = useState('')
 
-  const sections: { value: Section; label: string; visible: boolean }[] = [
-    { value: 'agence', label: t('settings.agency'), visible: true },
+  // Les droits, une fois, en clair. Ils sont repris tels quels de l'ancienne
+  // barre : aucune section ne change de gardien.
+  const manage = v.can('settings:manage')
+  const catalog = v.can('catalog:manage')
+  const automation = v.can('automation:manage')
+  const audit = v.can('audit:view')
+  const exportData = v.can('data:export')
+
+  const entries: Entry[] = [
+    /* ---------------------------- Mon agence --------------------------- */
+    { id: 'agence', family: 'agence', label: 'settings.agency', keywords: 'rg.kwAgence', visible: true, node: <AgencyIdentity /> },
+    { id: 'plan', family: 'agence', label: 'plan.title', visible: true, node: <PlanCard /> },
     // Les bureaux : le périmètre de chacun. Les créer, c'est décider qui voit quoi.
-    { value: 'bureaux', label: t('settings.offices'), visible: v.can('settings:manage') },
-    // Les alertes décident de ce qui part chez le client : c'est un réglage
-    // qui engage de l'argent et l'image de l'agence.
-    { value: 'alertes', label: t('notif.title'), visible: v.can('automation:manage') },
-    { value: 'marque', label: t('brand.title'), visible: v.can('settings:manage') },
-    { value: 'visas', label: t('settings.visaTypes'), visible: v.can('catalog:manage') },
-    { value: 'consulats', label: t('consulates.title'), visible: v.can('catalog:manage') },
+    { id: 'bureaux', family: 'agence', label: 'settings.offices', visible: manage, node: <OfficesSection /> },
+    { id: 'marque', family: 'agence', label: 'brand.title', visible: manage, node: <BrandSection /> },
+
+    /* EMPLACEMENT RÉSERVÉ : l'organisation du travail (portefeuille ou file).
+       Le composant `@/components/WorkModeSection` est livré en parallèle. Quand
+       le fichier existera, ajouter l'import en haut puis cette ligne ici même,
+       juste après « marque » :
+
+       { id: 'travail', family: 'agence', label: 'rg.workMode', visible: manage, node: <WorkModeSection /> },
+
+       Le libellé `rg.workMode` est déjà traduit dans les quatre langues. Rien
+       d'autre à toucher : la famille, la recherche et `?section=travail`
+       marcheront tout seuls. */
+
+    /* ---------------------------- Mon métier --------------------------- */
+    { id: 'visas', family: 'metier', label: 'settings.visaTypes', keywords: 'rg.kwVisas', visible: catalog, node: <VisaCatalogSection /> },
+    { id: 'consulats', family: 'metier', label: 'consulates.title', visible: catalog, node: <ConsulatesSection /> },
+    { id: 'services', family: 'metier', label: 'com.services', visible: manage, node: <ServicesSection /> },
+    { id: 'traducteurs', family: 'metier', label: 'trad.translators', visible: manage, node: <TranslatorsSection /> },
     // Un barème change le montant de toutes les factures à venir : c'est un
     // réglage, pas une saisie d'exploitation.
-    // Brancher un compte de paiement engage l'argent de l'agence.
-    { value: 'encaissement', label: t('pay2.providers'), visible: v.can('settings:manage') },
-    { value: 'baremes', label: t('tariff.title'), visible: v.can('settings:manage') },
-    { value: 'modeles', label: t('settings.templates'), visible: v.can('catalog:manage') },
+    { id: 'baremes', family: 'metier', label: 'tariff.title', keywords: 'rg.kwBaremes', visible: manage, node: <TariffsSection /> },
+    { id: 'douane', family: 'metier', label: 'cg2.checklists', visible: manage, node: <CustomsChecklistsAdmin /> },
     // Les papiers imprimés : facture, devis, reçu, bon de livraison. En
     // Tunisie, une facture sans matricule fiscal est refusée.
-    { value: 'papiers', label: t('doc2.tplTitle'), visible: v.can('settings:manage') },
-    { value: 'whatsapp', label: t('wa.title'), visible: v.can('settings:manage') },
+    { id: 'papiers', family: 'metier', label: 'doc2.tplTitle', keywords: 'rg.kwPapiers', visible: manage, node: <DocumentTemplates /> },
+
+    /* --------------------------- Mes messages -------------------------- */
+    { id: 'modeles', family: 'messages', label: 'settings.templates', keywords: 'rg.kwModeles', visible: catalog, node: <MessageTemplatesSection /> },
+    { id: 'whatsapp', family: 'messages', label: 'wa.title', visible: manage, node: <WhatsAppSection /> },
+    // Les alertes décident de ce qui part chez le client : c'est un réglage
+    // qui engage de l'argent et l'image de l'agence.
+    { id: 'alertes', family: 'messages', label: 'notif.rules.title', visible: automation, node: <NotificationRules /> },
+    { id: 'webhooks', family: 'messages', label: 'notif.wh.title', visible: automation, node: <WebhooksSection /> },
+    { id: 'sla', family: 'messages', label: 'pil.slaTitle', visible: automation, node: <SlaSection /> },
+
+    /* ----------------------------- L'argent ---------------------------- */
+    // Brancher un compte de paiement engage l'argent de l'agence. Les devises
+    // acceptées vivent dans le même écran : on ne choisit pas un moyen sans
+    // savoir dans quelle monnaie il encaisse.
+    { id: 'encaissement', family: 'argent', label: 'pay2.providers', keywords: 'rg.kwEncaissement', visible: manage, node: <EncaissementSection /> },
+
+    /* ----------------------- Sécurité et données ----------------------- */
     // La conformité porte des amendes chiffrées : elle relève des réglages,
     // pas de l'exploitation.
-    { value: 'conformite', label: t('conf.title'), visible: v.can('settings:manage') },
-    { value: 'donnees', label: t('settings.compliance'), visible: v.can('data:export') },
+    { id: 'conformite', family: 'securite', label: 'conf.title', keywords: 'rg.kwConformite', visible: manage, node: <ComplianceSection /> },
     // Mes appareils sont visibles par tous ; le fil de sécurité exige le droit
     // d'audit, et le composant s'en charge lui-même.
-    { value: 'securite', label: t('sec.title'), visible: true },
-    { value: 'journal', label: t('settings.audit'), visible: v.can('audit:view') },
+    { id: 'securite', family: 'securite', label: 'sec.title', keywords: 'rg.kwSecurite', visible: true, node: <SecuritySection /> },
+    { id: 'journal', family: 'securite', label: 'settings.audit', keywords: 'rg.kwJournal', visible: audit, node: <AuditLogSection /> },
+    { id: 'donnees', family: 'securite', label: 'settings.compliance', keywords: 'rg.kwDonnees', visible: exportData, node: <DataSection /> },
+    // Ces trois-là étaient imbriqués dans l'ancien onglet « Données » : visible
+    // avec `data:export`, contenu réservé à `settings:manage`. La double
+    // condition reproduit exactement l'ancien comportement.
+    { id: 'numerotation', family: 'securite', label: 'int.numbering', visible: exportData && manage, node: <NumberingSection /> },
+    { id: 'champs', family: 'securite', label: 'int.customAdmin', visible: exportData && manage, node: <CustomFieldsAdmin /> },
+    { id: 'doublons', family: 'securite', label: 'int.duplicates', visible: exportData && manage, node: <DuplicatesCard /> },
   ]
-  const allowed = sections.filter((s) => s.visible)
-  const current = allowed.some((s) => s.value === section) ? section : 'agence'
 
-  const exportAll = () => {
-    const url = URL.createObjectURL(new Blob([actions.exportJson()], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${slug}-visaflow-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast(t('settings.exportAll'))
+  const allowed = entries.filter((e) => e.visible)
+  const families = FAMILIES.filter((f) => allowed.some((e) => e.family === f.value))
+
+  // La sous-section vient de l'URL ; la famille s'en déduit.
+  const asked = params.get('section')
+  const currentEntry = allowed.find((e) => e.id === asked) ?? allowed[0]
+  const currentFamily = currentEntry?.family ?? families[0]?.value
+  const siblings = allowed.filter((e) => e.family === currentFamily)
+
+  const go = (id: string) => { setQuery(''); setParams({ section: id }, { replace: true }) }
+  const goFamily = (family: Family) => {
+    const first = allowed.find((e) => e.family === family)
+    if (first) go(first.id)
+  }
+
+  // La recherche : trente réglages se cherchent, ils ne se parcourent pas.
+  // Elle cherche dans le libellé, dans le nom de la famille et dans les mots
+  // que le libellé ne dit pas (« devise » pour l'encaissement, par exemple).
+  const q = norm(query.trim())
+  const found = q === '' ? [] : allowed.filter((e) => {
+    const famille = FAMILIES.find((f) => f.value === e.family)
+    const haystack = [t(e.label), famille ? t(famille.label) : '', e.keywords ? t(e.keywords) : ''].join(' ')
+    return norm(haystack).includes(q)
+  })
+
+  if (allowed.length === 0) {
+    return (
+      <>
+        <PageHead title={t('settings.title')} subtitle={t('settings.subtitle')} />
+        <Card><Empty title={t('rg.none')} hint={t('rg.noneHint')} /></Card>
+      </>
+    )
   }
 
   return (
     <>
       <PageHead title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
-      <div style={{ marginBottom: 'var(--sp-6)' }}>
-        <Segmented
-          label={t('settings.title')}
-          value={current}
-          onChange={setSection}
-          options={allowed.map((s) => ({ value: s.value, label: s.label }))}
-        />
-      </div>
-
-      {current === 'agence' && <><AgencySection /><PlanCard /></>}
-      {current === 'bureaux' && <OfficesSection />}
-      {current === 'alertes' && <><SlaSection /><NotificationRules /><WebhooksSection /></>}
-      {current === 'securite' && <SecuritySection />}
-      {current === 'donnees' && v.can('settings:manage') && (
-        <div className="col gap-5" style={{ marginBottom: 'var(--sp-6)' }}>
-          <NumberingSection />
-          <CustomFieldsAdmin />
-          <DuplicatesCard />
-        </div>
-      )}
-      {current === 'visas' && <CatalogSection />}
-      {current === 'consulats' && <ConsulatesSection />}
-      {current === 'marque' && <BrandSection />}
-      {current === 'encaissement' && <EncaissementSection />}
-      {current === 'baremes' && <><ServicesSection /><TranslatorsSection /><TariffsSection /><CustomsChecklistsAdmin /></>}
-      {current === 'conformite' && <ComplianceSection />}
-      {current === 'modeles' && <TemplatesSection />}
-      {current === 'papiers' && <DocumentTemplates />}
-      {current === 'whatsapp' && <WhatsAppSection />}
-
-      {/* La version publiée. GitHub Pages garde la page dix minutes en cache :
-          sans repère, on ne sait jamais si l'écran qu'on regarde est le dernier.
-          Ce numéro tranche la question en une seconde. */}
-      {current === 'agence' && (
-        <p className="t-caption t-tertiary" style={{ textAlign: 'center', marginTop: 'var(--sp-6)' }}>
-          {t('settings.version', { v: versionLabel(locale) })}
-        </p>
-      )}
-
-      {current === 'donnees' && (
-        <div className="grid grid--2">
-          <Card title={t('settings.compliance')}>
-            <p className="t-small t-secondary" style={{ marginBottom: 'var(--sp-5)' }}>{t('settings.complianceHint')}</p>
-            <div className="col gap-4">
-              <div className="row-between"><span className="t-small t-secondary">{t('settings.inpdp')}</span><Pill tone="orange" dot>{db.agency.inpdpRef}</Pill></div>
-              <div className="row-between"><span className="t-small t-secondary">{t('settings.retention')}</span><span className="t-small">{t('settings.retentionValue', { n: 24 })}</span></div>
-            </div>
-          </Card>
-          <Card title={t('misc.demoData')}>
-            <div className="col gap-3">
-              <Button icon="download" onClick={exportAll}>{t('settings.exportAll')}</Button>
-              <Button variant="danger" icon="trash" onClick={() => setConfirming('reset')}>{t('misc.resetDemo')}</Button>
-              <p className="t-caption t-tertiary">{t('login.demoHint')}</p>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {current === 'journal' && (
-        <Card flush>
-          <div className="list">
-            {db.events.slice(0, 60).map((e) => (
-              <div key={e.id} className="list__row">
-                <Icon name={e.automated ? 'automations' : 'check'} size={16} className="t-tertiary" />
-                <span className="col grow" style={{ minWidth: 0 }}>
-                  <span className="t-small">{tt(e.detail)}</span>
-                  <span className="t-caption t-tertiary">
-                    <Ago iso={e.at} />
-                    {e.actorId && ` · ${db.users.find((u) => u.id === e.actorId)?.name ?? ''}`}
-                  </span>
-                </span>
-                <span className="t-caption t-tertiary t-mono col-optional">{e.type}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {confirming === 'reset' && (
-        <Modal
-          title={t('misc.resetDemo')}
-          onClose={() => setConfirming(null)}
-          footer={
-            <>
-              <Button onClick={() => setConfirming(null)}>{t('action.cancel')}</Button>
-              <Button variant="danger" onClick={() => { actions.reset(); setConfirming(null); toast(t('misc.resetDone')) }}>
-                {t('action.confirm')}
-              </Button>
-            </>
-          }
-        >
-          <p className="t-small">{t('crud.confirmRemove', { name: db.agency.name })}</p>
-          <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-2)' }}>{t('crud.confirmHint')}</p>
-        </Modal>
-      )}
-    </>
-  )
-
-  /* ---------------------------------------------------------------- */
-
-  function AgencySection() {
-    const [name, setName] = useState(db.agency.name)
-    const editable = v.can('settings:manage')
-    return (
-      <div className="grid grid--2">
-        <Card title={t('settings.agency')}>
-          <div className="col gap-4">
-            <Field label={t('settings.agency')}>
-              <Input
-                value={name}
-                readOnly={!editable}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => { if (editable && name !== db.agency.name) { actions.updateAgency({ name }); toast(t('crud.updated')) } }}
-              />
-            </Field>
-            <Field label={t('settings.domain')} hint={t('settings.domainHint')}>
-              <Input value={tenantUrl(db.agency.slug)} readOnly />
-            </Field>
-            <Field label={t('settings.plan')}><Input value={db.agency.plan} readOnly /></Field>
-            <div className="row-between">
-              <span className="t-small t-secondary">{t('settings.brand')}</span>
-              <span className="row gap-2">
-                <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
-                <Input
-                  type="color"
-                  value={db.agency.accent}
-                  disabled={!editable}
-                  onChange={(e) => actions.updateAgency({ accent: e.target.value })}
-                  style={{ width: 52, padding: 2 }}
-                  aria-label={t('settings.brand')}
-                />
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card title={t('settings.offices')} flush>
-          <div className="list">
-            {db.agency.offices.map((o) => (
-              <div key={o.id} className="list__row">
-                <Icon name="building" size={18} className="t-tertiary" />
-                <span className="col grow" style={{ minWidth: 0 }}>
-                  <span className="t-small t-medium">{o.name}, {o.country}</span>
-                  <span className="t-caption t-tertiary t-truncate">{o.address}</span>
-                </span>
-                <span className="t-caption t-mono t-tertiary">{o.phone}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card title={t('settings.languages')}>
-          <p className="t-small t-secondary" style={{ marginBottom: 'var(--sp-4)' }}>{t('msg.languageAuto')}</p>
-          <div className="row gap-2 wrap">
-            {LOCALES.map((l) => (
-              <button key={l} type="button" className="chip" aria-pressed={locale === l} onClick={() => setLocale(l)}>
-                {LOCALE_META[l].native}
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
-  /* ---------------------------------------------------------------- */
-
-
-
-  /* ---------------------------------------------------------------- */
-
-  function TemplatesSection() {
-    const [editing, setEditing] = useState<MessageTemplate | 'nouveau' | null>(null)
-    const [removing, setRemoving] = useState<MessageTemplate | null>(null)
-
-    return (
-      <>
-        <div className="row-between" style={{ marginBottom: 'var(--sp-5)' }}>
-          <p className="t-small t-secondary">{t('msg.languageAuto')}</p>
-          <Button icon="plus" onClick={() => setEditing('nouveau')}>{t('crud.newTemplate')}</Button>
-        </div>
-
-        <div className="grid grid--2">
-          {db.templates.map((tpl) => (
-            <Card
-              key={tpl.id}
-              title={tt(tpl.name)}
-              action={
-                <span className="row gap-1">
-                  <IconButton icon="edit" label={t('crud.edit')} onClick={() => setEditing(tpl)} />
-                  <IconButton icon="trash" label={t('crud.remove')} onClick={() => setRemoving(tpl)} />
-                </span>
-              }
-            >
-              <div className="col gap-3">
-                <span className="row gap-2 t-caption t-tertiary">
-                  <Icon name={tpl.channel === 'whatsapp' ? 'whatsapp' : 'mail'} size={14} />
-                  {t(`channel.${tpl.channel}` as 'channel.whatsapp')} · {tpl.key}
-                </span>
-                {LOCALES.filter((l) => tpl.body[l]).map((l) => (
-                  <div key={l} className="row gap-3" style={{ alignItems: 'flex-start' }}>
-                    <span className="chip" style={{ cursor: 'default', flex: '0 0 auto' }}>{LOCALE_META[l].native}</span>
-                    <span className="t-small t-secondary" dir={LOCALE_META[l].dir} lang={l}>{tpl.body[l]}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {editing && <TemplateEditor template={editing === 'nouveau' ? null : editing} onClose={() => setEditing(null)} />}
-
-        {removing && (
-          <Modal
-            title={t('crud.remove')}
-            onClose={() => setRemoving(null)}
-            footer={
-              <>
-                <Button onClick={() => setRemoving(null)}>{t('action.cancel')}</Button>
-                <Button variant="danger" onClick={() => { actions.removeTemplate(removing.id); setRemoving(null); toast(t('crud.removed')) }}>
-                  {t('crud.remove')}
-                </Button>
-              </>
-            }
-          >
-            <p className="t-small">{t('crud.confirmRemove', { name: tt(removing.name) })}</p>
-          </Modal>
-        )}
-      </>
-    )
-  }
-
-  function TemplateEditor({ template, onClose }: { template: MessageTemplate | null; onClose: () => void }) {
-    const [draft, setDraft] = useState<Omit<MessageTemplate, 'agencyId'>>(
-      template ?? {
-        id: '', key: '', name: { ...EMPTY_I18N }, channel: 'whatsapp',
-        body: { fr: '', en: '', ar: '', zh: '' }, variables: ['client', 'reference'],
-      },
-    )
-    const variables = '{client}, {reference}, {piece}, {montant}, {bureau}, {pays}, {date}, {lieu}'
-
-    return (
-      <Modal
-        wide
-        title={template ? t('crud.edit') : t('crud.newTemplate')}
-        onClose={onClose}
-        footer={
-          <>
-            <Button onClick={onClose}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={!draft.name.fr.trim() || !draft.body.fr.trim()}
-              onClick={() => {
-                const key = draft.key.trim() || draft.name.fr.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30)
-                actions.saveTemplate(template ? { ...draft, key } : { ...draft, key, id: undefined })
-                onClose()
-                toast(template ? t('crud.updated') : t('crud.created'))
-              }}
-            >
-              {t('action.save')}
-            </Button>
-          </>
-        }
-      >
-        <div className="col gap-4">
-          <div className="grid grid--2">
-            <Field label={t('clients.name')}>
-              <Input value={draft.name.fr} onChange={(e) => setDraft({ ...draft, name: { ...draft.name, fr: e.target.value } })} />
-            </Field>
-            <Field label={t('crud.templateKey')} hint={t('crud.fillFrench')}>
-              <Input value={draft.key} onChange={(e) => setDraft({ ...draft, key: e.target.value })} placeholder="piece_manquante" />
-            </Field>
-          </div>
-          <Field label={t('msg.template')}>
-            <Select value={draft.channel} onChange={(e) => setDraft({ ...draft, channel: e.target.value as Channel })}>
-              {(['whatsapp', 'email', 'sms', 'portail'] as Channel[]).map((c) => (
-                <option key={c} value={c}>{t(`channel.${c}` as 'channel.whatsapp')}</option>
-              ))}
-            </Select>
-          </Field>
-          <p className="t-caption t-tertiary">{t('crud.variablesHint', { vars: variables })}</p>
-          {LOCALES.map((l) => (
-            <Field key={l} label={`${t('crud.templateBody')} · ${LOCALE_META[l].native}`}>
-              <Textarea
-                dir={LOCALE_META[l].dir}
-                lang={l}
-                value={draft.body[l] ?? ''}
-                onChange={(e) => setDraft({ ...draft, body: { ...draft.body, [l]: e.target.value } })}
-              />
-            </Field>
-          ))}
-        </div>
-      </Modal>
-    )
-  }
-
-  /* ---------------------------------------------------------------- */
-
-  function CatalogSection() {
-    const [editing, setEditing] = useState<VisaType | 'nouveau' | null>(null)
-    const [itemFor, setItemFor] = useState<{ checklistId: string; item: ChecklistItem | null } | null>(null)
-
-    return (
-      <>
-        <div className="row-between" style={{ marginBottom: 'var(--sp-5)' }}>
-          <p className="t-small t-secondary">{t('settings.checklists')}</p>
-          <Button icon="plus" onClick={() => setEditing('nouveau')}>{t('crud.newVisaType')}</Button>
-        </div>
-
-        <div className="stack">
-          {db.visaTypes.map((visa) => {
-            const checklist = db.checklists.find((c) => c.id === visa.checklistId)
-            return (
-              <Card
-                key={visa.id}
-                title={`${tt(visa.country)} · ${tt(visa.label)}`}
-                action={
-                  <span className="row gap-2">
-                    <Pill tone="blue">{t('reports.days', { n: visa.processingDays })}</Pill>
-                    <Pill tone="gray">{formatMoney(visa.feeAgency + visa.feeConsulate)}</Pill>
-                    <IconButton icon="edit" label={t('crud.edit')} onClick={() => setEditing(visa)} />
-                    <Switch
-                      checked={visa.active}
-                      onChange={(value) => { actions.saveVisaType({ ...visa, active: value }); toast(t('crud.updated')) }}
-                      label={tt(visa.label)}
-                    />
-                  </span>
-                }
-              >
-                <div className="col gap-2">
-                  {checklist?.items.map((item) => (
-                    <div key={item.key} className="row-between" style={{ paddingBottom: 'var(--sp-2)', borderBottom: '1px solid var(--hairline)' }}>
-                      <span className="col grow" style={{ minWidth: 0 }}>
-                        <span className="t-small">{tt(item.label)}</span>
-                        <span className="t-caption t-tertiary">
-                          {item.required ? t('misc.required') : t('misc.optional')}
-                          {item.validityDays ? ` · ${item.validityDays} j` : ''}
-                        </span>
-                      </span>
-                      <span className="row gap-1">
-                        <IconButton icon="edit" label={t('crud.edit')} onClick={() => setItemFor({ checklistId: checklist.id, item })} />
-                        <IconButton
-                          icon="trash"
-                          label={t('crud.remove')}
-                          onClick={() => { actions.removeChecklistItem(checklist.id, item.key); toast(t('crud.removed')) }}
-                        />
-                      </span>
-                    </div>
-                  ))}
-                  {checklist && (
-                    <Button size="sm" icon="plus" onClick={() => setItemFor({ checklistId: checklist.id, item: null })}>
-                      {t('crud.newItem')}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            )
-          })}
-        </div>
-
-        {editing && <VisaEditor visa={editing === 'nouveau' ? null : editing} onClose={() => setEditing(null)} />}
-        {itemFor && <ItemEditor checklistId={itemFor.checklistId} item={itemFor.item} onClose={() => setItemFor(null)} />}
-      </>
-    )
-  }
-
-  function VisaEditor({ visa, onClose }: { visa: VisaType | null; onClose: () => void }) {
-    const [draft, setDraft] = useState<Omit<VisaType, 'agencyId'>>(
-      visa ?? {
-        id: '', countryCode: 'CN', country: { ...EMPTY_I18N }, label: { ...EMPTY_I18N },
-        category: 'affaires', processingDays: 10, feeAgency: 300, feeConsulate: 200,
-        checklistId: db.checklists[0]?.id ?? '', active: true,
-        stages: ['nouveau', 'pieces', 'verification', 'rendez_vous', 'depot', 'consulat', 'decision', 'retrait', 'clos'],
-      },
-    )
-
-    return (
-      <Modal
-        wide
-        title={visa ? t('crud.edit') : t('crud.newVisaType')}
-        onClose={onClose}
-        footer={
-          <>
-            <Button onClick={onClose}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={!draft.country.fr.trim() || !draft.label.fr.trim()}
-              onClick={() => {
-                actions.saveVisaType(visa ? draft : { ...draft, id: undefined })
-                onClose()
-                toast(visa ? t('crud.updated') : t('crud.created'))
-              }}
-            >
-              {t('action.save')}
-            </Button>
-          </>
-        }
-      >
-        <div className="grid grid--2">
-          <Field label={t('reports.byCountry')}>
-            <Input value={draft.country.fr} onChange={(e) => setDraft({ ...draft, country: { ...draft.country, fr: e.target.value } })} />
-          </Field>
-          <Field label={t('cases.visa')}>
-            <Input value={draft.label.fr} onChange={(e) => setDraft({ ...draft, label: { ...draft.label, fr: e.target.value } })} />
-          </Field>
-          <Field label={t('reports.delay')}>
-            <Input type="number" min={1} value={draft.processingDays} onChange={(e) => setDraft({ ...draft, processingDays: Number(e.target.value) })} />
-          </Field>
-          <Field label={t('settings.checklists')}>
-            <Select value={draft.checklistId} onChange={(e) => setDraft({ ...draft, checklistId: e.target.value })}>
-              {db.checklists.map((c) => <option key={c.id} value={c.id}>{tt(c.name)}</option>)}
-            </Select>
-          </Field>
-          <Field label={t('pay.collected')}>
-            <Input type="number" min={0} value={draft.feeAgency} onChange={(e) => setDraft({ ...draft, feeAgency: Number(e.target.value) })} />
-          </Field>
-          <Field label={t('pay.amount')}>
-            <Input type="number" min={0} value={draft.feeConsulate} onChange={(e) => setDraft({ ...draft, feeConsulate: Number(e.target.value) })} />
-          </Field>
-        </div>
-      </Modal>
-    )
-  }
-
-  function ItemEditor({ checklistId, item, onClose }: { checklistId: string; item: ChecklistItem | null; onClose: () => void }) {
-    const [draft, setDraft] = useState<ChecklistItem>(
-      item ?? { key: '', label: { ...EMPTY_I18N }, required: true },
-    )
-
-    return (
-      <Modal
-        wide
-        title={item ? t('crud.edit') : t('crud.newItem')}
-        onClose={onClose}
-        footer={
-          <>
-            <Button onClick={onClose}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={!draft.label.fr.trim()}
-              onClick={() => {
-                const key = draft.key || draft.label.fr.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 24)
-                actions.saveChecklistItem(checklistId, { ...draft, key }, item?.key)
-                onClose()
-                toast(item ? t('crud.updated') : t('crud.created'))
-              }}
-            >
-              {t('action.save')}
-            </Button>
-          </>
-        }
-      >
-        <div className="col gap-4">
-          <p className="t-caption t-tertiary">{t('crud.fillFrench')}</p>
-          {LOCALES.map((l) => (
-            <Field key={l} label={`${t('crud.itemLabel')} · ${LOCALE_META[l].native}`}>
-              <Input
-                dir={LOCALE_META[l].dir}
-                lang={l}
-                value={draft.label[l] ?? ''}
-                onChange={(e) => setDraft({ ...draft, label: { ...draft.label, [l]: e.target.value } })}
-              />
-            </Field>
-          ))}
-          <div className="grid grid--2">
-            <Field label={t('crud.itemValidity')}>
-              <Input
-                type="number"
-                min={0}
-                value={draft.validityDays ?? ''}
-                onChange={(e) => setDraft({ ...draft, validityDays: e.target.value ? Number(e.target.value) : undefined })}
-              />
-            </Field>
-            <div className="row-between" style={{ alignSelf: 'end', paddingBottom: 8 }}>
-              <span className="t-small t-secondary">{t('crud.itemRequired')}</span>
-              <Switch checked={draft.required} onChange={(value) => setDraft({ ...draft, required: value })} label={t('crud.itemRequired')} />
-            </div>
-          </div>
-        </div>
-      </Modal>
-    )
-  }
-}
-
-
-/* ---------------------------- Consulats ------------------------------ */
-
-/* Le poste, pas le pays. C'est lui qui porte le taux de refus, le centre de
-   depot et le delai de recours. Rien de tout cela n'est code en dur : les
-   sources publiques se contredisent sur le delai de recours, et le taux
-   officiel change chaque annee. */
-function ConsulatesSection() {
-  const { db, actions } = useStore()
-  const { t, tt, formatMoney } = useI18n()
-  const toast = useToast()
-  const [editing, setEditing] = useState<Consulate | null>(null)
-  const [creating, setCreating] = useState(false)
-
-  return (
-    <>
-      <Card
-        title={t('consulates.title')}
-        action={<Button icon="plus" onClick={() => setCreating(true)}>{t('consulates.add')}</Button>}
-        flush
-      >
-        <p className="t-small t-secondary" style={{ padding: '0 var(--sp-5) var(--sp-4)' }}>{t('consulates.subtitle')}</p>
-        {db.consulates.length === 0 ? (
-          <div style={{ padding: 'var(--sp-5)' }}><Empty title={t('consulates.none')} /></div>
-        ) : (
-          <div className="list">
-            {db.consulates.map((c) => (
-              <div key={c.id} className="list__row">
-                <Icon name="passport" size={18} className="t-tertiary" />
-                <span className="col grow" style={{ minWidth: 0 }}>
-                  <span className="t-medium t-small t-truncate">{tt(c.country)} · {c.city}</span>
-                  <span className="t-caption t-tertiary t-truncate">
-                    {t(`centre.${c.centre}` as 'centre.tls_tunis')}
-                    {c.refRefusalRate !== undefined ? ` · ${t('refstats.official')} ${c.refRefusalRate}%` : ''}
-                    {c.appealDays ? ` · ${t('consulates.appealDays')} ${c.appealDays}` : ''}
-                  </span>
-                </span>
-                <span className="t-small t-num col-optional">{formatMoney(c.feeConsulate)}</span>
-                {!c.active && <Pill tone="gray">{t('misc.inactive')}</Pill>}
-                <IconButton icon="edit" label={t('action.edit')} onClick={() => setEditing(c)} />
-                <IconButton
-                  icon="trash"
-                  label={t('action.delete')}
-                  onClick={() => { actions.removeConsulate(c.id); toast(t('crud.removed')) }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {(editing || creating) && (
-        <ConsulateEditor
-          consulate={editing}
-          onClose={() => { setEditing(null); setCreating(false) }}
-        />
-      )}
-    </>
-  )
-}
-
-const CENTRES: DepositCentre[] = ['tls_tunis', 'tls_sfax', 'vfs_tunis', 'consulat', 'autre']
-
-function ConsulateEditor({ consulate, onClose }: { consulate: Consulate | null; onClose: () => void }) {
-  const { db, actions } = useStore()
-  const { t } = useI18n()
-  const toast = useToast()
-  const [draft, setDraft] = useState({
-    countryCode: consulate?.countryCode ?? '',
-    country: consulate?.country.fr ?? '',
-    city: consulate?.city ?? '',
-    centre: (consulate?.centre ?? 'consulat') as DepositCentre,
-    requiresResidence: consulate?.requiresResidence ?? false,
-    feeConsulate: consulate?.feeConsulate ?? 0,
-    currency: consulate?.currency ?? db.agency.currency,
-    appealDays: consulate?.appealDays?.toString() ?? '',
-    appealSource: consulate?.appealSource ?? '',
-    appealCheckedAt: consulate?.appealCheckedAt?.slice(0, 10) ?? '',
-    refYear: consulate?.refYear?.toString() ?? '',
-    refRefusalRate: consulate?.refRefusalRate?.toString() ?? '',
-    refMultiEntryShare: consulate?.refMultiEntryShare?.toString() ?? '',
-    announcedDays: consulate?.announcedDays?.toString() ?? '',
-    notes: consulate?.notes ?? '',
-    active: consulate?.active ?? true,
-  })
-  const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
-  const num = (x: string): number | undefined => (x.trim() === '' ? undefined : Number(x))
-
-  return (
-    <Modal
-      title={consulate ? t('action.edit') : t('consulates.add')}
-      onClose={onClose}
-      wide
-      footer={
-        <>
-          <Button onClick={onClose}>{t('action.cancel')}</Button>
-          <Button
-            variant="primary"
-            disabled={!draft.country.trim() || !draft.city.trim()}
-            onClick={() => {
-              actions.saveConsulate({
-                id: consulate?.id,
-                countryCode: draft.countryCode.trim().toUpperCase(),
-                country: consulate ? { ...consulate.country, fr: draft.country.trim() } : { fr: draft.country.trim() },
-                city: draft.city.trim(),
-                centre: draft.centre,
-                requiresResidence: draft.requiresResidence,
-                feeConsulate: Number(draft.feeConsulate) || 0,
-                currency: draft.currency,
-                appealDays: num(draft.appealDays),
-                appealSource: draft.appealSource.trim() || undefined,
-                appealCheckedAt: draft.appealCheckedAt || undefined,
-                refYear: num(draft.refYear),
-                refRefusalRate: num(draft.refRefusalRate),
-                refMultiEntryShare: num(draft.refMultiEntryShare),
-                announcedDays: num(draft.announcedDays),
-                notes: draft.notes.trim() || undefined,
-                active: draft.active,
-              })
-              onClose()
-              toast(consulate ? t('crud.updated') : t('crud.created'))
-            }}
-          >
-            {t('action.save')}
-          </Button>
-        </>
-      }
-    >
-      <div className="grid grid--2">
-        <Field label={t('cases.visa')}>
-          <Input value={draft.country} onChange={(e) => set('country', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.city')}>
-          <Input value={draft.city} onChange={(e) => set('city', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.centre')}>
-          <Select value={draft.centre} onChange={(e) => set('centre', e.target.value as DepositCentre)}>
-            {CENTRES.map((x) => (
-              <option key={x} value={x}>{t(`centre.${x}` as 'centre.tls_tunis')}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t('consulates.fee')}>
-          <Input type="number" min={0} value={draft.feeConsulate} onChange={(e) => set('feeConsulate', Number(e.target.value))} />
-        </Field>
-        <Field label={t('consulates.appealDays')} hint={t('consulates.appealSource')}>
-          <Input type="number" min={0} value={draft.appealDays} onChange={(e) => set('appealDays', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.appealSource')}>
-          <Input value={draft.appealSource} onChange={(e) => set('appealSource', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.appealCheckedAt')}>
-          <Input type="date" value={draft.appealCheckedAt} onChange={(e) => set('appealCheckedAt', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.announced')}>
-          <Input type="number" min={0} value={draft.announcedDays} onChange={(e) => set('announcedDays', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.refYear')}>
-          <Input type="number" value={draft.refYear} onChange={(e) => set('refYear', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.refRate')} hint={t('refstats.hint')}>
-          <Input type="number" step="0.1" value={draft.refRefusalRate} onChange={(e) => set('refRefusalRate', e.target.value)} />
-        </Field>
-        <Field label={t('consulates.refMulti')}>
-          <Input type="number" step="0.1" value={draft.refMultiEntryShare} onChange={(e) => set('refMultiEntryShare', e.target.value)} />
-        </Field>
-        <Field label={t('misc.active')}>
-          <Switch checked={draft.active} onChange={(x) => set('active', x)} label={t('misc.active')} />
-        </Field>
-      </div>
-      <div style={{ marginTop: 'var(--sp-4)' }}>
-        <Field label={t('consulates.requiresResidence')} hint={t('consulates.requiresResidenceHint')}>
-          <Switch
-            checked={draft.requiresResidence}
-            onChange={(x) => set('requiresResidence', x)}
-            label={t('consulates.requiresResidence')}
+      <div className="col gap-4" style={{ marginBottom: 'var(--sp-6)' }}>
+        <div className="row-between wrap gap-3">
+          <Segmented
+            label={t('settings.title')}
+            value={currentFamily as Family}
+            onChange={goFamily}
+            options={families.map((f) => ({ value: f.value, label: t(f.label) }))}
           />
-        </Field>
+          <div style={{ flex: '1 1 200px', minWidth: 0, maxWidth: 280 }}>
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('rg.search')}
+              aria-label={t('rg.search')}
+            />
+          </div>
+        </div>
+
+        {q === '' && (
+          <>
+            {/* Un seul onglet ne fait pas une barre : on ne montre pas un choix
+                qui n'en est pas un. */}
+            {siblings.length > 1 && (
+              <Tabs
+                idPrefix="rg"
+                value={currentEntry.id}
+                onChange={go}
+                options={siblings.map((e) => ({ value: e.id, label: t(e.label) }))}
+              />
+            )}
+            <p className="t-small t-secondary" style={{ margin: 0 }}>
+              {t(FAMILIES.find((f) => f.value === currentFamily)?.hint ?? 'rg.famAgenceHint')}
+            </p>
+          </>
+        )}
       </div>
-      <div style={{ marginTop: 'var(--sp-4)' }}>
-        <Field label={t('caseDetail.notes')}>
-          <Textarea value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
-        </Field>
-      </div>
-    </Modal>
-  )
-}
 
-
-/* ---------------------------- WhatsApp ------------------------------- */
-
-/* Le canal réel de l'agence. Tant que ce raccordement n'existe pas, le
-   produit ne sait que pré-remplir un lien wa.me : le message part du
-   téléphone personnel de l'employé, et rien ne revient. */
-function WhatsAppSection() {
-  const { db, actions, slug } = useStore()
-  const { t } = useI18n()
-  const toast = useToast()
-  const wa = db.agency.whatsapp
-  const [draft, setDraft] = useState({
-    phoneNumberId: wa?.phoneNumberId ?? '',
-    wabaId: wa?.wabaId ?? '',
-    displayNumber: wa?.displayNumber ?? '',
-    tokenSecret: wa?.tokenSecret ?? `wa_token_${slug}`,
-    verifyToken: wa?.verifyToken ?? '',
-    active: wa?.active ?? false,
-  })
-  const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
-
-  // Le coût du mois, à la ligne près. Une agence qui relance cinq fois à
-  // froid paie cinq messages modèles.
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  monthStart.setHours(0, 0, 0, 0)
-  const sentThisMonth = db.messages.filter(
-    (m) => m.channel === 'whatsapp' && m.direction === 'sortant' && new Date(m.at) >= monthStart,
-  ).length
-
-  const webhook = `https://<projet>.supabase.co/functions/v1/whatsapp-webhook`
-
-  return (
-    <div className="grid grid--2">
-      <Card title={t('wa.title')} className="grid__wide">
-        <p className="t-small t-secondary" style={{ marginBottom: 'var(--sp-5)' }}>{t('wa.subtitle')}</p>
-        <div className="grid grid--2">
-          <Field label={t('wa.phoneNumberId')}>
-            <Input value={draft.phoneNumberId} onChange={(e) => set('phoneNumberId', e.target.value)} />
-          </Field>
-          <Field label={t('wa.wabaId')}>
-            <Input value={draft.wabaId} onChange={(e) => set('wabaId', e.target.value)} />
-          </Field>
-          <Field label={t('wa.displayNumber')}>
-            <Input value={draft.displayNumber} onChange={(e) => set('displayNumber', e.target.value)} />
-          </Field>
-          <Field label={t('wa.tokenSecret')} hint={t('wa.tokenHint')}>
-            <Input value={draft.tokenSecret} onChange={(e) => set('tokenSecret', e.target.value)} />
-          </Field>
-          <Field label={t('wa.verifyToken')} hint={t('wa.verifyHint')}>
-            <Input value={draft.verifyToken} onChange={(e) => set('verifyToken', e.target.value)} />
-          </Field>
-          <Field label={t('wa.active')}>
-            <Switch checked={draft.active} onChange={(x) => set('active', x)} label={t('wa.active')} />
-          </Field>
-        </div>
-        <div className="row-between wrap gap-3" style={{ marginTop: 'var(--sp-5)' }}>
-          <span className="col" style={{ minWidth: 0 }}>
-            <span className="t-caption t-tertiary">{t('wa.webhookUrl')}</span>
-            <span className="t-small t-num t-truncate">{webhook}</span>
-          </span>
-          <Button
-            variant="primary"
-            icon="save"
-            disabled={!draft.phoneNumberId.trim() || !draft.verifyToken.trim()}
-            onClick={() => {
-              actions.updateAgency({
-                whatsapp: {
-                  phoneNumberId: draft.phoneNumberId.trim(),
-                  wabaId: draft.wabaId.trim() || undefined,
-                  displayNumber: draft.displayNumber.trim() || undefined,
-                  tokenSecret: draft.tokenSecret.trim(),
-                  verifyToken: draft.verifyToken.trim(),
-                  active: draft.active,
-                  linkedAt: wa?.linkedAt ?? new Date().toISOString(),
-                },
-              })
-              toast(t('crud.updated'))
-            }}
-          >
-            {t('action.save')}
-          </Button>
-        </div>
-      </Card>
-
-      <Card title={t('wa.cost')}>
-        <div className="col gap-2">
-          <span className="t-display t-num">{sentThisMonth}</span>
-          <span className="t-small t-secondary">{t('wa.costHint')}</span>
-        </div>
-      </Card>
-
-      <Card title={t('wa.templates')}>
-        <p className="t-small t-secondary" style={{ marginBottom: 'var(--sp-4)' }}>{t('wa.templatesHint')}</p>
-        <div className="col gap-3">
-          {db.templates.filter((x) => x.channel === 'whatsapp').map((x) => (
-            <div key={x.id} className="row-between gap-3">
-              <span className="t-small t-truncate">{x.key}</span>
-              {/* Tant que le compte Meta n'existe pas, tout est en attente.
-                  On ne prétend pas le contraire. */}
-              <Pill tone="orange">{t('wa.pending')}</Pill>
+      {q !== '' ? (
+        found.length === 0 ? (
+          <Card>
+            <Empty title={t('rg.searchNone', { q: query.trim() })} hint={t('rg.searchNoneHint')} />
+          </Card>
+        ) : (
+          <Card title={t('rg.searchCount', { n: found.length })} flush>
+            <div className="list">
+              {found.map((e) => {
+                const famille = FAMILIES.find((f) => f.value === e.family)
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    className="list__row"
+                    onClick={() => go(e.id)}
+                    style={{ width: '100%', textAlign: 'start', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+                  >
+                    <Icon name="settings" size={18} className="t-tertiary" />
+                    <span className="col grow" style={{ minWidth: 0 }}>
+                      <span className="t-small t-medium t-truncate">{t(e.label)}</span>
+                      <span className="t-caption t-tertiary t-truncate">
+                        {famille ? t('rg.searchIn', { family: t(famille.label) }) : ''}
+                      </span>
+                    </span>
+                    <Icon name="chevronRight" size={16} className="t-tertiary" />
+                  </button>
+                )
+              })}
             </div>
-          ))}
+          </Card>
+        )
+      ) : (
+        <div id={`rg-panel-${currentEntry.id}`} role="tabpanel" aria-labelledby={`rg-${currentEntry.id}`}>
+          {currentEntry.node}
         </div>
-      </Card>
-    </div>
+      )}
+    </>
   )
 }

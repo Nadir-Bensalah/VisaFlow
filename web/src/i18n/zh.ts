@@ -378,6 +378,7 @@ export const zh: Dict = {
     signIn: '登录', signOut: '退出', reset: '重置', markPaid: '标记为已付', call: '拨打',
   },
   nav: {
+    money: '财务',
     commercial: '销售',
     visa: '签证',
     fret: '货运',
@@ -390,7 +391,7 @@ export const zh: Dict = {
     deliveries: '配送',
     warehouse: '仓库',
     support: '支持',
-    today: '待处理',
+    today: '今天',
     more: '显示更多',
     less: '显示更少',
     dashboard: '工作台', pipeline: '流程看板', cases: '申请', clients: '客户',

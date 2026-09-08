@@ -1476,3 +1476,42 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   .parcours__row { grid-template-columns: 18px 18px 1fr 20px; row-gap: 2px; }
   .parcours__detail { grid-column: 3 / 5; text-align: start; }
 }
+
+/* Les onglets d'un groupe, sous la barre du haut.
+   Ils portent ce qui est sorti de la barre latérale. Discrets par choix : ce
+   sont des voisins de la page ouverte, pas une deuxième navigation. */
+.sectiontabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--sp-6);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.sectiontabs::-webkit-scrollbar { display: none; }
+.sectiontab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 12px;
+  font-size: var(--size-small);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.sectiontab:hover { color: var(--text-primary); }
+.sectiontab--active { color: var(--text-primary); font-weight: var(--w-medium); border-bottom-color: var(--accent, var(--blue)); }
+.sectiontab__count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--surface-2, var(--bg-soft));
+  color: var(--text-secondary);
+  font-size: var(--size-caption);
+  text-align: center;
+}
+.sectiontab--active .sectiontab__count { background: var(--blue); color: #fff; }
+@media (max-width: 640px) { .sectiontabs { padding: 0 var(--sp-4); } }

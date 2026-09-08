@@ -378,6 +378,7 @@ export const ar: Dict = {
     signIn: 'تسجيل الدخول', signOut: 'تسجيل الخروج', reset: 'إعادة الضبط', markPaid: 'تسجيل كمدفوع', call: 'اتصال',
   },
   nav: {
+    money: 'المالية',
     commercial: 'التجاري',
     visa: 'التأشيرات',
     fret: 'الشحن',
@@ -390,7 +391,7 @@ export const ar: Dict = {
     deliveries: 'التسليمات',
     warehouse: 'المستودع',
     support: 'الدعم',
-    today: 'للمعالجة',
+    today: 'اليوم',
     more: 'عرض المزيد',
     less: 'عرض أقل',
     dashboard: 'لوحة القيادة', pipeline: 'مسار الملفات', cases: 'الملفات', clients: 'العملاء',
