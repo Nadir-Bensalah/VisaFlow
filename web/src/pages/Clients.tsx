@@ -4,6 +4,7 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Input, Pill } from '@/components/ui'
 import { ClientEditor } from '@/components/ClientEditor'
+import { ClientImport } from '@/components/ClientImport'
 import { PageHead } from '@/components/bits'
 import { daysUntil } from '@/lib/derive'
 
@@ -13,6 +14,7 @@ export function Clients() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -26,7 +28,7 @@ export function Clients() {
       <PageHead
         title={t('clients.title')}
         subtitle={t('clients.subtitle')}
-        action={<Button variant="primary" icon="plus" onClick={() => setOpen(true)}>{t('clients.newClient')}</Button>}
+        action={<div className="row gap-2"><Button icon="upload" onClick={() => setImporting(true)}>{t('import.action')}</Button><Button variant="primary" icon="plus" onClick={() => setOpen(true)}>{t('clients.newClient')}</Button></div>}
       />
 
       <Card flush>
@@ -39,7 +41,7 @@ export function Clients() {
             title={t('clients.none')}
             hint={t('setup.shareHint')}
             scene="equipe"
-            action={<Button variant="primary" icon="plus" onClick={() => setOpen(true)}>{t('clients.newClient')}</Button>}
+            action={<div className="row gap-2"><Button icon="upload" onClick={() => setImporting(true)}>{t('import.action')}</Button><Button variant="primary" icon="plus" onClick={() => setOpen(true)}>{t('clients.newClient')}</Button></div>}
           />
         ) : (
           <div className="tablewrap">
@@ -97,6 +99,7 @@ export function Clients() {
       </Card>
 
       {open && <ClientEditor client={null} onClose={() => setOpen(false)} onSaved={(id) => navigate(`/clients/${id}`)} />}
+      {importing && <ClientImport onClose={() => setImporting(false)} />}
     </>
   )
 }

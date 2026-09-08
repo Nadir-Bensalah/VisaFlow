@@ -1103,3 +1103,15 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   border-radius: var(--radius-card);
   background: var(--bg-subtle, var(--bg-white));
 }
+
+/* Zone de dépôt du fichier d'import clients. */
+.import__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  border: 1.5px dashed var(--hairline-strong);
+  border-radius: var(--radius-card);
+}

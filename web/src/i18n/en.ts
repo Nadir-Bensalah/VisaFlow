@@ -1,6 +1,20 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  import: {
+    action: 'Import',
+    title: 'Import clients',
+    hint: 'Drop your list as a CSV file (Excel’s “Save as CSV”). We guess the columns, you check, everything comes in at once.',
+    pick: 'Choose a CSV file',
+    empty: 'Empty or unreadable file.',
+    ignore: '— ignore —',
+    col: 'Column {n}',
+    hasHeader: 'The first row is a header',
+    preview: '{valid} valid clients out of {total} rows',
+    confirm: 'Import {n} clients',
+    done: '{n} clients imported.',
+    field: { firstName: 'First name', lastName: 'Last name', phone: 'Phone', email: 'Email', nationality: 'Nationality', passportNumber: 'Passport' },
+  },
   app: { name: 'VisaFlow', tagline: 'Every application tracked, from first contact to passport returned.' },
   action: {
     save: 'Save', cancel: 'Cancel', close: 'Close', add: 'Add', edit: 'Edit', delete: 'Delete',

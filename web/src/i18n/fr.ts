@@ -2,6 +2,20 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  import: {
+    action: 'Importer',
+    title: 'Importer des clients',
+    hint: 'Déposez votre liste au format CSV (le « Enregistrer sous CSV » d’Excel). On devine les colonnes, vous vérifiez, tout entre d’un coup.',
+    pick: 'Choisir un fichier CSV',
+    empty: 'Fichier vide ou illisible.',
+    ignore: '— ignorer —',
+    col: 'Colonne {n}',
+    hasHeader: 'La première ligne est un en-tête',
+    preview: '{valid} clients valides sur {total} lignes',
+    confirm: 'Importer {n} clients',
+    done: '{n} clients importés.',
+    field: { firstName: 'Prénom', lastName: 'Nom', phone: 'Téléphone', email: 'E-mail', nationality: 'Nationalité', passportNumber: 'Passeport' },
+  },
   app: {
     name: 'VisaFlow',
     tagline: 'Chaque dossier suivi, du premier contact au passeport rendu.',

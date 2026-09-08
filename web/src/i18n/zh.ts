@@ -1,6 +1,20 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  import: {
+    action: '导入',
+    title: '导入客户',
+    hint: '上传 CSV 格式的名单（Excel 的“另存为 CSV”）。系统自动识别列，你核对后一次性导入。',
+    pick: '选择 CSV 文件',
+    empty: '文件为空或无法读取。',
+    ignore: '— 忽略 —',
+    col: '第 {n} 列',
+    hasHeader: '首行为表头',
+    preview: '{total} 行中有 {valid} 位有效客户',
+    confirm: '导入 {n} 位客户',
+    done: '已导入 {n} 位客户。',
+    field: { firstName: '名', lastName: '姓', phone: '电话', email: '邮箱', nationality: '国籍', passportNumber: '护照' },
+  },
   app: { name: 'VisaFlow', tagline: '每一份申请全程可追踪，从首次联系到护照归还。' },
   action: {
     save: '保存', cancel: '取消', close: '关闭', add: '添加', edit: '编辑', delete: '删除',

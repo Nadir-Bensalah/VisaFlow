@@ -1,6 +1,20 @@
 import type { Dict } from './fr'
 
 export const ar: Dict = {
+  import: {
+    action: 'استيراد',
+    title: 'استيراد الحرفاء',
+    hint: 'أفلت قائمتك بصيغة CSV (خيار «حفظ باسم CSV» في Excel). نخمّن الأعمدة، تتحقّق، ويدخل كل شيء دفعة واحدة.',
+    pick: 'اختر ملف CSV',
+    empty: 'ملف فارغ أو غير قابل للقراءة.',
+    ignore: '— تجاهل —',
+    col: 'العمود {n}',
+    hasHeader: 'السطر الأول عنوان',
+    preview: '{valid} حريف صالح من أصل {total} سطر',
+    confirm: 'استيراد {n} حريف',
+    done: 'تم استيراد {n} حريف.',
+    field: { firstName: 'الاسم', lastName: 'اللقب', phone: 'الهاتف', email: 'البريد', nationality: 'الجنسية', passportNumber: 'الجواز' },
+  },
   app: { name: 'VisaFlow', tagline: 'متابعة كل ملف، من أول اتصال إلى تسليم جواز السفر.' },
   action: {
     save: 'حفظ', cancel: 'إلغاء', close: 'إغلاق', add: 'إضافة', edit: 'تعديل', delete: 'حذف',
