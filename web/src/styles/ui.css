@@ -1636,3 +1636,36 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   color: var(--text-secondary);
 }
 .worklist__style--file { background: var(--blue-soft, var(--bg-soft)); color: var(--blue); }
+
+/* Les onglets de la console. Ils tiennent sous la barre sombre, sur le fond
+   clair : ce sont des sections de la même page, pas une seconde navigation. */
+.admin__tabs {
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--sp-6);
+  position: sticky;
+  top: 66px;
+  z-index: 9;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.admin__tabs::-webkit-scrollbar { display: none; }
+.admin__tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 13px 14px;
+  background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: var(--size-small);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.admin__tab:hover { color: var(--text-primary); }
+.admin__tab--active { color: var(--text-primary); font-weight: var(--w-medium); border-bottom-color: var(--blue); }
+.admin__tab-count {
+  min-width: 19px; padding: 0 6px;
+  border-radius: 9px;
+  background: var(--tint-gray); color: var(--text-secondary);
+  font-size: var(--size-caption); text-align: center;
+}
+.admin__tab--active .admin__tab-count { background: var(--blue); color: var(--text-white); }

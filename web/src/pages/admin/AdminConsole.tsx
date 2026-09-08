@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/data/auth'
 import { useStore } from '@/data/store'
@@ -30,6 +30,8 @@ interface AgencyRow {
   last_activity: string | null; commission_kind: string; commission_amount: number
 }
 
+type Vue = 'ensemble' | 'agences' | 'demandes' | 'abonnements' | 'facturation' | 'support' | 'journal'
+
 export function AdminConsole() {
   const { isPlatformAdmin, adminChecked, user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -58,6 +60,15 @@ export function AdminConsole() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AgencyRow | null>(null)
   const [detail, setDetail] = useState<AgencyRow | null>(null)
+
+  /* SEPT ONGLETS, PAS NEUF BLOCS EMPILÉS.
+     Chaque module livré avait posé sa carte à la suite, et la console était
+     devenue une page qui ne finissait plus : on cherchait la facturation en
+     faisant défiler. L'onglet vit dans l'adresse pour qu'un rafraîchissement,
+     ou un lien qu'on se garde, retombe au bon endroit. */
+  const [params, setParams] = useSearchParams()
+  const vue = (params.get('vue') ?? 'ensemble') as Vue
+  const allerA = (v: Vue) => setParams(v === 'ensemble' ? {} : { vue: v }, { replace: true })
 
   async function load() {
     if (!supabase) return
@@ -103,6 +114,17 @@ export function AdminConsole() {
     filter === 'toutes' ? true : filter === 'actives' ? !a.suspended : a.suspended)
   const money = (n: number) => new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(n) + ' DT'
 
+  const nouvellesDemandes = signups.filter((x) => x.status === 'nouvelle').length
+  const ONGLETS: { cle: Vue; label: string; compte?: number }[] = [
+    { cle: 'ensemble', label: "Vue d'ensemble" },
+    { cle: 'agences', label: 'Agences', compte: agencies.length },
+    { cle: 'demandes', label: 'Demandes', compte: nouvellesDemandes },
+    { cle: 'abonnements', label: 'Abonnements' },
+    { cle: 'facturation', label: 'Facturation' },
+    { cle: 'support', label: 'Assistance' },
+    { cle: 'journal', label: 'Journal' },
+  ]
+
   return (
     <div className="admin">
       <header className="admin__bar">
@@ -119,10 +141,28 @@ export function AdminConsole() {
         </div>
       </header>
 
-      <main className="admin__wrap" style={{ paddingBottom: 'var(--sp-10)' }}>
-        <Analytics />
+      <nav className="admin__tabs" aria-label="Sections de la console">
+        <div className="admin__wrap row" style={{ gap: 2 }}>
+          {ONGLETS.map((o) => (
+            <button
+              key={o.cle}
+              type="button"
+              className={`admin__tab ${vue === o.cle ? 'admin__tab--active' : ''}`}
+              onClick={() => allerA(o.cle)}
+            >
+              {o.label}
+              {o.compte !== undefined && o.compte > 0 && (
+                <span className="admin__tab-count t-num">{o.compte}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-        {over && (
+      <main className="admin__wrap" style={{ paddingBottom: 'var(--sp-10)' }}>
+        {vue === 'ensemble' && <Analytics />}
+
+        {vue === 'ensemble' && over && (
           <div className="admin__grid" style={{ marginBottom: 'var(--sp-6)' }}>
             <Metric label="Agences" value={over.agencies_total} hint={`${over.agencies_active} actives · ${over.agencies_trial} en essai`} />
             <Metric label="Clients" value={over.clients_total} />
@@ -133,7 +173,7 @@ export function AdminConsole() {
           </div>
         )}
 
-        <Card
+        {vue === 'agences' && <Card
           title="Les agences"
           action={
             <Segmented value={filter} onChange={setFilter}
@@ -198,18 +238,17 @@ export function AdminConsole() {
               </table>
             </div>
           )}
-        </Card>
+        </Card>}
 
         {/* Les abonnements viennent juste après la liste des agences : c'est
             la même question, vue par l'argent. */}
-        <Subscriptions />
-        <SupportInbox />
-        <Announcements />
+        {vue === 'abonnements' && <Subscriptions />}
+        {vue === 'support' && <><SupportInbox /><Announcements /></>}
 
         {/* Les demandes de souscription passent AVANT la facturation : c'est
             le premier écran d'une journée, et une demande qui dort est un
             client perdu. */}
-        <Card
+        {vue === 'demandes' && <Card
           title="Demandes de souscription"
           action={<span className="t-caption t-tertiary">
             {signups.filter((x) => x.status === 'nouvelle').length} nouvelles sur {signups.length}
@@ -266,9 +305,9 @@ export function AdminConsole() {
               </table>
             </div>
           )}
-        </Card>
+        </Card>}
 
-        <Card
+        {vue === 'facturation' && <Card
           title="Facturation de la plateforme"
           action={<Button icon="refresh" onClick={async () => {
             if (!supabase) return
@@ -298,9 +337,9 @@ export function AdminConsole() {
               </table>
             </div>
           )}
-        </Card>
+        </Card>}
 
-        <Card title="Accès support" flush>
+        {vue === 'journal' && <Card title="Accès support" flush>
           {supportLog.length === 0 ? (
             <div style={{ padding: 'var(--sp-5)' }}><Empty title="Aucun accès support pour l'instant." hint="Chaque ouverture d'une agence en lecture seule est tracée ici." /></div>
           ) : (
@@ -319,7 +358,7 @@ export function AdminConsole() {
               </table>
             </div>
           )}
-        </Card>
+        </Card>}
       </main>
 
       {creating && <CreateAgency onClose={() => setCreating(false)} onDone={() => { setCreating(false); void load() }} toast={toast} />}
