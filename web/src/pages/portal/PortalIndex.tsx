@@ -1,37 +1,37 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
-import { Button, Card, Field, Input, Select } from '@/components/ui'
+import { Card, Select } from '@/components/ui'
+import { Icon } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
+import { usePublicAgency } from '@/pages/public/usePublicAgency'
 import type { Locale } from '@/data/types'
 
-/* Cette page n'existe que pour la demonstration : en vrai, le client arrive
-   directement sur son lien personnel, envoye par WhatsApp. */
-/* Cette page ne liste rien. Elle demande la reference, comme un guichet.
-   Enumerer les dossiers reviendrait a distribuer les liens de suivi de tous
-   les clients de l'agence. */
+/**
+ * L'entrée du suivi client.
+ *
+ * Cette page demandait une RÉFÉRENCE, « comme un guichet », en se croyant
+ * prudente parce qu'elle ne listait rien. Elle ne l'était pas : les références
+ * sont séquentielles (VF-2026-0141), et il suffisait d'en essayer une pour
+ * ouvrir le suivi du voisin, pièces et messages compris. Le trou ne se voyait
+ * pas parce que la page cherchait dans le jeu de démonstration du navigateur et
+ * ne trouvait donc jamais rien de réel.
+ *
+ * On ne cherche plus par référence. Le suivi s'ouvre par le lien personnel reçu
+ * en message, ou par le numéro de téléphone confirmé par un code. C'est moins
+ * direct, et c'est la seule façon honnête : une référence n'est pas un secret.
+ */
 export function PortalIndex() {
-  const { db } = useStore()
+  const { slug } = useStore()
   const { t, locale, setLocale } = useI18n()
-  const navigate = useNavigate()
-  const [reference, setReference] = useState('')
-  const [error, setError] = useState('')
-
-  const open = () => {
-    const cleaned = reference.trim().toUpperCase()
-    const kase = db.cases.find((c) => c.reference.toUpperCase() === cleaned)
-    if (kase) { navigate(`/portail/${kase.portalToken}`); return }
-    const shipment = db.shipments.find((x) => x.reference.toUpperCase() === cleaned)
-    if (shipment) { navigate(`/portail/cargaison/${shipment.portalToken}`); return }
-    setError(t('search.noResult'))
-  }
+  const vitrine = usePublicAgency(slug)
+  const ag = vitrine.status === 'ok' ? vitrine.agency : null
 
   return (
     <div className="portal">
       <header className="portal__bar">
-        <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
-        <span className="t-medium grow t-truncate">{db.agency.name}</span>
+        <span className="sidebar__mark" style={{ background: ag?.accent }}>{ag?.mark}</span>
+        <span className="t-medium grow t-truncate">{ag?.name ?? ''}</span>
         <Select
           aria-label={t('misc.language')}
           value={locale}
@@ -51,18 +51,15 @@ export function PortalIndex() {
 
         <Card>
           <div className="col gap-4">
-            <Field label={t('portal.reference')} error={error || undefined} hint={t('portal.privacy')}>
-              <Input
-                value={reference}
-                onChange={(e) => { setReference(e.target.value); setError('') }}
-                onKeyDown={(e) => e.key === 'Enter' && open()}
-                placeholder="VF-2026-0142"
-                autoComplete="off"
-              />
-            </Field>
-            <Button variant="primary" block onClick={open} disabled={!reference.trim()}>
-              {t('action.open')}
-            </Button>
+            {/* La voie sûre : le numéro, confirmé par un code envoyé dessus. */}
+            <Link to="/suivi" className="btn btn--primary" style={{ width: '100%' }}>
+              <Icon name="phone" size={18} /> {t('find.title')}
+            </Link>
+            <p className="t-small t-secondary" style={{ margin: 0 }}>{t('portal.byPhoneHint')}</p>
+            <hr className="divider" style={{ margin: 0 }} />
+            <Link to="/agence" className="btn btn--secondary" style={{ width: '100%' }}>
+              <Icon name="building" size={16} /> {t('portal.contactAgency')}
+            </Link>
           </div>
         </Card>
 

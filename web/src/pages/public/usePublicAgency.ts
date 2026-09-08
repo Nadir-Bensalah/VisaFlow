@@ -166,3 +166,26 @@ export function usePublicRequest(token: string): PublicRequestResult {
     },
   }
 }
+
+// ------------------------------------------------------------------
+// « Retrouver mes suivis », après vérification du numéro
+// ------------------------------------------------------------------
+
+export type MyTracking = {
+  cases: { reference: string; stage: string; status: string; token: string; country?: I18nText; label?: I18nText }[]
+  shipments: { reference: string; stage: string; token: string; originPort?: string; destPort?: string; goods?: I18nText }[]
+  requests: { reference: string; status: string; kind: string; token: string; destination?: string; goods?: string }[]
+}
+
+/**
+ * Ce que le porteur d'un appareil vérifié peut voir. Le serveur ne rend rien
+ * sans un jeton d'appareil valide : c'est le numéro de téléphone confirmé par
+ * un code qui ouvre la porte, jamais une référence devinée.
+ */
+export async function fetchMyTracking(slug: string, deviceToken: string): Promise<MyTracking | null> {
+  const data = await rpc('portal_mine', { p_agency_slug: slug, p_device_token: deviceToken }) as
+    ({ ok?: boolean } & Record<string, unknown>) | null
+  if (!data || data.ok !== true) return null
+  const v = camelKeys<MyTracking>(data)
+  return { cases: v.cases ?? [], shipments: v.shipments ?? [], requests: v.requests ?? [] }
+}

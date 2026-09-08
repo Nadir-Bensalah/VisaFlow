@@ -294,6 +294,7 @@ export const ar: Dict = {
     exportAll: 'تصدير كل المعطيات', deleteClient: 'محو عميل بناء على طلبه', inpdp: 'التصريح لدى الهيئة', plan: 'الصيغة',
   },
   portal: {
+    byPhoneHint: 'تُفتح المتابعة بالرقم الذي أعطيته للوكالة. نرسل لك رمزًا للتثبّت من أنّك أنت.',
     title: 'مطلب التأشيرة الخاص بك', hello: 'مرحبا {name}', step: 'المرحلة {n} من {total}',
     yourCase: 'ملفك', reference: 'المرجع', whatWeNeed: 'ما ينقصنا',
     allGood: 'لدينا كل شيء. لا يلزمك أي إجراء.',

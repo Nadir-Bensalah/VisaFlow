@@ -294,6 +294,7 @@ export const en: Dict = {
     exportAll: 'Export all data', deleteClient: 'Erase a client on request', inpdp: 'INPDP declaration', plan: 'Plan',
   },
   portal: {
+    byPhoneHint: 'Tracking opens with the phone number you gave the agency. We send you a code to check it is really you.',
     title: 'Your visa application', hello: 'Hello {name}', step: 'Step {n} of {total}',
     yourCase: 'Your application', reference: 'Reference', whatWeNeed: 'What we still need',
     allGood: 'We have everything. Nothing to do on your side.',

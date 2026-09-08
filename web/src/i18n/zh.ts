@@ -294,6 +294,7 @@ export const zh: Dict = {
     exportAll: '导出全部数据', deleteClient: '应客户要求删除资料', inpdp: 'INPDP 申报', plan: '套餐',
   },
   portal: {
+    byPhoneHint: '使用您提供给机构的手机号查询。我们会发送验证码，确认是本人。',
     title: '您的签证申请', hello: '{name}，您好', step: '第 {n} 步，共 {total} 步',
     yourCase: '您的申请', reference: '编号', whatWeNeed: '还缺这些材料',
     allGood: '材料已齐全，您无需再做任何事。',

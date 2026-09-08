@@ -26,6 +26,12 @@ const DEVICE_DAYS = 90
 export interface ClientDevice {
   phone: string
   until: string
+  /**
+   * Le jeton rendu par le serveur à la vérification du code. C'est LUI qui
+   * ouvre `portal_mine` : sans lui, l'appareil n'est reconnu que localement,
+   * ce qui ne prouve rien à personne.
+   */
+  token?: string
 }
 
 /** Normalise un numero pour la comparaison : seuls les chiffres comptent. */
@@ -63,11 +69,11 @@ export function checkCode(slug: string, phone: string, code: string): boolean {
   }
 }
 
-export function rememberDevice(slug: string, phone: string): void {
+export function rememberDevice(slug: string, phone: string, token?: string): void {
   const until = new Date()
   until.setDate(until.getDate() + DEVICE_DAYS)
   try {
-    window.localStorage.setItem(DEVICE_KEY + slug, JSON.stringify({ phone, until: until.toISOString() }))
+    window.localStorage.setItem(DEVICE_KEY + slug, JSON.stringify({ phone, until: until.toISOString(), token }))
   } catch {
     // L'appareil ne sera pas reconnu au prochain passage, rien de plus.
   }

@@ -488,6 +488,7 @@ export const fr = {
     plan: 'Formule',
   },
   portal: {
+    byPhoneHint: 'Le suivi s’ouvre avec le numéro que vous avez donné à l’agence. Nous vous envoyons un code pour vérifier que c’est bien vous.',
     title: 'Votre demande de visa',
     hello: 'Bonjour {name}',
     step: 'Étape {n} sur {total}',
