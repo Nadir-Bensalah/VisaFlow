@@ -13,6 +13,8 @@ interface Entry {
   hint?: string
   icon: IconName
   to: string
+  /** Texte supplémentaire cherchable, non affiché (passeport, conteneur). */
+  search?: string
 }
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
@@ -56,6 +58,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       hint: c.phone,
       icon: 'clients',
       to: `/clients/${c.id}`,
+      // On cherche aussi par numéro de passeport et par nom en arabe : c'est
+      // souvent tout ce dont dispose l'agent au comptoir.
+      search: [c.passportNumber, c.nativeName, c.whatsapp].filter(Boolean).join(' '),
     }))
     const shipments: Entry[] = v.shipments.map((x) => ({
       id: x.id,
@@ -64,6 +69,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       hint: `${x.originPort} → ${x.destPort}`,
       icon: 'ship',
       to: `/cargaisons/${x.id}`,
+      search: [x.containerNo, x.blNumber].filter(Boolean).join(' '),
     }))
     return [...pages, ...cases, ...shipments, ...clients]
   }, [db, v, t, tt])
@@ -72,7 +78,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const q = query.trim().toLowerCase()
     if (!q) return entries.slice(0, 9)
     return entries
-      .filter((e) => e.label.toLowerCase().includes(q) || (e.hint ?? '').toLowerCase().includes(q))
+      .filter((e) => e.label.toLowerCase().includes(q) || (e.hint ?? '').toLowerCase().includes(q) || (e.search ?? '').toLowerCase().includes(q))
       .slice(0, 24)
   }, [entries, query])
 

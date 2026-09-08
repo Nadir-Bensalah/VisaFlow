@@ -736,6 +736,7 @@ function PaymentsTab({ caseId }: { caseId: string }) {
   const payments = db.payments.filter((p) => p.caseId === caseId)
   const [cashing, setCashing] = useState<string | null>(null)
   const [method, setMethod] = useState<PaymentMethod>('especes')
+  const paymentAmount = db.payments.find((p) => p.id === cashing)?.amount
 
   return (
     <div className="col gap-3">
@@ -779,13 +780,24 @@ function PaymentsTab({ caseId }: { caseId: string }) {
             </>
           }
         >
-          <Field label={t('pay.method')}>
-            <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-              {(['especes', 'virement', 'carte', 'cheque'] as PaymentMethod[]).map((m) => (
-                <option key={m} value={m}>{t(`payment.${m}` as 'payment.especes')}</option>
-              ))}
-            </Select>
-          </Field>
+          <div className="col gap-4">
+            <Field label={t('pay.method')}>
+              <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
+                {(['especes', 'virement', 'carte', 'cheque'] as PaymentMethod[]).map((m) => (
+                  <option key={m} value={m}>{t(`payment.${m}` as 'payment.especes')}</option>
+                ))}
+              </Select>
+            </Field>
+            {/* L'alerte anti-amende : un encaissement espèces à partir de 5000
+                dinars coûte 20 % d'amende, minimum 2000 dinars (art. 83 ter du
+                CDPF). Mieux vaut fractionner ou passer par un autre moyen. */}
+            {method === 'especes' && (paymentAmount ?? 0) >= 5000 && (
+              <div className="wawindow" style={{ background: 'var(--tint-red)', color: 'var(--red)' }}>
+                <Icon name="alert" size={15} />
+                <span className="t-caption grow">{t('pay.cashWarning')}</span>
+              </div>
+            )}
+          </div>
         </Modal>
       )}
     </div>

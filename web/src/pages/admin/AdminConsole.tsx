@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/data/auth'
-import { Button, Card, Empty, Pill, Segmented, useToast } from '@/components/ui'
+import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
 
 /* La console de la plateforme. Le tien, au-dessus de toutes les agences.
    Branchée en réel sur platform_overview et platform_agencies : rien n'est en
@@ -28,16 +28,21 @@ export function AdminConsole() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'toutes' | 'actives' | 'suspendues'>('toutes')
   const [busy, setBusy] = useState<string | null>(null)
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<AgencyRow | null>(null)
 
   async function load() {
     if (!supabase) return
     setLoading(true)
-    const [o, a] = await Promise.all([
+    const [o, a, inv] = await Promise.all([
       supabase.rpc('platform_overview'),
       supabase.rpc('platform_agencies'),
+      supabase.rpc('platform_invoices_list', {}),
     ])
     if (o.data) setOver(o.data as Overview)
     if (a.data) setAgencies(a.data as AgencyRow[])
+    if (inv.data) setInvoices(inv.data as any[])
     setLoading(false)
   }
 
@@ -77,6 +82,7 @@ export function AdminConsole() {
             <span className="t-caption t-tertiary t-truncate">{user?.email}</span>
           </div>
           <span className="grow" />
+          <Button icon="plus" onClick={() => setCreating(true)}>Nouvelle agence</Button>
           <Button icon="refresh" onClick={() => void load()}>Rafraîchir</Button>
           <Button icon="logout" onClick={() => { void signOut(); navigate('/admin') }}>Sortir</Button>
         </div>
@@ -133,10 +139,12 @@ export function AdminConsole() {
                       <td className="num">{a.clients}</td>
                       <td className="num">{a.cases_open}</td>
                       <td className="t-caption">
-                        {a.commission_kind === 'gratuit' ? 'gratuit'
-                          : a.commission_kind === 'mensuel' ? `${money(a.commission_amount)}/mois`
-                          : a.commission_kind === 'pourcentage' ? `${a.commission_amount} %`
-                          : `${money(a.commission_amount)}/dossier`}
+                        <button type="button" className="linkish t-small" onClick={() => setEditing(a)}>
+                          {a.commission_kind === 'gratuit' ? 'gratuit'
+                            : a.commission_kind === 'mensuel' ? `${money(a.commission_amount)}/mois`
+                            : a.commission_kind === 'pourcentage' ? `${a.commission_amount} %`
+                            : `${money(a.commission_amount)}/dossier`}
+                        </button>
                       </td>
                       <td className="t-caption t-tertiary">
                         {a.last_activity ? new Date(a.last_activity).toLocaleDateString('fr-TN') : '—'}
@@ -155,8 +163,104 @@ export function AdminConsole() {
             </div>
           )}
         </Card>
+
+        <Card
+          title="Facturation de la plateforme"
+          action={<Button icon="refresh" onClick={async () => {
+            if (!supabase) return
+            const { data, error } = await supabase.rpc('platform_generate_invoices', {})
+            if (error) { toast(error.message); return }
+            toast(`${data} factures générées.`); void load()
+          }}>Générer le mois</Button>}
+          flush
+        >
+          {invoices.length === 0 ? (
+            <div style={{ padding: 'var(--sp-5)' }}><Empty title="Aucune facture." /></div>
+          ) : (
+            <div className="admin__scroll">
+              <table className="admin__table">
+                <thead><tr><th>Agence</th><th>Période</th><th className="num">Dossiers</th><th className="num">Montant</th><th>État</th></tr></thead>
+                <tbody>
+                  {invoices.map((i, k) => (
+                    <tr key={k}>
+                      <td className="t-small t-medium">{i.agency}</td>
+                      <td className="t-caption t-tertiary">{i.period?.slice(0, 7)}</td>
+                      <td className="num">{i.cases_billed}</td>
+                      <td className="num t-medium">{money(i.amount)}</td>
+                      <td><Pill tone={i.status === 'reglee' ? 'green' : i.status === 'envoyee' ? 'blue' : 'orange'}>{i.status}</Pill></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </main>
+
+      {creating && <CreateAgency onClose={() => setCreating(false)} onDone={() => { setCreating(false); void load() }} toast={toast} />}
+      {editing && <EditCommission agency={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); void load() }} toast={toast} />}
     </div>
+  )
+}
+
+function CreateAgency({ onClose, onDone, toast }: { onClose: () => void; onDone: () => void; toast: (m: string) => void }) {
+  const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [country, setCountry] = useState('Tunisie')
+  const [kind, setKind] = useState('par_dossier')
+  const [amount, setAmount] = useState(8)
+  const [busy, setBusy] = useState(false)
+  return (
+    <Modal title="Nouvelle agence" onClose={onClose} footer={<>
+      <Button onClick={onClose}>Annuler</Button>
+      <Button variant="primary" disabled={busy || !name.trim() || !slug.trim()} onClick={async () => {
+        if (!supabase) return
+        setBusy(true)
+        const { error } = await supabase.rpc('platform_create_agency', {
+          p_name: name.trim(), p_slug: slug.trim().toLowerCase(), p_country: country,
+          p_commission_kind: kind, p_commission_amount: amount,
+        })
+        setBusy(false)
+        if (error) { toast(error.message); return }
+        toast('Agence créée.'); onDone()
+      }}>Créer</Button>
+    </>}>
+      <div className="col gap-4">
+        <Field label="Nom de l'agence"><Input value={name} onChange={(e) => { setName(e.target.value); if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')) }} /></Field>
+        <Field label="Sous-domaine" hint={`${slug || 'agence'}.visaflow.app`}><Input value={slug} onChange={(e) => setSlug(e.target.value)} /></Field>
+        <Field label="Pays"><Select value={country} onChange={(e) => setCountry(e.target.value)}><option>Tunisie</option><option>Libye</option></Select></Field>
+        <div className="grid grid--2">
+          <Field label="Commission"><Select value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="par_dossier">Par dossier</option><option value="mensuel">Mensuelle</option><option value="gratuit">Gratuit</option>
+          </Select></Field>
+          <Field label="Montant (DT)"><Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></Field>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function EditCommission({ agency, onClose, onDone, toast }: { agency: AgencyRow; onClose: () => void; onDone: () => void; toast: (m: string) => void }) {
+  const [kind, setKind] = useState(agency.commission_kind)
+  const [amount, setAmount] = useState(agency.commission_amount)
+  return (
+    <Modal title={`Commission · ${agency.name}`} onClose={onClose} footer={<>
+      <Button onClick={onClose}>Annuler</Button>
+      <Button variant="primary" onClick={async () => {
+        if (!supabase) return
+        const { error } = await supabase.rpc('platform_set_commission', { p_agency: agency.id, p_kind: kind, p_amount: amount })
+        if (error) { toast(error.message); return }
+        toast('Commission mise à jour.'); onDone()
+      }}>Enregistrer</Button>
+    </>}>
+      <div className="grid grid--2">
+        <Field label="Type"><Select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="par_dossier">Par dossier</option><option value="mensuel">Mensuelle</option>
+          <option value="pourcentage">Pourcentage</option><option value="gratuit">Gratuit</option>
+        </Select></Field>
+        <Field label="Montant"><Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></Field>
+      </div>
+    </Modal>
   )
 }
 

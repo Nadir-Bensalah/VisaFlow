@@ -78,6 +78,7 @@ export const zh: Dict = {
     none: '暂无预约。',
   },
   pay: {
+    cashWarning: '注意：现金收款达 5000 第纳尔及以上将被罚款 20%。请分次或改用其他方式。',
     title: '收款', subtitle: '已收多少，还差多少。客户款项从不经过 VisaFlow。',
     label: '项目', amount: '金额', state: '状态', method: '方式', date: '日期', receipt: '收据',
     collected: '已收', outstanding: '未收', none: '暂无收款记录。',

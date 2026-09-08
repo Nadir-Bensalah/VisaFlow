@@ -233,6 +233,7 @@ export const fr = {
     none: 'Aucun rendez-vous prévu.',
   },
   pay: {
+    cashWarning: 'Attention : un encaissement espèces de 5000 DT ou plus coûte 20 % d’amende. Fractionnez ou changez de moyen.',
     title: 'Paiements',
     subtitle: 'Ce qui est encaissé, ce qui reste dû. L’argent des clients ne transite jamais par VisaFlow.',
     label: 'Libellé',

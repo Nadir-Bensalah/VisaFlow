@@ -78,6 +78,7 @@ export const en: Dict = {
     none: 'No appointment scheduled.',
   },
   pay: {
+    cashWarning: 'Warning: a cash payment of 5,000 DT or more incurs a 20% fine. Split it or use another method.',
     title: 'Payments', subtitle: 'What has been collected, what is still due. Client money never flows through VisaFlow.',
     label: 'Item', amount: 'Amount', state: 'Status', method: 'Method', date: 'Date', receipt: 'Receipt',
     collected: 'Collected', outstanding: 'Outstanding', none: 'No payment recorded.',
