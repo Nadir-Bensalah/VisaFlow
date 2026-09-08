@@ -208,3 +208,101 @@ export async function portalUploadDoc(token: string, docKey: string, file: File)
     throw new Error((detail as { error?: string }).error ?? `dépôt refusé (${res.status})`)
   }
 }
+
+// ------------------------------------------------------------------
+// Le suivi de cargaison, même principe
+// ------------------------------------------------------------------
+
+export type PortalShipmentView = {
+  shipment: {
+    reference: string
+    mode: string
+    stage: string
+    status: string
+    originCity?: string
+    originPort?: string
+    destCity?: string
+    destPort?: string
+    etd?: string
+    eta?: string
+    deliveredAt?: string
+    blockedReason?: string
+    packages?: number
+    weightKg?: number
+    volumeCbm?: number
+    goods?: I18nText
+    /** Absent sur un groupage : la boîte est partagée avec d'autres clients. */
+    containerNo?: string
+  }
+  agency: { name: string; mark?: string; accent?: string }
+  office: { name: string; address?: string; phone?: string } | null
+  legs: {
+    seq: number; mode: string; fromPlace: string; toPlace: string
+    carrier?: string; conveyance?: string
+    etd?: string; eta?: string; atd?: string; ata?: string
+  }[]
+  events: { stage: string; at: string; location?: string }[]
+  documents: { key?: string; label: I18nText; state: DocState }[]
+}
+
+type ShipmentState =
+  | { status: 'chargement' }
+  | { status: 'absent' }
+  | { status: 'erreur'; message: string }
+  | { status: 'ok'; view: PortalShipmentView }
+
+export function usePortalShipment(token: string): ShipmentState {
+  const { db } = useStore()
+  const [remote, setRemote] = useState<ShipmentState>({ status: 'chargement' })
+
+  useEffect(() => {
+    if (!HAS_BACKEND) return
+    let alive = true
+    setRemote({ status: 'chargement' })
+    rpc('portal_shipment', { p_token: token })
+      .then((data) => {
+        if (!alive) return
+        if (!data) { setRemote({ status: 'absent' }); return }
+        setRemote({ status: 'ok', view: camelKeys<PortalShipmentView>(data) })
+      })
+      .catch((e) => {
+        if (!alive) return
+        setRemote({ status: 'erreur', message: e instanceof Error ? e.message : String(e) })
+      })
+    return () => { alive = false }
+  }, [token])
+
+  if (HAS_BACKEND) return remote
+
+  const s = db.shipments.find((x) => x.portalToken === token)
+  if (!s) return { status: 'absent' }
+  const office = db.agency.offices.find((o) => o.id === s.officeId)
+
+  return {
+    status: 'ok',
+    view: {
+      shipment: {
+        reference: s.reference, mode: s.mode, stage: s.stage, status: s.status,
+        originCity: s.originCity, originPort: s.originPort,
+        destCity: s.destCity, destPort: s.destPort,
+        etd: s.etd, eta: s.eta, deliveredAt: s.deliveredAt,
+        packages: s.packages, weightKg: s.weightKg, volumeCbm: s.volumeCbm,
+        goods: s.goods,
+        // Même règle qu'au serveur : pas de numéro de boîte partagée.
+        containerNo: s.mode === 'maritime_lcl' ? undefined : s.containerNo,
+      },
+      agency: { name: db.agency.name, mark: db.agency.mark, accent: db.agency.accent },
+      office: office ? { name: office.name, address: office.address, phone: office.phone } : null,
+      legs: db.legs.filter((l) => l.shipmentId === s.id).sort((a, b) => a.seq - b.seq)
+        .map((l) => ({
+          seq: l.seq, mode: l.mode, fromPlace: l.fromPlace, toPlace: l.toPlace,
+          carrier: l.carrier, conveyance: l.conveyance,
+          etd: l.etd, eta: l.eta, atd: l.atd, ata: l.ata,
+        })),
+      events: db.shipmentEvents.filter((e) => e.shipmentId === s.id)
+        .map((e) => ({ stage: e.stage, at: e.at, location: e.location })),
+      documents: db.shipmentDocs.filter((d) => d.shipmentId === s.id && d.required)
+        .map((d) => ({ key: d.key, label: d.label, state: d.state })),
+    },
+  }
+}
