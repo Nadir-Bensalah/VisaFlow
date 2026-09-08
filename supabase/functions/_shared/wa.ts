@@ -1,5 +1,13 @@
-/* Ce que les deux fonctions de bord partagent.
-   Rien de métier ici : les règles vivent en base, pas dans le bord. */
+/* Ce que les fonctions de bord WhatsApp partagent.
+   Rien de métier ici : les règles vivent en base, pas dans le bord.
+
+   La plomberie générique (appel REST, appel d'une fonction SQL, lecture du
+   coffre) a déménagé dans `bord.ts` le jour où le courriel et les webhooks en
+   ont eu besoin. Elle est réexportée ici pour que rien n'ait à changer de nom,
+   et surtout pour qu'il n'en existe qu'une seule écriture. */
+
+import { rpc, readSecret } from './bord.ts'
+export { rpc, readSecret }
 
 export const GRAPH = 'https://graph.facebook.com/v21.0'
 
@@ -11,24 +19,6 @@ export interface Account {
   verify_token: string
   app_secret_name: string | null
   active: boolean
-}
-
-/** Le jeton vit dans le coffre, jamais dans une table lisible.
-    Sans cette indirection, quiconque lit `whatsapp_accounts` peut écrire au
-    nom de l'agence depuis n'importe où. */
-export async function readSecret(supabaseUrl: string, serviceKey: string, name: string): Promise<string | null> {
-  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/vault_read`, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ p_name: name }),
-  })
-  if (!res.ok) return null
-  const value = await res.json()
-  return typeof value === 'string' ? value : null
 }
 
 /** Meta signe chaque appel entrant. Sans vérification, n'importe qui poste
@@ -51,21 +41,4 @@ export async function validSignature(secret: string, raw: string, header: string
   let diff = 0
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i)
   return diff === 0
-}
-
-export function rpc(supabaseUrl: string, serviceKey: string) {
-  return async (fn: string, args: Record<string, unknown>) => {
-    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/${fn}`, {
-      method: 'POST',
-      headers: {
-        apikey: serviceKey,
-        authorization: `Bearer ${serviceKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(args),
-    })
-    if (!res.ok) throw new Error(`${fn} ${res.status} ${await res.text()}`)
-    const text = await res.text()
-    return text ? JSON.parse(text) : null
-  }
 }

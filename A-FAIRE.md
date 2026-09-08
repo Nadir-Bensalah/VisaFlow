@@ -3,6 +3,55 @@
 Ce fichier est tenu au fil de l'eau. Il ne contient que ce que je ne peux pas
 faire à ta place.
 
+## Faire marcher le courriel (30 minutes, une seule fois)
+
+Tout est écrit et déployé. Il manque un compte chez un expéditeur, un domaine
+vérifié, et deux lignes à taper. Tant que ce n'est pas fait, l'application
+marche exactement comme aujourd'hui : elle grise ses boutons « envoyer par
+courriel » au lieu de proposer une action qui échouerait.
+
+**1. Ouvrir un compte Resend.** Va sur resend.com, crée un compte gratuit.
+C'est trois mille courriels par mois sans payer, largement assez pour démarrer.
+
+**2. Vérifier un domaine.** Dans Resend, onglet « Domains », ajoute le domaine
+que tu utiliseras pour écrire (par exemple `visaflow.tn`). Resend affiche trois
+lignes à copier chez ton hébergeur de nom de domaine (SPF, DKIM, DMARC). Colle
+les, attends dix minutes, la pastille passe au vert.
+
+Cette étape n'est pas une formalité. Sans domaine vérifié, tout ce qui part
+tombe en indésirable, chez Gmail comme ailleurs.
+
+**3. Créer la clé.** Dans Resend, onglet « API Keys », bouton « Create API Key ».
+Copie la clé, elle commence par `re_`. Elle ne se réaffiche jamais.
+
+**4. Poser la clé et l'adresse d'expéditeur.** Deux commandes, dans le dossier
+du projet :
+
+```bash
+supabase secrets set RESEND_API_KEY=re_la_cle_copiee --project-ref ppzjkvgfgoxmdbbsphbr
+supabase secrets set "EMAIL_FROM=VisaFlow <no-reply@visaflow.tn>" --project-ref ppzjkvgfgoxmdbbsphbr
+```
+
+Remplace `visaflow.tn` par le domaine que tu viens de vérifier. L'adresse peut
+être n'importe quoi devant l'arobase, `no-reply` est l'usage.
+
+**5. Vérifier que c'est parti.** Une commande, qui n'envoie rien :
+
+```bash
+curl -s -X POST "https://ppzjkvgfgoxmdbbsphbr.supabase.co/functions/v1/send-email" \
+  -H "content-type: application/json" \
+  -H "authorization: Bearer LA_CLE_DE_SERVICE" \
+  -d '{"probe":true}'
+```
+
+Tu dois lire `"ready":true`. Si tu lis `"ready":false`, le message dit ce qui
+manque, en français. À partir de là, les boutons de l'application s'allument
+tout seuls.
+
+Ce que ça débloque, immédiatement : le mot de passe oublié, la facture envoyée
+au client, l'invitation d'un employé par lien au lieu d'un mot de passe dicté
+au téléphone, et la vérification d'adresse.
+
 ## Avant d'écrire une ligne de plus
 
 - [ ] **Une demi-journée à l'agence.** Voir un dossier réel du début à la fin.

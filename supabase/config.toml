@@ -16,3 +16,20 @@ verify_jwt = true
 [functions.portal-upload]
 # Le client n'a pas de compte : il présente son jeton de suivi, pas un JWT.
 verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = true
+
+[functions.send-email]
+# Deux appelants : la clé de service pour le serveur, le jeton d'un compte
+# connecté pour l'application. Les deux passent le portail, et la fonction
+# tranche ensuite qui a le droit d'écrire au nom de quelle agence.
+verify_jwt = true
+
+[functions.webhook-dispatch]
+# La tâche planifiée part de PostgreSQL par pg_net : elle n'a pas de jeton
+# Supabase à présenter, et lui en donner un le ferait transiter par une table
+# que tout compte connecté peut lire. C'est la signature qui protège, pas le
+# JWT, exactement comme pour whatsapp-webhook. La fonction refuse tout appel
+# qui n'est ni signé ni porteur de la clé de service.
+verify_jwt = false
