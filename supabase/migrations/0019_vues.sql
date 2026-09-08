@@ -62,4 +62,5 @@ as $$
                   where option_name = 'security_invoker'), 'off') <> 'on';
 $$;
 
+revoke all on function views_without_invoker() from public, anon;
 grant execute on function views_without_invoker() to authenticated;

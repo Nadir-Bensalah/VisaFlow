@@ -52,4 +52,5 @@ alter table shipments add constraint shipments_incoterm_mode
 comment on constraint shipments_incoterm_mode on shipments is
   'Les règles maritimes n''ont pas de sens sur un vol ou un camion. Posée en not valid : les lignes déjà saisies ne sont pas rejetées, seules les nouvelles sont contrôlées.';
 
+revoke all on function incoterm_coherent(text, text) from public, anon;
 grant execute on function incoterm_coherent(text, text) to authenticated;

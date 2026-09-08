@@ -105,7 +105,7 @@ create table if not exists client_requests (
   client_id      uuid references clients on delete set null,
   case_id        uuid references cases on delete set null,
   source_ip      inet,
-  portal_token   text not null unique default encode(gen_random_bytes(32), 'hex'),
+  portal_token   text not null unique default encode(extensions.gen_random_bytes(32), 'hex'),
   unique (agency_id, reference)
 );
 create index if not exists client_requests_new on client_requests (agency_id, status, received_at desc);

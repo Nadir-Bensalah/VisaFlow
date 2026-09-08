@@ -46,11 +46,18 @@ Deno.serve(async (req) => {
   const raw = await req.text()
 
   // Sans signature vérifiée, n'importe qui poste de faux messages dans les
-  // dossiers de l'agence. On refuse plutôt que de faire confiance.
-  if (APP_SECRET) {
-    const ok = await validSignature(APP_SECRET, raw, req.headers.get('x-hub-signature-256'))
-    if (!ok) return new Response('signature', { status: 401 })
+  // dossiers de l'agence. La vérification est TOUJOURS exigée : un secret
+  // absent ferme la porte, il ne l'ouvre pas. La red team avait montré que le
+  // garde « if (APP_SECRET) » sautait toute la vérification quand la variable
+  // n'était pas posée, laissant injecter de faux entrants.
+  if (!APP_SECRET) {
+    // Fermé par défaut : tant que le secret n'est pas configuré, aucun appel
+    // entrant n'est traité. C'est une panne visible, pas un trou silencieux.
+    console.error('WHATSAPP_APP_SECRET absent : webhook fermé')
+    return new Response('non configuré', { status: 503 })
   }
+  const signed = await validSignature(APP_SECRET, raw, req.headers.get('x-hub-signature-256'))
+  if (!signed) return new Response('signature', { status: 401 })
 
   let body: any
   try { body = JSON.parse(raw) } catch { return new Response('json', { status: 400 }) }

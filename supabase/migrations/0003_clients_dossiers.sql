@@ -68,7 +68,7 @@ create table if not exists cases (
   amount_paid    numeric(12,2) not null default 0,
   currency       char(3) not null default 'TND',
   -- Jeton de suivi : lecture seule, sans compte, révoqué à la clôture.
-  portal_token   text not null unique default encode(gen_random_bytes(32), 'hex'),
+  portal_token   text not null unique default encode(extensions.gen_random_bytes(32), 'hex'),
   portal_expires_at timestamptz,
   closed_at      timestamptz,
   purge_after    date,

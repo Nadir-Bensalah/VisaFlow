@@ -1,6 +1,13 @@
 -- Banc d'essai local : les morceaux de Supabase que le schéma suppose.
 -- Il ne sert qu'aux tests, jamais en production.
 
+-- Supabase installe pgcrypto dans le schéma `extensions`, pas `public`.
+-- Le banc doit refléter ça, sinon `extensions.crypt` casse en local et
+-- laisse repartir un trou déjà rencontré (migration 0021).
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+grant usage on schema extensions to public;
+
 create schema if not exists auth;
 create schema if not exists storage;
 

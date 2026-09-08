@@ -43,7 +43,7 @@ create table if not exists shipments (
   free_days      int not null default 7,
   demurrage_rate numeric(12,2),
   demurrage_currency char(3) default 'TND',
-  portal_token   text not null unique default encode(gen_random_bytes(32), 'hex'),
+  portal_token   text not null unique default encode(extensions.gen_random_bytes(32), 'hex'),
   created_at     timestamptz not null default now(),
   unique (agency_id, reference)
 );
@@ -65,7 +65,7 @@ create table if not exists shipment_lots (
   declared_currency char(3) default 'USD',
   cleared_at   timestamptz,
   delivered_at timestamptz,
-  portal_token text not null unique default encode(gen_random_bytes(32), 'hex'),
+  portal_token text not null unique default encode(extensions.gen_random_bytes(32), 'hex'),
   note         text
 );
 create index if not exists shipment_lots_shipment on shipment_lots (shipment_id);

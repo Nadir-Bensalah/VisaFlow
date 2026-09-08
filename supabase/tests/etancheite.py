@@ -285,6 +285,51 @@ def bloc_plateforme():
 
 bloc_plateforme()
 
+# =====================================================================
+# 9 · La couche d'identité OTP, ressuscitée (red team n°2, faille 2)
+# =====================================================================
+# Elle était morte en prod : pgcrypto hors du search_path. Fail-closed, donc
+# sans fuite, mais une fonctionnalité de sécurité entière qui n'existait plus.
+# On la garde vivante, et on garde le drapeau « vérifié » hors de portée.
+def bloc_otp():
+    print("\n9 · L'identité client sans compte")
+
+    st, data = http("/rest/v1/rpc/issue_otp", "POST",
+                    {"p_agency_slug": "tca", "p_phone": "+216 55 900 001"})
+    ok(st == 200 and isinstance(data, dict) and data.get("sent") is True,
+       "issue_otp émet un code, pgcrypto est bien atteint", f"{st} {str(data)[:80]}")
+
+    st, data = http("/rest/v1/rpc/portal_mine", "POST",
+                    {"p_agency_slug": "tca", "p_device_token": "jeton-forge-0000"})
+    ok(st == 200 and isinstance(data, dict) and data.get("ok") is False,
+       "portal_mine répond sans erreur à un jeton forgé", f"{st} {str(data)[:80]}")
+
+    # Un mauvais code doit répondre « faux », ce qui prouve que crypt() tourne.
+    st, data = http("/rest/v1/rpc/verify_otp", "POST",
+                    {"p_agency_slug": "tca", "p_phone": "+216 55 900 001", "p_code": "000000"})
+    ok(st == 200 and data.get("ok") is False and data.get("reason") in ("faux", "expire"),
+       "verify_otp compare le code sans planter", f"{st} {str(data)[:80]}")
+
+    # Le drapeau « numéro vérifié » ne s'auto-déclare plus.
+    st, data = http("/rest/v1/rpc/portal_submit_request", "POST", {
+        "p_agency_slug": "tca", "p_kind": "visa", "p_visa_type": None, "p_travel": None,
+        "p_goods": None, "p_origin": None, "p_first": "BANC", "p_last": "ETANCHE",
+        "p_phone": "+216 55 900 002", "p_locale": "fr", "p_note": "test", "p_verified": True,
+    })
+    token = data.get("token") if isinstance(data, dict) else None
+    if token:
+        _, rows = service(f"/rest/v1/client_requests?portal_token=eq.{token}&select=phone_verified")
+        ok(rows and rows[0]["phone_verified"] is False,
+           "une demande entrante ne peut pas se déclarer vérifiée", str(rows))
+        # on retire la ligne de test
+        service(f"/rest/v1/client_requests?portal_token=eq.{token}", "DELETE")
+    else:
+        ok(False, "portal_submit_request n'a pas rendu de jeton", str(data))
+    service("/rest/v1/otp_codes?phone=eq.%2B216%2055%20900%20001", "DELETE")
+
+bloc_otp()
+
+
 print()
 if rouges:
     print(f"{len(rouges)} FAILLE(S) sur {verts + len(rouges)} vérifications :")
