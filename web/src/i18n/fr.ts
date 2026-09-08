@@ -819,6 +819,21 @@ export const fr = {
     non_persiste: 'Cette action n’a pas encore été enregistrée sur le serveur.',
     retry: 'Réessayer',
   },
+  custody: {
+    title: 'Passeport en caution',
+    receive: 'Recevoir le passeport',
+    receiveHint: 'Le passeport original reste au coffre jusqu’au règlement du solde.',
+    receivedDone: 'Passeport enregistré.',
+    held: 'Au coffre',
+    since: 'depuis le {date}',
+    blocked: 'Solde de {amount} à régler avant de rendre le passeport.',
+    force: 'Rendre malgré le solde (direction)',
+    forceConfirm: 'Rendre le passeport alors qu’il reste {amount} à payer ?',
+    return: 'Rendre le passeport',
+    returned: 'Passeport rendu.',
+    returnedPast: 'Passeport rendu.',
+    none: 'Aucun passeport en caution pour ce dossier.',
+  },
 } as const
 
 /** Meme forme que le francais, mais chaque feuille est un simple string :

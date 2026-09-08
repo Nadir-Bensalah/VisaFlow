@@ -204,6 +204,7 @@ export function CaseDetail() {
           </Card>
         </div>
       </div>
+
     </>
   )
 }
@@ -221,7 +222,8 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
 
 function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
   const { db, actions } = useStore()
-  const { t, tt, formatDate } = useI18n()
+  const v = useVisible()
+  const { t, tt, formatDate, formatMoney } = useI18n()
   const toast = useToast()
   const visa = db.visaTypes.find((v) => v.id === kase.visaTypeId)!
   const stages = visa.stages
@@ -231,9 +233,12 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
   const place = queueRank(db, kase.id)
   const bioUntil = biometricsValidUntil(client?.biometricsAt)
   const bioOk = biometricsValid(client?.biometricsAt)
+  const [receiving, setReceiving] = useState(false)
+  const [passportNo, setPassportNo] = useState(client?.passportNumber ?? '')
   const currentIndex = stages.indexOf(kase.stage)
 
   return (
+    <>
     <div className="stack">
       <ul className="timeline">
         {stages.map((s, i) => (
@@ -318,6 +323,55 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
         </div>
       )}
 
+      {/* Le registre du passeport. C'est le risque juridique numéro un de
+          l'agence : un passeport perdu coûte vingt fois sa délivrance. La
+          restitution est bloquée tant que le solde n'est pas réglé. */}
+      {(() => {
+        const held = db.custody.find((c) => c.caseId === kase.id && !c.returnedAt)
+        const past = db.custody.filter((c) => c.caseId === kase.id && c.returnedAt)
+        const due = caseBalance(kase)
+        const canForce = v.can('finance:global')
+        return (
+          <div className="card" style={{ boxShadow: 'none', background: 'var(--bg-sunken)', padding: 'var(--sp-4)' }}>
+            <div className="row-between" style={{ marginBottom: held ? 'var(--sp-3)' : 0 }}>
+              <span className="t-caption t-tertiary row gap-2"><Icon name="passport" size={15} /> {t('custody.title')}</span>
+              {!held && v.can('case:write') && (
+                <button type="button" className="linkish t-small" onClick={() => setReceiving(true)}>{t('custody.receive')}</button>
+              )}
+            </div>
+            {held ? (
+              <div className="col gap-2">
+                <div className="row-between">
+                  <span className="t-medium">{held.passportNumber}</span>
+                  <Pill tone="orange">{t('custody.held')}</Pill>
+                </div>
+                <span className="t-caption t-tertiary">{held.location} · {t('custody.since', { date: formatDate(held.receivedAt) })}</span>
+                {v.can('case:write') && (
+                  due > 0 ? (
+                    <div className="col gap-2" style={{ marginTop: 'var(--sp-2)' }}>
+                      <span className="t-caption" style={{ color: 'var(--red)' }}>{t('custody.blocked', { amount: formatMoney(due) })}</span>
+                      {canForce && (
+                        <button type="button" className="linkish t-small" style={{ color: 'var(--red)' }}
+                          onClick={() => { if (window.confirm(t('custody.forceConfirm', { amount: formatMoney(due) }))) { actions.releasePassport(held.id, true); toast(t('custody.returned')) } }}>
+                          {t('custody.force')}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button type="button" className="btn btn--secondary btn--sm" style={{ marginTop: 'var(--sp-2)', alignSelf: 'start' }}
+                      onClick={() => { actions.releasePassport(held.id); toast(t('custody.returned')) }}>
+                      {t('custody.return')}
+                    </button>
+                  )
+                )}
+              </div>
+            ) : (
+              <span className="t-small t-tertiary">{past.length > 0 ? t('custody.returnedPast') : t('custody.none')}</span>
+            )}
+          </div>
+        )
+      })()}
+
       {(kase.refusalCode || kase.refusalReason) && (
         <div className="card" style={{ boxShadow: 'none', background: 'var(--tint-red)', padding: 'var(--sp-4)' }}>
           <div className="col gap-1">
@@ -336,6 +390,27 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
         </div>
       )}
     </div>
+    {receiving && (
+      <Modal
+        title={t('custody.receive')}
+        onClose={() => setReceiving(false)}
+        footer={<>
+          <Button onClick={() => setReceiving(false)}>{t('action.cancel')}</Button>
+          <Button variant="primary" disabled={!passportNo.trim()} onClick={() => {
+            actions.receivePassport({ caseId: kase.id, clientId: kase.clientId, passportNumber: passportNo.trim() })
+            setReceiving(false); toast(t('custody.receivedDone'))
+          }}>{t('action.confirm')}</Button>
+        </>}
+      >
+        <div className="col gap-4">
+          <p className="t-small t-secondary">{t('custody.receiveHint')}</p>
+          <Field label={t('clients.passport')}>
+            <Input value={passportNo} onChange={(e) => setPassportNo(e.target.value)} placeholder="L123456" />
+          </Field>
+        </div>
+      </Modal>
+    )}
+    </>
   )
 }
 

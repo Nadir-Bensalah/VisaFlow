@@ -320,6 +320,24 @@ export interface SlotAttempt {
   note?: string
 }
 
+/** La garde d'un passeport original. C'est le bien le plus précieux du client
+    et le risque juridique numéro un de l'agence : le remplacer coûte vingt
+    fois sa délivrance. Le registre dit qui a déposé, quand, où il est, et
+    bloque la restitution tant que le solde n'est pas réglé. */
+export interface PassportCustody {
+  id: string
+  agencyId: string
+  clientId: string
+  caseId?: string
+  passportNumber: string
+  receivedAt: string
+  receivedBy?: string
+  location?: string
+  locationNote?: string
+  returnedAt?: string
+  returnedBy?: string
+}
+
 export interface CaseDocument {
   id: string
   caseId: string
@@ -613,6 +631,7 @@ export interface Database {
   checklists: ChecklistTemplate[]
   cases: VisaCase[]
   documents: CaseDocument[]
+  custody: PassportCustody[]
   messages: Message[]
   templates: MessageTemplate[]
   appointments: Appointment[]

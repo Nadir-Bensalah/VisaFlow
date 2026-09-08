@@ -451,4 +451,11 @@ export const ar: Dict = {
     non_persiste: 'لم يُحفظ هذا الإجراء على الخادم بعد.',
     retry: 'إعادة المحاولة',
   },
+  custody: {
+    title: 'جواز محتجز كضمان', receive: 'استلام الجواز', receiveHint: 'يبقى الجواز الأصلي في الخزنة حتى خلاص الرصيد.',
+    receivedDone: 'سُجّل الجواز.', held: 'في الخزنة', since: 'منذ {date}',
+    blocked: 'يجب خلاص {amount} قبل إرجاع الجواز.', force: 'إرجاع رغم الرصيد (الإدارة)',
+    forceConfirm: 'إرجاع الجواز مع بقاء {amount}؟', return: 'إرجاع الجواز',
+    returned: 'أُعيد الجواز.', returnedPast: 'أُعيد الجواز.', none: 'لا جواز محتجز لهذا الملف.',
+  },
 }

@@ -225,6 +225,19 @@ export async function mirror(name: string, args: any[], ctx: Ctx): Promise<boole
       return true
     }
 
+    case 'receivePassport':
+      await insert('passport_custody', {
+        agencyId: ctx.agencyId, caseId: args[0].caseId, clientId: args[0].clientId,
+        passportNumber: args[0].passportNumber, location: args[0].location ?? 'coffre',
+      })
+      ctx.reload()
+      return true
+    case 'releasePassport': {
+      const cu = db.custody.find((c) => c.id === args[0])
+      if (cu) { await rpc('release_passport', { p_custody: cu.id, p_force: !!args[1] }); ctx.reload() }
+      return true
+    }
+
     /* Purement locaux, sans persistance backend (préférences d'affichage). */
     case 'markSetup':
     case 'hideSetup':

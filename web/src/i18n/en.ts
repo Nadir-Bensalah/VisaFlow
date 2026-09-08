@@ -451,4 +451,11 @@ export const en: Dict = {
     non_persiste: 'This action has not been saved to the server yet.',
     retry: 'Retry',
   },
+  custody: {
+    title: 'Passport held', receive: 'Receive the passport', receiveHint: 'The original passport stays in the safe until the balance is paid.',
+    receivedDone: 'Passport recorded.', held: 'In the safe', since: 'since {date}',
+    blocked: '{amount} still due before the passport can be returned.', force: 'Return despite the balance (management)',
+    forceConfirm: 'Return the passport with {amount} still owed?', return: 'Return the passport',
+    returned: 'Passport returned.', returnedPast: 'Passport returned.', none: 'No passport held for this file.',
+  },
 }

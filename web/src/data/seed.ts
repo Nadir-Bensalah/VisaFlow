@@ -756,7 +756,7 @@ export function buildSeed(slug: string): Database {
   const { queue, attempts } = buildQueue(agencyId, cases, users, consulates)
 
   return {
-    version: 2, agency, users, clients, visaTypes, consulates, checklists, cases, documents,
+    version: 2, agency, users, clients, visaTypes, consulates, checklists, cases, documents, custody: [],
     messages, templates, appointments, payments, rules, events, tasks,
     shipments, shipmentDocs, shipmentEvents,
     requests: buildRequests(agencyId, visaTypes),

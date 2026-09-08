@@ -39,7 +39,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
 
   const [
     agencyRow, offices, users, clients, visaTypes, consulates, checklists,
-    checklistVersions, cases, documents, notes, messages, templates,
+    checklistVersions, cases, documents, custody, notes, messages, templates,
     appointments, payments, rules, events, tasks, shipments, shipmentDocs,
     shipmentEvents, requests, queue, attempts,
   ] = await Promise.all([
@@ -53,6 +53,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     rows('checklist_versions', agencyId),
     rows('cases', agencyId, 'opened_at'),
     rows('case_documents', agencyId),
+    rows('passport_custody', agencyId),
     rows('case_notes', agencyId),
     rows('messages', agencyId),
     rows('message_templates', agencyId),
@@ -109,6 +110,7 @@ export async function loadSnapshot(agencyId: string): Promise<Database> {
     checklists: checklistsFull,
     cases: casesFull,
     documents,
+    custody,
     messages,
     templates,
     appointments,

@@ -9,7 +9,7 @@ import { samePhone } from './identity'
 import type {
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
-  RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
+  PassportCustody, RefusalCode, Role, Shipment, ShipmentDocument, ShipmentEvent, ShipmentStage, SlotAttempt, Stage, User,
   VisaCase, VisaType,
 } from './types'
 
@@ -135,6 +135,10 @@ interface Actions {
   removeConsulate: (consulateId: string) => void
   /** Enregistre la decision avec un code ferme, et arme l'echeance de recours. */
   recordDecision: (caseId: string, status: 'accepte' | 'refuse' | 'annule', input?: { code?: RefusalCode; reason?: string }) => void
+  /** Enregistre un passeport reçu en caution. */
+  receivePassport: (input: { caseId: string; clientId: string; passportNumber: string; location?: string }) => void
+  /** Rend un passeport. Bloqué si le solde n'est pas réglé, sauf forçage direction. */
+  releasePassport: (custodyId: string, force?: boolean) => boolean
   reset: () => void
   exportJson: () => string
 }
@@ -1146,6 +1150,45 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
         ),
       }))
 
+    const receivePassport: Actions['receivePassport'] = ({ caseId, clientId, passportNumber, location }) =>
+      setDb((prev) => {
+        const entry: PassportCustody = {
+          id: rid('pc'), agencyId: prev.agency.id, caseId, clientId, passportNumber,
+          receivedAt: nowIso(), receivedBy: currentUserId, location: location ?? 'coffre',
+        }
+        let next: Database = { ...prev, custody: [entry, ...prev.custody] }
+        next = log(next, 'note_ajoutee', {
+          fr: `Passeport ${passportNumber} reçu en caution.`,
+          en: `Passport ${passportNumber} received in custody.`,
+          ar: `تم استلام جواز السفر ${passportNumber} كضمان.`,
+          zh: `护照 ${passportNumber} 已作为押金收存。`,
+        }, caseId)
+        return next
+      })
+
+    const releasePassport: Actions['releasePassport'] = (custodyId, force = false) => {
+      const cu = db.custody.find((c) => c.id === custodyId)
+      if (!cu) return false
+      // Le garde-fou du comptoir : le passeport ne sort pas si le solde n'est
+      // pas réglé. C'est le geste qui, tous les mois, sauve l'argent.
+      const due = db.payments
+        .filter((p) => p.caseId === cu.caseId && p.state !== 'regle')
+        .reduce((sum, p) => sum + p.amount, 0)
+      if (due > 0 && !force) return false
+      setDb((prev) => {
+        let next: Database = {
+          ...prev,
+          custody: prev.custody.map((c) => (c.id === custodyId ? { ...c, returnedAt: nowIso(), returnedBy: currentUserId } : c)),
+        }
+        next = log(next, 'note_ajoutee', {
+          fr: due > 0 ? `Passeport rendu malgré un solde de ${due}.` : 'Passeport rendu, solde réglé.',
+          en: 'Passport returned.', ar: 'أُعيد جواز السفر.', zh: '护照已归还。',
+        }, cu.caseId)
+        return next
+      })
+      return true
+    }
+
     const reset: Actions['reset'] = () => setDb(buildSeed(slug))
 
     const exportJson: Actions['exportJson'] = () => JSON.stringify(db, null, 2)
@@ -1159,7 +1202,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
       removeChecklistItem, saveRule, removeRule, updateAgency, reset, exportJson,
       attachFile, detachFile, attachShipmentFile,
       joinQueue, leaveQueue, setQueuePriority, serveQueue, logAttempt, saveConsulate,
-      removeConsulate, recordDecision,
+      removeConsulate, recordDecision, receivePassport, releasePassport,
     }
     // db n'entre pas dans les dependances : toutes les mutations passent par
     // setDb(prev => ...) et lisent donc toujours l'etat le plus recent.

@@ -450,4 +450,11 @@ export const zh: Dict = {
     non_persiste: '此操作尚未保存到服务器。',
     retry: '重试',
   },
+  custody: {
+    title: '押存护照', receive: '收存护照', receiveHint: '原护照保存在保险柜，直至余款结清。',
+    receivedDone: '护照已登记。', held: '在保险柜', since: '自 {date}',
+    blocked: '归还护照前需结清 {amount}。', force: '不顾余款归还（管理层）',
+    forceConfirm: '尚欠 {amount}，仍要归还护照？', return: '归还护照',
+    returned: '护照已归还。', returnedPast: '护照已归还。', none: '此档案无押存护照。',
+  },
 }

@@ -113,6 +113,7 @@ export function provisionAgency(input: SignupInput): { slug: string; ownerId: st
     checklists,
     cases: [],
     documents: [],
+    custody: [],
     messages: [],
     templates,
     appointments: [],

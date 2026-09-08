@@ -4,7 +4,7 @@ import { can, scopeOf } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
 import type {
   ActivityEvent, Appointment, CaseDocument, Client, Message, Payment, QueueEntry,
-  Shipment, ShipmentDocument, SlotAttempt, Task, User, VisaCase,
+  PassportCustody, Shipment, ShipmentDocument, SlotAttempt, Task, User, VisaCase,
 } from './types'
 
 /* Le filtre étanche.
@@ -21,6 +21,7 @@ export interface Visible {
   shipments: Shipment[]
   clients: Client[]
   documents: CaseDocument[]
+  custody: PassportCustody[]
   shipmentDocs: ShipmentDocument[]
   messages: Message[]
   payments: Payment[]
@@ -54,6 +55,7 @@ export function useVisible(): Visible {
       shipments,
       clients,
       documents: db.documents.filter((d) => caseIds.has(d.caseId)),
+      custody: db.custody.filter((c) => c.caseId != null && caseIds.has(c.caseId)),
       shipmentDocs: db.shipmentDocs.filter((d) => shipmentIds.has(d.shipmentId)),
       // Rien qui n'appartienne ni a un dossier ni a une cargaison du perimetre.
       messages: db.messages.filter((m) => (m.caseId ? caseIds.has(m.caseId) : m.shipmentId ? shipmentIds.has(m.shipmentId) : false)),
