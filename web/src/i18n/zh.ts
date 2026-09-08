@@ -404,6 +404,9 @@ export const zh: Dict = {
     hide: '隐藏', later: '稍后', called: '客户来电', counter: '柜台收到',
   },
   ask: {
+    codeExpired: '此验证码已过期，请重新获取。',
+    codeBlocked: '尝试次数过多，请重新获取验证码。',
+    codeUndeliverable: '验证码已生成，但该机构尚未接入 WhatsApp，无法发送给您。请致电机构，他们会为您手动开通查询。',
     title: '提交申请', subtitle: '两分钟，无需注册。',
     what: '你需要什么？', visa: '办签证', freight: '运货物',
     destination: '前往哪个国家', travelWhen: '出发日期', goods: '什么货物', fromWhere: '从哪个城市',

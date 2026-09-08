@@ -405,6 +405,9 @@ export const en: Dict = {
     hide: 'Hide', later: 'Later', called: 'They called', counter: 'Received at the counter',
   },
   ask: {
+    codeExpired: 'That code has expired. Ask for a new one.',
+    codeBlocked: 'Too many attempts. Ask for a new code.',
+    codeUndeliverable: 'The code is ready but the agency has not connected its WhatsApp yet, so it cannot be sent to you. Call the agency and they will open your tracking manually.',
     title: 'Make a request', subtitle: 'Two minutes. No account needed.',
     what: 'What do you need?', visa: 'A visa', freight: 'Bring in goods',
     destination: 'For which country', travelWhen: 'You leave on', goods: 'What goods', fromWhere: 'From which city',

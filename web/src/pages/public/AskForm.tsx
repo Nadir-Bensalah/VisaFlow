@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { HAS_BACKEND } from '@/lib/supabase'
+import { rpc } from '@/data/remote'
+import { usePublicAgency } from './usePublicAgency'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Button, Card, Field, Input, Pill, Select, Textarea } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -15,13 +18,27 @@ type Step = 'formulaire' | 'code' | 'fini'
    distingue une vraie demande d'un formulaire rempli au hasard, et c'est ce qui
    permettra au client de revenir sans compte. */
 export function AskForm() {
-  const { db, slug, actions } = useStore()
+  const { slug, actions } = useStore()
   const { t, tt, locale, setLocale } = useI18n()
   const navigate = useNavigate()
 
   const [step, setStep] = useState<Step>('formulaire')
-  const [kind, setKind] = useState<'visa' | 'fret'>(db.agency.services.includes('visas') ? 'visa' : 'fret')
-  const [visaTypeId, setVisaTypeId] = useState(db.visaTypes.find((v) => v.active)?.id ?? '')
+  // La devanture vient du serveur : sans elle, le formulaire proposait des
+  // types de visa de démonstration, avec des identifiants que la base refuse.
+  const vitrine = usePublicAgency(slug)
+  const ag = vitrine.status === 'ok' ? vitrine.agency : null
+  const services = ag?.services ?? []
+  const visaTypes = ag?.visaTypes ?? []
+
+  const [kind, setKind] = useState<'visa' | 'fret'>('visa')
+  const [visaTypeId, setVisaTypeId] = useState('')
+
+  // Le premier visa proposé, dès que la devanture est arrivée.
+  useEffect(() => {
+    if (!ag) return
+    setKind((k) => (services.includes(k === 'visa' ? 'visas' : 'fret') ? k : services.includes('visas') ? 'visa' : 'fret'))
+    setVisaTypeId((id) => (id && visaTypes.some((v) => v.id === id) ? id : visaTypes[0]?.id ?? ''))
+  }, [ag])
   const [travelDate, setTravelDate] = useState('')
   const [goods, setGoods] = useState('')
   const [originCity, setOriginCity] = useState('')
@@ -38,44 +55,111 @@ export function AskForm() {
   const canSend = firstName.trim() && lastName.trim() && phone.trim().length >= 8 &&
     (kind === 'visa' ? Boolean(visaTypeId) : goods.trim().length > 0)
 
-  const sendCode = () => {
-    setIssued(issueCode(slug, phone))
-    setError('')
-    setStep('code')
-  }
+  const [busy, setBusy] = useState(false)
+  const [undeliverable, setUndeliverable] = useState(false)
 
-  const confirm = () => {
-    if (!checkCode(slug, phone, code)) {
-      setError(t('ask.codeWrong'))
+  /**
+   * Le code de vérification. Avec un backend, il part par le serveur : le code
+   * n'existe nulle part dans le navigateur, seul son empreinte est en base.
+   * Sans backend, la démonstration le fabrique en local.
+   */
+  const sendCode = async () => {
+    setError('')
+    setUndeliverable(false)
+    if (!HAS_BACKEND) {
+      setIssued(issueCode(slug, phone))
+      setStep('code')
       return
     }
-    rememberDevice(slug, phone)
-    const visa = db.visaTypes.find((v) => v.id === visaTypeId)
-    const request = actions.submitRequest({
-      kind,
-      visaTypeId: kind === 'visa' ? visaTypeId : undefined,
-      destination: kind === 'visa' ? visa?.country.fr : undefined,
-      travelDate: travelDate ? new Date(travelDate).toISOString() : undefined,
-      goods: kind === 'fret' ? goods.trim() : undefined,
-      originCity: kind === 'fret' ? originCity.trim() : undefined,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      locale,
-      note: note.trim() || undefined,
-      phoneVerified: true,
-    })
-    setReference(request.reference)
-    setToken(request.portalToken)
-    setStep('fini')
+    setBusy(true)
+    try {
+      const r = await rpc('issue_otp', { p_agency_slug: slug, p_phone: phone.trim(), p_purpose: 'demande' }) as
+        { deliverable?: boolean } | null
+      // Un prospect n'a jamais de fenêtre WhatsApp de 24 heures : sans modèle
+      // approuvé chez Meta, le code reste bloqué en file. Le dire tout de suite
+      // vaut mieux que de laisser le visiteur attendre un message qui ne
+      // viendra pas.
+      if (r && r.deliverable === false) setUndeliverable(true)
+      setStep('code')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('ask.codeWrong'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirm = async () => {
+    setError('')
+    const visa = visaTypes.find((v) => v.id === visaTypeId)
+
+    if (!HAS_BACKEND) {
+      if (!checkCode(slug, phone, code)) { setError(t('ask.codeWrong')); return }
+      rememberDevice(slug, phone)
+      const request = actions.submitRequest({
+        kind,
+        visaTypeId: kind === 'visa' ? visaTypeId : undefined,
+        destination: kind === 'visa' ? visa?.country.fr : undefined,
+        travelDate: travelDate ? new Date(travelDate).toISOString() : undefined,
+        goods: kind === 'fret' ? goods.trim() : undefined,
+        originCity: kind === 'fret' ? originCity.trim() : undefined,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        locale,
+        note: note.trim() || undefined,
+        phoneVerified: true,
+      })
+      setReference(request.reference)
+      setToken(request.portalToken)
+      setStep('fini')
+      return
+    }
+
+    setBusy(true)
+    try {
+      // Le code se vérifie EN BASE. Le navigateur ne décide pas s'il est bon.
+      const v = await rpc('verify_otp', {
+        p_agency_slug: slug, p_phone: phone.trim(), p_code: code.trim(), p_platform: 'web',
+      }) as { ok?: boolean; reason?: string } | null
+      if (!v?.ok) {
+        setError(v?.reason === 'expire' ? t('ask.codeExpired')
+          : v?.reason === 'bloque' ? t('ask.codeBlocked')
+          : t('ask.codeWrong'))
+        return
+      }
+      rememberDevice(slug, phone)
+      const r = await rpc('portal_submit_request', {
+        p_agency_slug: slug,
+        p_kind: kind,
+        p_visa_type: kind === 'visa' ? visaTypeId : null,
+        p_travel: travelDate || null,
+        p_goods: kind === 'fret' ? goods.trim() : null,
+        p_origin: kind === 'fret' ? originCity.trim() : null,
+        p_first: firstName.trim(),
+        p_last: lastName.trim(),
+        p_phone: phone.trim(),
+        p_locale: locale,
+        p_note: note.trim() || null,
+        // Le serveur ne fait aucune confiance à ce drapeau : il impose
+        // lui-même « non vérifié ». On l'envoie par respect de la signature.
+        p_verified: true,
+      }) as { reference?: string; token?: string } | null
+      setReference(r?.reference ?? '')
+      setToken(r?.token ?? '')
+      setStep('fini')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('ask.codeWrong'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
     <div className="portal">
       <header className="portal__bar">
         <Link to="/agence" className="row gap-2" style={{ color: 'inherit' }}>
-          <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
-          <span className="t-medium t-truncate">{db.agency.name}</span>
+          <span className="sidebar__mark" style={{ background: ag?.accent }}>{ag?.mark}</span>
+          <span className="t-medium t-truncate">{ag?.name ?? ''}</span>
         </Link>
         <span className="grow" />
         <Select
@@ -100,12 +184,12 @@ export function AskForm() {
               <Card title={t('ask.what')}>
                 <div className="col gap-4">
                   <div className="row gap-2 wrap">
-                    {db.agency.services.includes('visas') && (
+                    {services.includes('visas') && (
                       <button type="button" className="chip" aria-pressed={kind === 'visa'} onClick={() => setKind('visa')}>
                         <Icon name="passport" size={15} /> {t('ask.visa')}
                       </button>
                     )}
-                    {db.agency.services.includes('fret') && (
+                    {services.includes('fret') && (
                       <button type="button" className="chip" aria-pressed={kind === 'fret'} onClick={() => setKind('fret')}>
                         <Icon name="ship" size={15} /> {t('ask.freight')}
                       </button>
@@ -116,7 +200,7 @@ export function AskForm() {
                     <div className="grid grid--2">
                       <Field label={t('ask.destination')}>
                         <Select value={visaTypeId} onChange={(e) => setVisaTypeId(e.target.value)}>
-                          {db.visaTypes.filter((v) => v.active).map((v) => (
+                          {visaTypes.map((v) => (
                             <option key={v.id} value={v.id}>{tt(v.country)} · {tt(v.label)}</option>
                           ))}
                         </Select>
@@ -155,7 +239,7 @@ export function AskForm() {
                   <Field label={t('ask.note')}>
                     <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
                   </Field>
-                  <Button variant="primary" size="lg" block disabled={!canSend} onClick={sendCode}>
+                  <Button variant="primary" size="lg" block disabled={!canSend || busy} onClick={() => void sendCode()}>
                     {t('ask.send')}
                   </Button>
                 </div>
@@ -164,6 +248,14 @@ export function AskForm() {
           </>
         )}
 
+        {step === 'code' && undeliverable && (
+          /* Le code est en file mais ne peut pas partir : l'agence n'a pas de
+             compte WhatsApp branché, ou pas de modèle approuvé chez Meta. Le
+             visiteur doit le savoir maintenant, pas dans une demi-heure. */
+          <p className="fret__warn" style={{ maxWidth: 420, margin: '0 auto var(--sp-4)' }}>
+            <span>{t('ask.codeUndeliverable')}</span>
+          </p>
+        )}
         {step === 'code' && (
           <>
             <div className="portal__hero">
@@ -179,15 +271,15 @@ export function AskForm() {
                     maxLength={6}
                     value={code}
                     onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError('') }}
-                    onKeyDown={(e) => e.key === 'Enter' && confirm()}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void confirm() }}
                     style={{ fontSize: 24, letterSpacing: '0.3em', textAlign: 'center' }}
                   />
                 </Field>
                 <Pill tone="orange">{t('ask.codeDemo', { code: issued })}</Pill>
-                <Button variant="primary" size="lg" block disabled={code.length < 6} onClick={confirm}>
+                <Button variant="primary" size="lg" block disabled={code.length < 6 || busy} onClick={() => void confirm()}>
                   {t('ask.verify')}
                 </Button>
-                <Button block onClick={() => setIssued(issueCode(slug, phone))}>{t('ask.resend')}</Button>
+                <Button block disabled={busy} onClick={() => void sendCode()}>{t('ask.resend')}</Button>
               </div>
             </Card>
           </>

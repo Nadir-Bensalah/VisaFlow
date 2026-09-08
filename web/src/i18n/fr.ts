@@ -711,6 +711,9 @@ export const fr = {
     later: 'Plus tard',
   },
   ask: {
+    codeExpired: 'Ce code a expiré. Demandez-en un nouveau.',
+    codeBlocked: 'Trop d’essais. Demandez un nouveau code.',
+    codeUndeliverable: 'Le code est prêt mais l’agence n’a pas encore branché son WhatsApp : il ne peut pas vous être envoyé. Appelez l’agence, elle vous ouvrira le suivi à la main.',
     title: 'Faire une demande',
     subtitle: 'Deux minutes. Sans créer de compte.',
     what: 'De quoi avez-vous besoin ?',
