@@ -36,6 +36,11 @@ begin
     'services', to_jsonb(a.services),
     'locales', to_jsonb(a.locales),
     'default_locale', a.default_locale,
+    'email', a.email,
+    -- Les mentions légales de bas de page. La référence de déclaration INPDP
+    -- doit être affichée : ce n'est pas décoratif, c'est une obligation.
+    'legal_name', a.legal_name,
+    'inpdp_ref', a.inpdp_ref,
     -- Les visas proposés, avec le délai annoncé et le tarif public. Ce sont
     -- les trois choses qu'un client demande avant tout.
     'visa_types', (

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '@/data/store'
+import { usePublicAgency } from './usePublicAgency'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Card, Select } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -10,16 +11,20 @@ import type { Locale } from '@/data/types'
    ou retrouver la sienne. Le reste est du bruit pour quelqu'un qui arrive d'un
    lien WhatsApp. */
 export function AgencyHome() {
-  const { db, slug } = useStore()
+  const { slug } = useStore()
   const { t, locale, setLocale } = useI18n()
-  const office = db.agency.offices[0]
+  // La devanture vient du serveur : sans elle, la page publique d'une agence
+  // affichait le nom et les visas d'une agence de démonstration.
+  const vitrine = usePublicAgency(slug)
+  const ag = vitrine.status === 'ok' ? vitrine.agency : null
+  const office = ag?.office ?? null
   const device = knownDevice(slug)
 
   return (
     <div className="portal">
       <header className="portal__bar">
-        <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
-        <span className="t-medium grow t-truncate">{db.agency.name}</span>
+        <span className="sidebar__mark" style={{ background: ag?.accent }}>{ag?.mark}</span>
+        <span className="t-medium grow t-truncate">{ag?.name ?? ''}</span>
         <Select
           aria-label={t('misc.language')}
           value={locale}
@@ -32,7 +37,7 @@ export function AgencyHome() {
 
       <main className="portal__main">
         <div className="portal__hero">
-          <h1>{db.agency.name}</h1>
+          <h1>{ag?.name ?? ''}</h1>
           <p>{t('home.hours')}</p>
         </div>
 
@@ -58,17 +63,21 @@ export function AgencyHome() {
 
         <Card className="grid__wide" >
           <div className="col gap-3">
-            <span className="t-small t-medium">{office.name}</span>
-            {office.address && <span className="t-small t-secondary">{office.address}</span>}
+            <span className="t-small t-medium">{office?.name}</span>
+            {office?.address && <span className="t-small t-secondary">{office.address}</span>}
             <div className="row gap-2 wrap">
-              <a className="btn btn--secondary btn--sm" href={`https://wa.me/${office.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
-                <Icon name="whatsapp" size={16} /> WhatsApp
-              </a>
-              <a className="btn btn--secondary btn--sm" href={`tel:${office.phone.replace(/\s/g, '')}`}>
-                <Icon name="phone" size={16} /> {office.phone}
-              </a>
-              {db.agency.email && (
-                <a className="btn btn--secondary btn--sm" href={`mailto:${db.agency.email}`}>
+              {office?.phone && (
+                <>
+                  <a className="btn btn--secondary btn--sm" href={`https://wa.me/${office.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
+                    <Icon name="whatsapp" size={16} /> WhatsApp
+                  </a>
+                  <a className="btn btn--secondary btn--sm" href={`tel:${office.phone.replace(/\s/g, '')}`}>
+                    <Icon name="phone" size={16} /> {office.phone}
+                  </a>
+                </>
+              )}
+              {ag?.email && (
+                <a className="btn btn--secondary btn--sm" href={`mailto:${ag.email}`}>
                   <Icon name="mail" size={16} /> {t('login.email')}
                 </a>
               )}
@@ -77,7 +86,7 @@ export function AgencyHome() {
         </Card>
 
         <p className="t-caption t-tertiary" style={{ textAlign: 'center', marginTop: 'var(--sp-8)' }}>
-          {db.agency.legalName} · {t('settings.inpdp')} : {db.agency.inpdpRef} · {t('portal.privacy')}
+          {ag?.legalName} · {t('settings.inpdp')} : {ag?.inpdpRef} · {t('portal.privacy')}
           <br />
           <Link to="/connexion" className="t-caption">{t('home.staff')}</Link>
         </p>

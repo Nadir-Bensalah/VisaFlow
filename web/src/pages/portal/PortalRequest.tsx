@@ -1,20 +1,22 @@
 import { Link, useParams } from 'react-router-dom'
-import { useStore } from '@/data/store'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Card, Empty, Pill, Select } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
 import { Ago } from '@/components/bits'
+import { usePublicRequest } from '@/pages/public/usePublicAgency'
 import type { Locale } from '@/data/types'
 
 /** Le suivi d'une demande, avant qu'elle ne devienne un dossier. */
 export function PortalRequest() {
   const { token = '' } = useParams()
-  const { db } = useStore()
   const { t, locale, setLocale, formatDate } = useI18n()
+  const result = usePublicRequest(token)
 
-  const request = db.requests.find((r) => r.portalToken === token)
-  if (!request) {
+  if (result.status === 'chargement') {
+    return <div className="portal"><main className="portal__main"><div className="portal__hero"><p className="t-secondary">…</p></div></main></div>
+  }
+  if (result.status === 'absente') {
     return (
       <div className="portal">
         <main className="portal__main">
@@ -24,15 +26,14 @@ export function PortalRequest() {
     )
   }
 
-  const kase = request.caseId ? db.cases.find((c) => c.id === request.caseId) : undefined
-  const office = db.agency.offices[0]
+  const { request, agency, office, caseToken, caseReference } = result.data
 
   return (
     <div className="portal">
       <header className="portal__bar">
         <Link to="/agence" className="row gap-2" style={{ color: 'inherit' }}>
-          <span className="sidebar__mark" style={{ background: db.agency.accent }}>{db.agency.mark}</span>
-          <span className="t-medium t-truncate">{db.agency.name}</span>
+          <span className="sidebar__mark" style={{ background: agency.accent }}>{agency.mark}</span>
+          <span className="t-medium t-truncate">{agency.name}</span>
         </Link>
         <span className="grow" />
         <Select
@@ -48,7 +49,7 @@ export function PortalRequest() {
       <main className="portal__main">
         <div className="portal__hero">
           <Illustration scene={request.status === 'ecartee' ? 'alerte' : 'termine'} size={140} />
-          <h1>{t('portal.hello', { name: request.firstName })}</h1>
+          <h1>{t('portal.hello', { name: request.firstName ?? '' })}</h1>
           <p>{request.destination ?? request.goods}</p>
           <div className="row gap-3" style={{ justifyContent: 'center', marginTop: 'var(--sp-4)' }}>
             <Pill tone={request.status === 'nouvelle' ? 'blue' : request.status === 'convertie' ? 'green' : request.status === 'ecartee' ? 'red' : 'orange'} dot>
@@ -79,25 +80,29 @@ export function PortalRequest() {
             </div>
           </Card>
 
-          {kase && (
+          {/* La demande est devenue un dossier : on passe le relais, plutôt
+              que de laisser le client sur une page qui ne bougera plus. */}
+          {caseToken && (
             <Card title={t('portal.yourCase')}>
-              <Link to={`/portail/${kase.portalToken}`} className="row gap-2">
+              <Link to={`/portail/${caseToken}`} className="row gap-2">
                 <Icon name="passport" size={16} />
-                {kase.reference} · {t('portal.timeline')}
+                {caseReference} · {t('portal.timeline')}
               </Link>
             </Card>
           )}
 
-          <Card title={t('portal.contactAgency')}>
-            <div className="row gap-2 wrap">
-              <a className="btn btn--secondary btn--sm" href={`https://wa.me/${office.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
-                <Icon name="whatsapp" size={16} /> WhatsApp
-              </a>
-              <a className="btn btn--secondary btn--sm" href={`tel:${office.phone.replace(/\s/g, '')}`}>
-                <Icon name="phone" size={16} /> {office.phone}
-              </a>
-            </div>
-          </Card>
+          {office?.phone && (
+            <Card title={t('portal.contactAgency')}>
+              <div className="row gap-2 wrap">
+                <a className="btn btn--secondary btn--sm" href={`https://wa.me/${office.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
+                  <Icon name="whatsapp" size={16} /> WhatsApp
+                </a>
+                <a className="btn btn--secondary btn--sm" href={`tel:${office.phone.replace(/\s/g, '')}`}>
+                  <Icon name="phone" size={16} /> {office.phone}
+                </a>
+              </div>
+            </Card>
+          )}
         </div>
       </main>
     </div>

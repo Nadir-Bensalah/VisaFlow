@@ -27,6 +27,10 @@ export type PublicAgency = {
   services: string[]
   locales: Locale[]
   defaultLocale: Locale
+  email?: string
+  /** Mentions légales de bas de page : la référence INPDP doit être affichée. */
+  legalName?: string
+  inpdpRef?: string
   visaTypes: {
     id: string
     countryCode: string
@@ -78,6 +82,9 @@ export function usePublicAgency(slug: string): PublicAgencyResult {
       services: db.agency.services,
       locales: db.agency.locales,
       defaultLocale: db.agency.defaultLocale,
+      email: db.agency.email,
+      legalName: db.agency.legalName,
+      inpdpRef: db.agency.inpdpRef,
       visaTypes: db.visaTypes.filter((v) => v.active).map((v) => ({
         id: v.id, countryCode: v.countryCode, country: v.country, label: v.label,
         category: v.category, processingDays: v.processingDays,
@@ -86,6 +93,76 @@ export function usePublicAgency(slug: string): PublicAgencyResult {
       office: office
         ? { name: office.name, city: office.city, address: office.address, phone: office.phone }
         : null,
+    },
+  }
+}
+
+// ------------------------------------------------------------------
+// Le suivi d'une demande, avant qu'elle ne devienne un dossier
+// ------------------------------------------------------------------
+
+export type PublicRequest = {
+  request: {
+    reference: string
+    kind: 'visa' | 'fret'
+    status: string
+    receivedAt: string
+    firstName?: string
+    destination?: string
+    travelDate?: string
+    goods?: string
+    note?: string
+    refusalReason?: string
+  }
+  agency: { name: string; mark?: string; accent?: string }
+  office: { name: string; address?: string; phone?: string } | null
+  /** Rempli dès que la demande devient un dossier : le suivi continue là-bas. */
+  caseToken?: string
+  caseReference?: string
+}
+
+export type PublicRequestResult =
+  | { status: 'chargement' }
+  | { status: 'absente' }
+  | { status: 'ok'; data: PublicRequest }
+
+export function usePublicRequest(token: string): PublicRequestResult {
+  const { db } = useStore()
+  const [remote, setRemote] = useState<PublicRequestResult>({ status: 'chargement' })
+
+  useEffect(() => {
+    if (!HAS_BACKEND) return
+    let alive = true
+    setRemote({ status: 'chargement' })
+    rpc('portal_request', { p_token: token })
+      .then((data) => {
+        if (!alive) return
+        if (!data) { setRemote({ status: 'absente' }); return }
+        setRemote({ status: 'ok', data: camelKeys<PublicRequest>(data) })
+      })
+      .catch(() => { if (alive) setRemote({ status: 'absente' }) })
+    return () => { alive = false }
+  }, [token])
+
+  if (HAS_BACKEND) return remote
+
+  const r = db.requests.find((x) => x.portalToken === token)
+  if (!r) return { status: 'absente' }
+  const kase = r.caseId ? db.cases.find((c) => c.id === r.caseId) : undefined
+  const office = db.agency.offices[0]
+  return {
+    status: 'ok',
+    data: {
+      request: {
+        reference: r.reference, kind: r.kind, status: r.status, receivedAt: r.receivedAt,
+        firstName: r.firstName, destination: r.destination, travelDate: r.travelDate,
+        goods: r.goods, note: r.note,
+        refusalReason: r.status === 'ecartee' ? r.refusalReason : undefined,
+      },
+      agency: { name: db.agency.name, mark: db.agency.mark, accent: db.agency.accent },
+      office: office ? { name: office.name, address: office.address, phone: office.phone } : null,
+      caseToken: kase?.portalToken,
+      caseReference: kase?.reference,
     },
   }
 }
