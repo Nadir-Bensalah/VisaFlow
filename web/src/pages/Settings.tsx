@@ -22,15 +22,12 @@ import { DuplicatesCard } from '@/components/DuplicatesCard'
 import { DocumentTemplates } from '@/components/DocumentTemplates'
 import { CustomsChecklistsAdmin } from '@/components/CustomsChecklistsAdmin'
 import { SlaSection } from '@/components/SlaSection'
-import { InviteMember } from '@/components/InviteMember'
-import { HAS_BACKEND } from '@/lib/supabase'
 import { ComplianceSection } from '@/components/ComplianceSection'
 import { Icon } from '@/components/Icon'
 import { tenantUrl } from '@/tenant'
-import { roleKey } from '@/lib/permissions'
-import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, Locale, MessageTemplate, Role, User, VisaType } from '@/data/types'
+import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, MessageTemplate, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'papiers' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
+type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'papiers' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
 
 const EMPTY_I18N: I18nText = { fr: '' }
 
@@ -52,7 +49,6 @@ export function Settings() {
     // qui engage de l'argent et l'image de l'agence.
     { value: 'alertes', label: t('notif.title'), visible: v.can('automation:manage') },
     { value: 'marque', label: t('brand.title'), visible: v.can('settings:manage') },
-    { value: 'equipe', label: t('settings.team'), visible: v.can('team:manage') || v.can('team:invite') || v.can('audit:view') },
     { value: 'visas', label: t('settings.visaTypes'), visible: v.can('catalog:manage') },
     { value: 'consulats', label: t('consulates.title'), visible: v.can('catalog:manage') },
     // Un barème change le montant de toutes les factures à venir : c'est un
@@ -111,7 +107,6 @@ export function Settings() {
           <DuplicatesCard />
         </div>
       )}
-      {current === 'equipe' && <TeamSection />}
       {current === 'visas' && <CatalogSection />}
       {current === 'consulats' && <ConsulatesSection />}
       {current === 'marque' && <BrandSection />}
@@ -259,151 +254,7 @@ export function Settings() {
 
   /* ---------------------------------------------------------------- */
 
-  function TeamSection() {
-    const [editing, setEditing] = useState<User | 'nouveau' | null>(null)
-    const [removing, setRemoving] = useState<User | null>(null)
-    const [inviting, setInviting] = useState(false)
-    const canManage = v.can('team:manage')
-    // En réel, un membre est un compte de connexion : il naît par invitation
-    // (fonction de bord), jamais par une ligne ajoutée à la main. En démo, on
-    // ajoute localement.
-    const canInvite = v.can('team:invite')
-    const bouton = HAS_BACKEND
-      ? (canInvite ? <Button icon="plus" size="sm" onClick={() => setInviting(true)}>{t('equipe.invite')}</Button> : undefined)
-      : (canManage ? <Button icon="plus" size="sm" onClick={() => setEditing('nouveau')}>{t('crud.newMember')}</Button> : undefined)
 
-    return (
-      <>
-        <Card
-          title={t('settings.team')}
-          action={bouton}
-          flush
-        >
-          <div className="tablewrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{t('clients.name')}</th>
-                  <th className="col-optional">{t('login.email')}</th>
-                  <th>{t('misc.role')}</th>
-                  <th className="col-optional">{t('misc.office')}</th>
-                  <th className="col-optional">{t('misc.language')}</th>
-                  <th>{t('misc.active')}</th>
-                  {canManage && <th />}
-                </tr>
-              </thead>
-              <tbody>
-                {db.users.map((u) => (
-                  <tr key={u.id}>
-                    <td className="t-medium t-small">{u.name}</td>
-                    <td className="t-small t-secondary col-optional">{u.email}</td>
-                    <td className="t-small">{t(roleKey(u.role))}</td>
-                    <td className="t-small t-secondary col-optional">{db.agency.offices.find((o) => o.id === u.officeId)?.name}</td>
-                    <td className="t-small t-tertiary col-optional">{u.locale.toUpperCase()}</td>
-                    <td>
-                      <span className="row gap-1 wrap">
-                        {u.active ? <Pill tone="green" dot>{t('misc.active')}</Pill> : <Pill tone="gray">{t('misc.inactive')}</Pill>}
-                        {u.mustResetPassword && <Pill tone="orange">{t('equipe.provisional')}</Pill>}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td style={{ textAlign: 'end' }}>
-                        <span className="row gap-1" style={{ justifyContent: 'flex-end' }}>
-                          <IconButton icon="edit" label={t('crud.edit')} onClick={() => setEditing(u)} />
-                          <IconButton icon="trash" label={t('crud.remove')} onClick={() => setRemoving(u)} />
-                        </span>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {editing && <MemberEditor member={editing === 'nouveau' ? null : editing} onClose={() => setEditing(null)} />}
-        {inviting && <InviteMember onClose={() => setInviting(false)} />}
-
-        {removing && (
-          <Modal
-            title={t('crud.remove')}
-            onClose={() => setRemoving(null)}
-            footer={
-              <>
-                <Button onClick={() => setRemoving(null)}>{t('action.cancel')}</Button>
-                <Button variant="danger" onClick={() => { actions.removeUser(removing.id); setRemoving(null); toast(t('crud.removed')) }}>
-                  {t('crud.remove')}
-                </Button>
-              </>
-            }
-          >
-            <p className="t-small">{t('crud.confirmRemove', { name: removing.name })}</p>
-            <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-2)' }}>{t('crud.confirmHint')}</p>
-          </Modal>
-        )}
-      </>
-    )
-  }
-
-  function MemberEditor({ member, onClose }: { member: User | null; onClose: () => void }) {
-    const [draft, setDraft] = useState<Omit<User, 'agencyId'>>(
-      member ?? {
-        id: '', name: '', email: '', phone: '', role: 'agent',
-        officeId: db.agency.offices[0].id, locale: 'fr', active: true,
-      },
-    )
-    const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
-
-    return (
-      <Modal
-        title={member ? t('crud.edit') : t('crud.newMember')}
-        onClose={onClose}
-        footer={
-          <>
-            <Button onClick={onClose}>{t('action.cancel')}</Button>
-            <Button
-              variant="primary"
-              disabled={!draft.name.trim() || !draft.email.trim()}
-              onClick={() => {
-                actions.saveUser(member ? draft : { ...draft, id: undefined })
-                onClose()
-                toast(member ? t('crud.updated') : t('crud.created'))
-              }}
-            >
-              {t('action.save')}
-            </Button>
-          </>
-        }
-      >
-        <div className="grid grid--2">
-          <Field label={t('clients.name')}><Input value={draft.name} onChange={(e) => set('name', e.target.value)} /></Field>
-          <Field label={t('login.email')}><Input type="email" value={draft.email} onChange={(e) => set('email', e.target.value)} /></Field>
-          <Field label={t('clients.contact')}><Input value={draft.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></Field>
-          <Field label={t('misc.role')}>
-            <Select value={draft.role} onChange={(e) => set('role', e.target.value as Role)}>
-              {(['owner', 'manager', 'agent', 'viewer'] as Role[]).map((r) => (
-                <option key={r} value={r}>{t(roleKey(r))}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t('misc.office')}>
-            <Select value={draft.officeId} onChange={(e) => set('officeId', e.target.value)}>
-              {db.agency.offices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </Select>
-          </Field>
-          <Field label={t('misc.language')}>
-            <Select value={draft.locale} onChange={(e) => set('locale', e.target.value as Locale)}>
-              {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_META[l].native}</option>)}
-            </Select>
-          </Field>
-        </div>
-        <div className="row-between" style={{ marginTop: 'var(--sp-5)' }}>
-          <span className="t-small t-secondary">{t('misc.active')}</span>
-          <Switch checked={draft.active} onChange={(value) => set('active', value)} label={t('misc.active')} />
-        </div>
-      </Modal>
-    )
-  }
 
   /* ---------------------------------------------------------------- */
 

@@ -27,6 +27,7 @@ import { Automations } from './pages/Automations'
 import { Reports } from './pages/Reports'
 import { Stats } from './pages/Stats'
 import { Settings } from './pages/Settings'
+import { Equipe } from './pages/Equipe'
 import { Leads } from './pages/Leads'
 import { Quotes } from './pages/Quotes'
 import { Invoices } from './pages/Invoices'
@@ -139,6 +140,7 @@ export default function App() {
           <Route path="/rapports" element={<Require capability="reports:view"><Reports /></Require>} />
           <Route path="/statistiques" element={<Require capability="reports:view"><Stats /></Require>} />
           <Route path="/aide" element={<Support />} />
+          <Route path="/equipe" element={<Require capability="settings:view"><Equipe /></Require>} />
           <Route path="/reglages" element={<Require capability="settings:view"><Settings /></Require>} />
         </Route>
 

@@ -209,6 +209,7 @@ export function Shell() {
     {
       key: 'pied',
       entries: [
+        { to: '/equipe', labelKey: 'eq.title', icon: 'clients', need: 'settings:view' },
         { to: '/aide', labelKey: 'nav.support', icon: 'shield' },
         { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
       ],
