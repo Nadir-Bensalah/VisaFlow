@@ -36,6 +36,7 @@ import app.capmedia.visaflow.design.SectionTitle
 import app.capmedia.visaflow.design.Token
 import app.capmedia.visaflow.design.Type
 import app.capmedia.visaflow.docStateLabel
+import app.capmedia.visaflow.ImageCleaner
 import app.capmedia.visaflow.model.CaseBundle
 import app.capmedia.visaflow.model.DocState
 import app.capmedia.visaflow.shortDate
@@ -76,9 +77,13 @@ fun CaseDetailScreen(session: Session, token: String) {
         if (uri == null || key == null) return@rememberLauncherForActivityResult
         scope.launch {
             try {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: return@launch
-                session.api.upload(bytes, uri.lastPathSegment ?: "piece", key, token)
+                // On ré-encode sans métadonnées : une photo de passeport porte la
+                // position GPS du domicile, qui n'a rien à faire dans un dossier.
+                // Et le nom est normalisé, jamais le nom brut du fichier du client.
+                val clean = ImageCleaner.stripped(raw)
+                session.api.upload(clean, "$key.jpg", key, token)
                 load()
             } catch (e: Exception) {
                 error = e.message
@@ -194,7 +199,7 @@ fun CaseDetailScreen(session: Session, token: String) {
                             }
                             Pill(docStateLabel(doc.state.name.lowercase()), toneFor(doc.state))
                             if (doc.state.isPending) {
-                                TextButton(onClick = { uploading = doc.key; picker.launch("*/*") }) {
+                                TextButton(onClick = { uploading = doc.key; picker.launch("image/*") }) {
                                     Text(stringResource(R.string.case_upload), color = Token.Palette.blue)
                                 }
                             }

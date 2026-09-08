@@ -12,3 +12,7 @@ verify_jwt = false
 
 [functions.whatsapp-send]
 verify_jwt = true
+
+[functions.portal-upload]
+# Le client n'a pas de compte : il présente son jeton de suivi, pas un JWT.
+verify_jwt = false

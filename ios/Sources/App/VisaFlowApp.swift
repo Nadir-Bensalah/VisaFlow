@@ -25,6 +25,8 @@ struct VisaFlowApp: App {
 /// ce qui permet de la montrer au comptoir sans réseau.
 enum AppEnvironment {
     static var api: API {
+        // La démonstration (captures, revue) garde ses données fictives.
+        if ProcessInfo.processInfo.arguments.contains("-connecte") { return DemoAPI() }
         guard
             let raw = Bundle.main.object(forInfoDictionaryKey: "SupabaseURL") as? String,
             let url = URL(string: raw), !raw.isEmpty,

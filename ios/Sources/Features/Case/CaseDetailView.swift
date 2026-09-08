@@ -207,7 +207,11 @@ struct CaseDetailView: View {
         uploading = key
         defer { uploading = nil; pickerItem = nil; pendingKey = nil }
         do {
-            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+            guard let raw = try await item.loadTransferable(type: Data.self) else { return }
+            // On ré-encode l'image sans ses métadonnées avant l'envoi : une
+            // photo de passeport embarque en général la position GPS du domicile
+            // du client, qui n'a rien à faire dans un dossier de visa.
+            let data = ImageCleaner.stripped(raw)
             try await session.api.upload(data, fileName: "\(key).jpg", documentKey: key, caseToken: token)
             await load()
         } catch {

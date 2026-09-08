@@ -24,6 +24,10 @@ android {
         // n'est pas une traduction : c'est l'ordre des colonnes, le sens des
         // flèches et la place des chiffres dans la phrase.
         resourceConfigurations += listOf("en", "fr", "ar", "zh-rCN")
+
+        // Le backend réel, injecté à la compilation. Valeurs publiques.
+        buildConfigField("String", "SUPABASE_URL", "\"https://ppzjkvgfgoxmdbbsphbr.supabase.co\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwemprdmdmZ294bWRiYnNwaGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTU4MTEsImV4cCI6MjEwNDM5MTgxMX0.rQSTYZsPOdTPTccl6I8ehfW5otPCh0On05aR5auRM4Y\"")
     }
 
     buildTypes {
@@ -45,7 +49,7 @@ android {
 
     kotlinOptions { jvmTarget = "17" }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }

@@ -28,6 +28,7 @@
 		B53D7DC23AB8E9EE01B1A036 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F09C338B45B97C3DEC9917 /* MessagesView.swift */; };
 		C84E79AA0FC32E38288310B5 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A221BCCF9D12DE8E5CA65B19 /* Localizable.strings */; };
 		D1B330E921FECD7CB0258BEF /* CodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DEA0DC7194B3A7D2FC54D9 /* CodeView.swift */; };
+		E3B00C2249B572D16668DB6E /* ImageCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE9193A590DD1EFD24A546A /* ImageCleaner.swift */; };
 		F317C0C54EBD4BB4B67D756C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135B44F69259AC54E9E67ED2 /* RootView.swift */; };
 /* End PBXBuildFile section */
 
@@ -50,6 +51,7 @@
 		2A53C02F39BBB86879FF62E2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		34D0858DFAFCCBB7E6E8889E /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3CFF3A5681292C4809888B85 /* VisaFlow.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VisaFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DE9193A590DD1EFD24A546A /* ImageCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCleaner.swift; sourceTree = "<group>"; };
 		42AD78DBDF56909F5180FEDC /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5576383025328C9BFFC50188 /* CaseDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaseDetailView.swift; sourceTree = "<group>"; };
 		62AA41ED6462F6A094B45D1D /* DemoAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAPI.swift; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 			children = (
 				77AFBF751AC8F954D8A90AA2 /* API.swift */,
 				62AA41ED6462F6A094B45D1D /* DemoAPI.swift */,
+				3DE9193A590DD1EFD24A546A /* ImageCleaner.swift */,
 				EDAE794D2FCD41C28ECE501A /* Keychain.swift */,
 				E6FC1359DF3DDE6BB342990D /* Session.swift */,
 			);
@@ -358,6 +361,7 @@
 				17B4294664BD0C91A510B725 /* Components.swift in Sources */,
 				877B41AD5768429B609A7899 /* DemoAPI.swift in Sources */,
 				1EBA1934730015361563801C /* HomeView.swift in Sources */,
+				E3B00C2249B572D16668DB6E /* ImageCleaner.swift in Sources */,
 				2F29EEA8B9A2B5FF495B9559 /* Keychain.swift in Sources */,
 				B53D7DC23AB8E9EE01B1A036 /* MessagesView.swift in Sources */,
 				5ABE5213EEBF08E39A2E89FD /* Models.swift in Sources */,

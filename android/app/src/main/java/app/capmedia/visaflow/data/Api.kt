@@ -128,23 +128,21 @@ class LiveApi(
     }
 
     override suspend fun upload(bytes: ByteArray, fileName: String, documentKey: String, caseToken: String) {
-        // Le serveur signe une adresse de dépôt à usage unique : l'application
-        // n'a jamais la clé du seau, et une adresse volée expire seule.
-        val signed = rpc("portal_upload_url", buildJsonObject {
-            put("p_token", JsonPrimitive(caseToken))
-            put("p_document_key", JsonPrimitive(documentKey))
-            put("p_file_name", JsonPrimitive(fileName))
-        })
-        val url = json.parseToJsonElement(signed).jsonObject["url"]?.jsonPrimitive?.content
-            ?: throw ApiError.Server("adresse de dépôt absente")
-
+        // Le dépôt passe par la fonction de bord portal-upload : elle valide le
+        // jeton, dépose avec la clé de service et impose le chemin. L'app ne
+        // choisit jamais où la pièce atterrit.
         withContext(Dispatchers.IO) {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "PUT"
+            val connection = (URL("$baseUrl/functions/v1/portal-upload").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
                 doOutput = true
                 connectTimeout = 30_000
                 readTimeout = 60_000
-                setRequestProperty("Content-Type", "application/octet-stream")
+                setRequestProperty("apikey", anonKey)
+                setRequestProperty("Authorization", "Bearer $anonKey")
+                setRequestProperty("Content-Type", mimeOf(fileName))
+                setRequestProperty("x-portal-token", caseToken)
+                setRequestProperty("x-document-key", documentKey)
+                setRequestProperty("x-file-name", fileName)
             }
             try {
                 connection.outputStream.use { it.write(bytes) }
@@ -155,5 +153,13 @@ class LiveApi(
                 connection.disconnect()
             }
         }
+    }
+
+    private fun mimeOf(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
+        "png" -> "image/png"
+        "heic" -> "image/heic"
+        "heif" -> "image/heif"
+        "pdf" -> "application/pdf"
+        else -> "image/jpeg"
     }
 }

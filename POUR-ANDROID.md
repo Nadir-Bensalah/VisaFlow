@@ -167,3 +167,35 @@ Les libellés d'étape viennent du serveur **sous forme de clés**, jamais de
 texte. `Labels.kt` les résout dans la langue du téléphone. Traduire côté
 serveur obligerait à connaître la langue de l'appareil, et un client qui
 change de langue verrait la moitié de l'écran figée.
+
+---
+
+## 8 septembre 2026 · Branchement sur le vrai backend, et correctifs red team
+
+**Ce qui a été fait.** Les deux apps parlent maintenant au vrai Supabase, plus
+seulement à la démonstration. L'interrupteur de démo garde ses données fictives
+pour les captures ; le reste du temps, `LiveApi` (Android) et `LiveAPI` (iOS).
+
+**Le contrat réconcilié.** Les deux apps appelaient des noms de fonctions qui
+n'existaient pas ou divergeaient. Désormais, des deux côtés : `portal_send` pour
+l'envoi d'un message, et la fonction de bord `portal-upload` pour le dépôt de
+pièce. Côté serveur, `portal_send` et `portal_doc_target`/`portal_doc_received`
+ont été créées (migration 0024).
+
+**Le dépôt de pièce, sans compte.** Le client n'a pas de session, donc pas
+d'accès au stockage. La fonction de bord `portal-upload` fait le pont : elle
+valide le jeton de suivi, dépose avec la clé de service qui ne quitte jamais le
+serveur, et impose le chemin depuis le dossier. Le client ne choisit ni le seau
+ni le chemin.
+
+### Les correctifs de la red team mobile
+
+| Point | Correction | Équivalent iOS |
+|---|---|---|
+| **EXIF/GPS sur les passeports** | `ImageCleaner.stripped()` décode puis recompresse : le bitmap ne porte que les pixels, jamais la position GPS du domicile | `ImageCleaner` via ImageIO, sans dictionnaire GPS |
+| **Trafic en clair** | `android:usesCleartextTraffic="false"` dans le manifeste | ATS par défaut, déjà en place |
+| **Upload tout type, nom brut** | Picker restreint à `image/*`, nom normalisé en `clé.jpg` | Picker `.images`, nom déjà normalisé |
+
+**Où.** `ImageCleaner.kt`, `Api.kt` (upload par fonction de bord),
+`MainActivity.kt` (LiveApi vs DemoApi), `build.gradle.kts` (BuildConfig avec
+l'URL et la clé publiques), `AndroidManifest.xml` (cleartext).

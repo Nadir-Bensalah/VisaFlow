@@ -33,6 +33,10 @@
 	<string>Pour photographier une pièce demandée par l’agence.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pour envoyer une pièce déjà enregistrée dans vos photos.</string>
+	<key>SupabaseAnonKey</key>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwemprdmdmZ294bWRiYnNwaGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTU4MTEsImV4cCI6MjEwNDM5MTgxMX0.rQSTYZsPOdTPTccl6I8ehfW5otPCh0On05aR5auRM4Y</string>
+	<key>SupabaseURL</key>
+	<string>https://ppzjkvgfgoxmdbbsphbr.supabase.co</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

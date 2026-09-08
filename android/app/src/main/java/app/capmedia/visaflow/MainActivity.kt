@@ -27,6 +27,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,7 +37,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.capmedia.visaflow.data.Api
 import app.capmedia.visaflow.data.DemoApi
+import app.capmedia.visaflow.data.LiveApi
 import app.capmedia.visaflow.data.Session
 import app.capmedia.visaflow.design.Token
 import app.capmedia.visaflow.feature.access.CodeScreen
@@ -77,7 +80,17 @@ private val Scheme = lightColorScheme(
 @Composable
 fun VisaFlowApp(demoSignedIn: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val session: Session = viewModel(factory = Session.factory(context, DemoApi(), demoSignedIn))
+    // Le backend réel si l'application est configurée, sinon la démonstration.
+    // Les deux valeurs sont publiques : la clé anon vit dans l'app, ce sont les
+    // politiques qui protègent.
+    val api: Api = remember(demoSignedIn) {
+        // La démonstration (captures, revue) garde ses données fictives ; le
+        // reste du temps, le vrai backend.
+        val url = BuildConfig.SUPABASE_URL
+        val key = BuildConfig.SUPABASE_ANON_KEY
+        if (demoSignedIn || url.isBlank() || key.isBlank()) DemoApi() else LiveApi(url, key)
+    }
+    val session: Session = viewModel(factory = Session.factory(context, api, demoSignedIn))
 
     MaterialTheme(colorScheme = Scheme) {
         when (val state = session.state) {

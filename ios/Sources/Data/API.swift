@@ -104,25 +104,35 @@ struct LiveAPI: API {
     }
 
     func send(message: String, caseToken: String) async throws {
-        _ = try await rpc("portal_send_message", ["p_token": caseToken, "p_body": message])
+        _ = try await rpc("portal_send", ["p_token": caseToken, "p_body": message])
     }
 
     func upload(_ data: Data, fileName: String, documentKey: String, caseToken: String) async throws {
-        // Le fichier passe par une URL signée obtenue du serveur : jamais par
-        // un chemin de stockage devinable.
-        let signed = try await rpc("portal_upload_url", [
-            "p_token": caseToken, "p_key": documentKey, "p_file_name": fileName,
-        ])
-        struct Signed: Decodable { let url: String }
-        let target = try JSONDecoder().decode(Signed.self, from: signed)
-        guard let url = URL(string: target.url) else { throw APIError.server("url invalide") }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        // Le fichier passe par la fonction de bord portal-upload : elle valide
+        // le jeton, dépose avec la clé de service et impose le chemin. Le
+        // client ne choisit jamais où sa pièce atterrit.
+        var request = URLRequest(url: baseURL.appendingPathComponent("functions/v1/portal-upload"))
+        request.httpMethod = "POST"
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(mimeType(for: fileName), forHTTPHeaderField: "Content-Type")
+        request.setValue(caseToken, forHTTPHeaderField: "x-portal-token")
+        request.setValue(documentKey, forHTTPHeaderField: "x-document-key")
+        request.setValue(fileName, forHTTPHeaderField: "x-file-name")
+        request.timeoutInterval = 60
         let (_, response) = try await session.upload(for: request, from: data)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw APIError.network
+        }
+    }
+
+    private func mimeType(for name: String) -> String {
+        switch (name as NSString).pathExtension.lowercased() {
+        case "png": return "image/png"
+        case "heic": return "image/heic"
+        case "heif": return "image/heif"
+        case "pdf": return "application/pdf"
+        default: return "image/jpeg"
         }
     }
 }
