@@ -5,6 +5,8 @@ import { useAuth } from '@/data/auth'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { Avatar, Button, Field, Input, Select } from '@/components/ui'
+import { usePublicAgency } from './public/usePublicAgency'
+import { resolveTenantSlug } from '@/tenant'
 import type { Locale } from '@/data/types'
 
 export function Login() {
@@ -16,6 +18,23 @@ export function Login() {
   // Mode réel : un vrai compte, un vrai mot de passe. Mode démonstration : on
   // choisit un profil d'un clic, sans backend.
   const real = HAS_BACKEND
+
+  /* QUELLE MARQUE AFFICHER AVANT LA CONNEXION.
+     Personne n'est connecté : on ne sait pas encore de quelle agence est la
+     personne qui regarde. Le jeu de démonstration en portait une, ce qui faisait
+     afficher « Tunis Consulting » à tout le monde, y compris quand cette agence
+     n'existait plus.
+     La règle est donc : on ne montre une agence que si l'adresse la nomme
+     explicitement (sous-domaine, ou ?agence=) ET que le serveur la reconnaît.
+     Sinon, la marque du produit. La marque de l'agence apparaît de toute façon
+     une seconde plus tard, dès que la session est ouverte. */
+  const demande = real ? resolveTenantSlug() : ''
+  const vitrine = usePublicAgency(demande)
+  const marque = !real
+    ? { nom: db.agency.name, mark: db.agency.mark, accent: db.agency.accent, sous: `${db.agency.slug}.visaflow.app` }
+    : vitrine.status === 'ok'
+      ? { nom: vitrine.agency.name, mark: vitrine.agency.mark, accent: vitrine.agency.accent, sous: `${demande}.visaflow.app` }
+      : { nom: 'VisaFlow', mark: 'VF', accent: '#0066CC', sous: t('login.anyAgency') }
 
   const enter = (userId: string) => { signIn(userId); navigate('/') }
 
@@ -42,10 +61,10 @@ export function Login() {
     <div className="auth">
       <div className="auth__card">
         <div className="row gap-3" style={{ marginBottom: 'var(--sp-8)' }}>
-          <span className="sidebar__mark" style={{ background: db.agency.accent, width: 36, height: 36, borderRadius: 10 }}>{db.agency.mark}</span>
+          <span className="sidebar__mark" style={{ background: marque.accent, width: 36, height: 36, borderRadius: 10 }}>{marque.mark}</span>
           <div className="col" style={{ minWidth: 0 }}>
-            <span className="t-title t-truncate">{db.agency.name}</span>
-            <span className="t-caption t-tertiary t-truncate">{db.agency.slug}.visaflow.app</span>
+            <span className="t-title t-truncate">{marque.nom}</span>
+            <span className="t-caption t-tertiary t-truncate">{marque.sous}</span>
           </div>
           <span className="grow" />
           <Select aria-label={t('misc.language')} value={locale} onChange={(e) => setLocale(e.target.value as Locale)} style={{ width: 'auto', minHeight: 32 }}>

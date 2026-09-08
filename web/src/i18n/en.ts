@@ -526,6 +526,7 @@ export const en: Dict = {
     yourShipment: 'Your goods', trackShipment: 'Track my shipment',
   },
   login: {
+    anyAgency: 'Agency workspace',
     forgot: 'Forgotten password?',
     forgotTitle: 'Recover your access',
     forgotHint: 'Enter your account address. We send you a link to choose a new password.',

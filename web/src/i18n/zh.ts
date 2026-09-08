@@ -526,6 +526,7 @@ export const zh: Dict = {
     yourShipment: '您的货物', trackShipment: '跟踪我的货物',
   },
   login: {
+    anyAgency: '机构工作空间',
     forgot: '忘记密码？',
     forgotTitle: '找回访问权限',
     forgotHint: '输入您的账号邮箱，我们会发送设置新密码的链接。',

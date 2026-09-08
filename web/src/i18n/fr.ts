@@ -728,6 +728,7 @@ export const fr = {
     trackShipment: 'Suivre ma cargaison',
   },
   login: {
+    anyAgency: 'Espace de travail des agences',
     forgot: 'Mot de passe oublié ?',
     forgotTitle: 'Retrouver son accès',
     forgotHint: 'Donnez l’adresse de votre compte. Nous vous envoyons un lien pour choisir un nouveau mot de passe.',

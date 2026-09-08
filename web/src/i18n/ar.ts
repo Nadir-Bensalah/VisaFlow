@@ -526,6 +526,7 @@ export const ar: Dict = {
     yourShipment: 'بضاعتك', trackShipment: 'تتبع شحنتي',
   },
   login: {
+    anyAgency: 'فضاء عمل الوكالات',
     forgot: 'نسيت كلمة المرور؟',
     forgotTitle: 'استعادة الدخول',
     forgotHint: 'أدخل بريد حسابك. نرسل لك رابطاً لاختيار كلمة مرور جديدة.',
