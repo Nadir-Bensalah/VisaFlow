@@ -17,12 +17,18 @@ export interface Attached {
   type: string
 }
 
-export function FileDrop({ scope, id, current, onAttach, onDetach, readOnly, compact }: {
+export function FileDrop({ scope, id, current, onAttach, onUpload, onDetach, readOnly, compact }: {
   /** Espace de nommage de la clé : « dossier », « cargaison ». */
   scope: string
   id: string
   current?: { key?: string; name?: string; size?: number; type?: string }
-  onAttach: (file: Attached) => void
+  onAttach?: (file: Attached) => void
+  /**
+   * Envoi direct du fichier brut, sans passer par le stockage local. C'est le
+   * chemin du portail client : sa pièce part vers la fonction de bord, elle n'a
+   * rien à faire dans l'IndexedDB d'un navigateur qu'on ne reverra jamais.
+   */
+  onUpload?: (file: File) => Promise<void>
   onDetach?: () => void
   readOnly?: boolean
   compact?: boolean
@@ -61,11 +67,15 @@ export function FileDrop({ scope, id, current, onAttach, onDetach, readOnly, com
     setError(null)
     setBusy(true)
     try {
-      const key = keyFor(scope, id)
-      const meta: StoredFile = await put(key, file)
-      // Le fichier remplacé n'a plus de raison d'occuper la place.
-      if (current?.key) await remove(current.key)
-      onAttach({ key: meta.key, name: meta.name, size: meta.size, type: meta.type })
+      if (onUpload) {
+        await onUpload(file)
+      } else {
+        const key = keyFor(scope, id)
+        const meta: StoredFile = await put(key, file)
+        // Le fichier remplacé n'a plus de raison d'occuper la place.
+        if (current?.key) await remove(current.key)
+        onAttach?.({ key: meta.key, name: meta.name, size: meta.size, type: meta.type })
+      }
     } catch {
       setError('stockage')
     } finally {
