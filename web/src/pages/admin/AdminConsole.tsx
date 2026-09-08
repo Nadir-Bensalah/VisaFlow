@@ -5,6 +5,7 @@ import { useAuth } from '@/data/auth'
 import { useStore } from '@/data/store'
 import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
 import { AgencyDetail } from './AgencyDetail'
+import { Subscriptions } from './Subscriptions'
 import type { Locale } from '@/data/types'
 import { TempPassword } from '@/components/TempPassword'
 import { inviteUser } from '@/lib/invite'
@@ -193,6 +194,10 @@ export function AdminConsole() {
             </div>
           )}
         </Card>
+
+        {/* Les abonnements viennent juste après la liste des agences : c'est
+            la même question, vue par l'argent. */}
+        <Subscriptions />
 
         {/* Les demandes de souscription passent AVANT la facturation : c'est
             le premier écran d'une journée, et une demande qui dort est un

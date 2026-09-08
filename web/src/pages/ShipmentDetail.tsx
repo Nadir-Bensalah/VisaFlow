@@ -1,3 +1,8 @@
+import { AuditTrail } from '@/components/AuditTrail'
+import { ArrivalCard } from '@/components/ArrivalCard'
+import { TransportDocsCard } from '@/components/TransportDocsCard'
+import { CostsCard } from '@/components/CostsCard'
+import { TrackingLinks } from '@/components/TrackingLinks'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
@@ -94,6 +99,7 @@ export function ShipmentDetail() {
           {/* Ce que l'agence regarde tous les matins : c'est là que l'argent se
               perd, un jour à la fois, sur trois factures différentes. */}
           <CountersCard shipment={shipment} />
+          <ArrivalCard shipmentId={shipment.id} />
 
           {/* Le trajet en tronçons : sans lui, le délai annoncé au client ne
               repose sur rien de vérifiable. */}
@@ -133,6 +139,10 @@ export function ShipmentDetail() {
           <LotsCard shipment={shipment} />
           <CustomsCard shipment={shipment} />
           <DouaneDocsCard shipment={shipment} />
+          <TransportDocsCard shipmentId={shipment.id} />
+          <CostsCard shipmentId={shipment.id} />
+          <TrackingLinks kind="SHIPMENT" entityId={shipment.id} />
+          <AuditTrail entityType="shipments" entityId={shipment.id} />
         </div>
 
         <div className="stack">

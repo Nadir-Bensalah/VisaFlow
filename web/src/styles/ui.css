@@ -1412,3 +1412,29 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   width: 40px; height: 32px; padding: 0; border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-field); cursor: pointer; background: none;
 }
+
+/* La barre latérale par métier : chaque groupe se replie.
+   Le titre devient un bouton, mais il garde exactement l'apparence d'un titre :
+   un groupe qui ressemble à un bouton attire le clic, et on ne veut pas que
+   replier soit le geste le plus visible de la barre. */
+.sidebar__group-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  font-size: var(--size-caption);
+  font-weight: var(--w-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.sidebar__group-toggle:hover { color: var(--text-secondary); }
+.sidebar__group-toggle svg { transition: transform 160ms ease; opacity: 0.6; }
+.sidebar__chev--open { transform: rotate(90deg); }
+[dir='rtl'] .sidebar__chev--open { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .sidebar__group-toggle svg { transition: none; } }

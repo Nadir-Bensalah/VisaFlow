@@ -6,6 +6,10 @@ import { useI18n } from '@/i18n'
 import { useState } from 'react'
 import { ClientEditor } from '@/components/ClientEditor'
 import { SchengenCard } from '@/components/SchengenCard'
+import { TagsPicker } from '@/components/TagsPicker'
+import { ContactsCard } from '@/components/ContactsCard'
+import { CompanySection } from '@/components/CompanySection'
+import { AuditTrail } from '@/components/AuditTrail'
 import { Ago, CaseRow, PageHead } from '@/components/bits'
 import { Avatar, Button, Card, Empty, Field, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -126,6 +130,10 @@ export function ClientDetail() {
           {/* « Combien de jours me reste-t-il ? » : la question la plus fréquente
               au comptoir depuis l'EES, et que personne d'autre ne sait traiter. */}
           <SchengenCard clientId={client.id} />
+          <TagsPicker clientId={client.id} />
+          <ContactsCard clientId={client.id} />
+          <CompanySection clientId={client.id} />
+          <AuditTrail entityType="clients" entityId={client.id} />
         </div>
       </div>
     </>

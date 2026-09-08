@@ -1,31 +1,56 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
-import { useI18n } from '@/i18n'
-import { Icon } from '@/components/Icon'
+import { useI18n, type TKey } from '@/i18n'
+import { Icon, type IconName } from '@/components/Icon'
 import { clientName, daysUntil, type Tone } from '@/lib/derive'
+import {
+  NOTIFS_ONLINE, markAllRead, markRead, myNotifications, severityTone, unreadCount,
+  type ServerNotification,
+} from '@/data/notifs'
 
 /**
  * La cloche. Le suivi d'une agence, c'est cent petits événements par jour :
  * une décision tombe, une pièce est refusée, un rendez-vous est aujourd'hui,
  * un prospect arrive, un client répond. Sans un endroit qui les rassemble,
- * l'agent apprend la mauvaise nouvelle trop tard. Ici tout est dérivé des
- * données déjà chargées, donc ça marche même hors ligne ; le compteur de
- * non-lus tient dans le navigateur, par agence et par utilisateur. Le push
- * vers le téléphone est la couche du dessus, elle attend des clés serveur.
+ * l'agent apprend la mauvaise nouvelle trop tard.
+ *
+ * Deux sources, dans cet ordre. Branchée au serveur, la cloche lit la table
+ * `notifications` (migration 0051) : ce qui est lu reste lu d'un poste à
+ * l'autre, et une alerte que personne n'a ouverte ne disparaît pas au
+ * rechargement. Hors ligne, ou si le serveur ne répond pas, elle retombe sur
+ * la dérivation locale des données déjà chargées : la démonstration continue
+ * de marcher, et une coupure ne vide pas la cloche.
  */
 
 type NotifKind = 'decisionOk' | 'decisionKo' | 'piece' | 'rdv' | 'demande' | 'message'
 
 type Notif = {
   id: string
-  kind: NotifKind
+  /** Déjà traduit : le serveur rend un code d'événement, le mode local une clé. */
+  label: string
   tone: Tone
-  icon: 'check' | 'close' | 'documents' | 'appointments' | 'portal' | 'messages'
+  icon: IconName
   at: string
   primary: string
   href: string
+  /** Renseigné par le serveur. Nul en mode local, où c'est le repère qui décide. */
+  readAt?: string | null
+}
+
+/** Le genre rendu par le serveur, traduit en icône. */
+const SERVER_ICON: Record<string, IconName> = {
+  decision: 'check',
+  piece: 'documents',
+  rendez_vous: 'appointments',
+  prospect: 'portal',
+  message: 'messages',
+  paiement: 'payments',
+  cargaison: 'ship',
+  douane: 'shield',
+  livraison: 'box',
+  systeme: 'bell',
 }
 
 const KEY = (agency: string, user: string) => `visaflow.notifseen.${agency}.${user}`
@@ -42,7 +67,43 @@ export function NotificationBell() {
     try { return window.localStorage.getItem(KEY(db.agency.slug, v.user.id)) ?? '' } catch { return '' }
   })
 
-  const items = useMemo<Notif[]>(() => {
+  // Ce que le serveur rend. Nul tant qu'il n'a rien rendu : c'est ce nul qui
+  // fait retomber la cloche sur sa dérivation locale.
+  const [server, setServer] = useState<ServerNotification[] | null>(null)
+  const [serverUnread, setServerUnread] = useState(0)
+
+  const refresh = useCallback(async () => {
+    if (!NOTIFS_ONLINE) return
+    try {
+      const [rows, count] = await Promise.all([myNotifications(40, false), unreadCount()])
+      setServer(rows)
+      setServerUnread(count)
+    } catch {
+      // Le serveur ne répond pas : on ne vide pas la cloche, on revient à ce
+      // que le navigateur sait déduire tout seul.
+      setServer(null)
+    }
+  }, [])
+
+  // Toutes les minutes. C'est la requête pour laquelle l'index
+  // notifications_inbox (user_id, read_at) existe.
+  useEffect(() => {
+    if (!NOTIFS_ONLINE) return
+    void refresh()
+    const id = window.setInterval(() => { void refresh() }, 60_000)
+    return () => window.clearInterval(id)
+  }, [refresh])
+
+  const label: Record<NotifKind, string> = useMemo(() => ({
+    decisionOk: t('notif.decisionOk'),
+    decisionKo: t('notif.decisionKo'),
+    piece: t('notif.piece'),
+    rdv: t('notif.rdv'),
+    demande: t('notif.demande'),
+    message: t('notif.message'),
+  }), [t])
+
+  const local = useMemo<Notif[]>(() => {
     const out: Notif[] = []
     const openIds = new Set(v.cases.filter((c) => c.status === 'ouvert').map((c) => c.id))
 
@@ -54,7 +115,7 @@ export function NotificationBell() {
       const ok = c.status === 'accepte'
       out.push({
         id: `dec-${c.id}`,
-        kind: ok ? 'decisionOk' : 'decisionKo',
+        label: ok ? label.decisionOk : label.decisionKo,
         tone: ok ? 'green' : 'red',
         icon: ok ? 'check' : 'close',
         at: c.decisionAt,
@@ -70,7 +131,7 @@ export function NotificationBell() {
       const c = v.cases.find((x) => x.id === d.caseId)
       out.push({
         id: `doc-${d.id}`,
-        kind: 'piece',
+        label: label.piece,
         tone: 'orange',
         icon: 'documents',
         at: d.lastReminderAt ?? d.uploadedAt ?? c?.updatedAt ?? new Date().toISOString(),
@@ -85,7 +146,7 @@ export function NotificationBell() {
       const c = a.caseId ? v.cases.find((x) => x.id === a.caseId) : undefined
       out.push({
         id: `rdv-${a.id}`,
-        kind: 'rdv',
+        label: label.rdv,
         tone: 'blue',
         icon: 'appointments',
         at: a.at,
@@ -99,7 +160,7 @@ export function NotificationBell() {
       if (r.status !== 'nouvelle') continue
       out.push({
         id: `req-${r.id}`,
-        kind: 'demande',
+        label: label.demande,
         tone: 'blue',
         icon: 'portal',
         at: r.receivedAt,
@@ -114,19 +175,38 @@ export function NotificationBell() {
       const c = m.caseId ? v.cases.find((x) => x.id === m.caseId) : undefined
       out.push({
         id: `msg-${m.id}`,
-        kind: 'message',
+        label: label.message,
         tone: 'violet',
         icon: 'messages',
         at: m.at,
-        primary: c ? clientName(db, c.clientId) : t('notif.message'),
+        primary: c ? clientName(db, c.clientId) : label.message,
         href: c ? `/cases/${c.id}` : '/messages',
       })
     }
 
     return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40)
-  }, [db, v, t])
+  }, [db, v, label])
 
-  const unread = items.filter((n) => n.at > seen).length
+  const online = NOTIFS_ONLINE && server !== null
+
+  const items = useMemo<Notif[]>(() => {
+    if (!online || server === null) return local
+    return server.map((n) => ({
+      id: n.id,
+      // Le serveur écrit un CODE d'événement, pas une phrase : la ligne est
+      // déposée une fois et lue en quatre langues.
+      label: t(`notif.e.${n.title}` as TKey),
+      tone: severityTone(n.severity) as Tone,
+      icon: SERVER_ICON[n.kind] ?? 'bell',
+      at: n.createdAt,
+      primary: n.body ?? '',
+      href: n.url ?? '/',
+      readAt: n.readAt,
+    }))
+  }, [online, server, local, t])
+
+  const isUnread = (n: Notif) => (online ? !n.readAt : n.at > seen)
+  const unread = online ? serverUnread : local.filter((n) => n.at > seen).length
 
   useEffect(() => {
     if (!open) return
@@ -138,6 +218,10 @@ export function NotificationBell() {
   }, [open])
 
   const markAllSeen = () => {
+    if (online) {
+      void markAllRead().then(() => refresh())
+      return
+    }
     const now = new Date().toISOString()
     setSeen(now)
     try { window.localStorage.setItem(KEY(db.agency.slug, v.user.id), now) } catch { /* stockage indisponible */ }
@@ -145,17 +229,12 @@ export function NotificationBell() {
 
   const go = (n: Notif) => {
     setOpen(false)
-    if (n.at > seen) markAllSeen()
+    if (online) {
+      if (!n.readAt) void markRead([n.id]).then(() => refresh())
+    } else if (n.at > seen) {
+      markAllSeen()
+    }
     navigate(n.href)
-  }
-
-  const label: Record<NotifKind, string> = {
-    decisionOk: t('notif.decisionOk'),
-    decisionKo: t('notif.decisionKo'),
-    piece: t('notif.piece'),
-    rdv: t('notif.rdv'),
-    demande: t('notif.demande'),
-    message: t('notif.message'),
   }
 
   return (
@@ -187,14 +266,14 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   type="button"
-                  className={`bell__item${n.at > seen ? ' is-unread' : ''}`}
+                  className={`bell__item${isUnread(n) ? ' is-unread' : ''}`}
                   onClick={() => go(n)}
                 >
                   <span className={`bell__dot bell__dot--${n.tone}`}>
                     <Icon name={n.icon} size={13} />
                   </span>
                   <span className="col gap-1 grow" style={{ textAlign: 'start', minWidth: 0 }}>
-                    <span className="t-small t-medium t-truncate">{label[n.kind]}</span>
+                    <span className="t-small t-medium t-truncate">{n.label}</span>
                     <span className="t-caption t-secondary t-truncate">{n.primary}</span>
                   </span>
                   <span className="t-caption t-tertiary" style={{ whiteSpace: 'nowrap' }}>{formatDate(n.at)}</span>

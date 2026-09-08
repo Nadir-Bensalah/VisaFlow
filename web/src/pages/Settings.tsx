@@ -10,6 +10,11 @@ import { TariffsSection } from '@/components/TariffsSection'
 import { BrandSection } from '@/components/BrandSection'
 import { EncaissementSection } from '@/components/EncaissementSection'
 import { OfficesSection } from '@/components/OfficesSection'
+import { ServicesSection } from '@/components/ServicesSection'
+import { PlanCard } from '@/components/PlanCard'
+import { NotificationRules } from '@/components/NotificationRules'
+import { WebhooksSection } from '@/components/WebhooksSection'
+import { SecuritySection } from '@/components/SecuritySection'
 import { InviteMember } from '@/components/InviteMember'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { ComplianceSection } from '@/components/ComplianceSection'
@@ -18,7 +23,7 @@ import { tenantUrl } from '@/tenant'
 import { roleKey } from '@/lib/permissions'
 import type { ChecklistItem, Channel, Consulate, DepositCentre, I18nText, Locale, MessageTemplate, Role, User, VisaType } from '@/data/types'
 
-type Section = 'agence' | 'bureaux' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'donnees' | 'journal'
+type Section = 'agence' | 'bureaux' | 'alertes' | 'marque' | 'encaissement' | 'equipe' | 'visas' | 'consulats' | 'baremes' | 'modeles' | 'whatsapp' | 'conformite' | 'securite' | 'donnees' | 'journal'
 
 const EMPTY_I18N: I18nText = { fr: '' }
 
@@ -36,6 +41,9 @@ export function Settings() {
     { value: 'agence', label: t('settings.agency'), visible: true },
     // Les bureaux : le périmètre de chacun. Les créer, c'est décider qui voit quoi.
     { value: 'bureaux', label: t('settings.offices'), visible: v.can('settings:manage') },
+    // Les alertes décident de ce qui part chez le client : c'est un réglage
+    // qui engage de l'argent et l'image de l'agence.
+    { value: 'alertes', label: t('notif.title'), visible: v.can('automation:manage') },
     { value: 'marque', label: t('brand.title'), visible: v.can('settings:manage') },
     { value: 'equipe', label: t('settings.team'), visible: v.can('team:manage') || v.can('team:invite') || v.can('audit:view') },
     { value: 'visas', label: t('settings.visaTypes'), visible: v.can('catalog:manage') },
@@ -51,6 +59,9 @@ export function Settings() {
     // pas de l'exploitation.
     { value: 'conformite', label: t('conf.title'), visible: v.can('settings:manage') },
     { value: 'donnees', label: t('settings.compliance'), visible: v.can('data:export') },
+    // Mes appareils sont visibles par tous ; le fil de sécurité exige le droit
+    // d'audit, et le composant s'en charge lui-même.
+    { value: 'securite', label: t('sec.title'), visible: true },
     { value: 'journal', label: t('settings.audit'), visible: v.can('audit:view') },
   ]
   const allowed = sections.filter((s) => s.visible)
@@ -79,14 +90,16 @@ export function Settings() {
         />
       </div>
 
-      {current === 'agence' && <AgencySection />}
+      {current === 'agence' && <><AgencySection /><PlanCard /></>}
       {current === 'bureaux' && <OfficesSection />}
+      {current === 'alertes' && <><NotificationRules /><WebhooksSection /></>}
+      {current === 'securite' && <SecuritySection />}
       {current === 'equipe' && <TeamSection />}
       {current === 'visas' && <CatalogSection />}
       {current === 'consulats' && <ConsulatesSection />}
       {current === 'marque' && <BrandSection />}
       {current === 'encaissement' && <EncaissementSection />}
-      {current === 'baremes' && <TariffsSection />}
+      {current === 'baremes' && <><ServicesSection /><TariffsSection /></>}
       {current === 'conformite' && <ComplianceSection />}
       {current === 'modeles' && <TemplatesSection />}
       {current === 'whatsapp' && <WhatsAppSection />}

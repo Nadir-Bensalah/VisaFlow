@@ -71,7 +71,19 @@ export function usePortalView(token: string): PortalResult {
     if (!HAS_BACKEND) return
     let alive = true
     setRemote({ status: 'chargement' })
+    /* Deux sortes de jetons ouvrent le même dossier.
+       Celui posé à l'ouverture du dossier (`portal_token`), et ceux que
+       l'agence émet ensuite, révocables un par un. Le second se traduit en
+       premier : sans ça, un lien qu'une agente vient d'envoyer tombe sur une
+       page vide, et le client rappelle. */
     rpc('portal_case', { p_token: token })
+      .then(async (data) => {
+        if (data) return data
+        const relais = await rpc('tracking_resolve', { p_token: token }).catch(() => null)
+        const suivi = relais as { kind?: string; portal_token?: string } | null
+        if (!suivi?.portal_token) return null
+        return rpc('portal_case', { p_token: suivi.portal_token })
+      })
       .then((data) => {
         if (!alive) return
         if (!data) { setRemote({ status: 'absent' }); return }
@@ -259,7 +271,15 @@ export function usePortalShipment(token: string): ShipmentState {
     if (!HAS_BACKEND) return
     let alive = true
     setRemote({ status: 'chargement' })
+    // Même chose côté fret : un lien révocable ouvre la cargaison.
     rpc('portal_shipment', { p_token: token })
+      .then(async (data) => {
+        if (data) return data
+        const relais = await rpc('tracking_resolve', { p_token: token }).catch(() => null)
+        const suivi = relais as { portal_token?: string } | null
+        if (!suivi?.portal_token) return null
+        return rpc('portal_shipment', { p_token: suivi.portal_token })
+      })
       .then((data) => {
         if (!alive) return
         if (!data) { setRemote({ status: 'absent' }); return }

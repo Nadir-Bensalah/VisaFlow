@@ -4,6 +4,7 @@ import { fr, type Dict } from './fr'
 import { en } from './en'
 import { ar } from './ar'
 import { zh } from './zh'
+import { MODULES, type ModuleDict } from './modules'
 import type { I18nText, Locale } from '@/data/types'
 
 export const LOCALES: Locale[] = ['fr', 'en', 'ar', 'zh']
@@ -15,18 +16,27 @@ export const LOCALE_META: Record<Locale, { label: string; native: string; dir: '
   zh: { label: 'Chinois', native: '中文', dir: 'ltr', bcp47: 'zh-CN' },
 }
 
-const DICTS: Record<Locale, Dict> = { fr, en, ar, zh }
+/* Le dictionnaire complet : le socle plus les blocs des modules. Une clé
+   absente d'une langue retombe sur le français, qui fait foi. */
+type FullDict = Dict & ModuleDict
+
+const DICTS: Record<Locale, FullDict> = {
+  fr: { ...fr, ...MODULES.fr } as FullDict,
+  en: { ...en, ...MODULES.en } as FullDict,
+  ar: { ...ar, ...MODULES.ar } as FullDict,
+  zh: { ...zh, ...MODULES.zh } as FullDict,
+}
 
 /** Chemins de cle valides, verifies a la compilation : t('cases.title'). */
 type Leaves<T> = T extends string
   ? never
   : { [K in keyof T & string]: T[K] extends string ? K : `${K}.${Leaves<T[K]>}` }[keyof T & string]
 
-export type TKey = Leaves<Dict>
+export type TKey = Leaves<FullDict>
 
 type Vars = Record<string, string | number>
 
-function lookup(dict: Dict, key: string): string | undefined {
+function lookup(dict: FullDict, key: string): string | undefined {
   let node: unknown = dict
   for (const part of key.split('.')) {
     if (typeof node !== 'object' || node === null) return undefined
@@ -89,7 +99,7 @@ export function I18nProvider({ children, currency = 'TND' }: { children: ReactNo
       locale,
       dir,
       setLocale,
-      t: (key, vars) => interpolate(lookup(dict, key) ?? lookup(fr, key) ?? key, vars),
+      t: (key, vars) => interpolate(lookup(dict, key) ?? lookup(DICTS.fr, key) ?? key, vars),
       tt: (text) => (text ? (text[locale] ?? text.fr) : ''),
       formatDate: (iso, opts) => {
         if (!iso) return '—'

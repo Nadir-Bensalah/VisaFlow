@@ -36,6 +36,17 @@ jobs:
         env:
           # Sur GitHub Pages le site vit sous /VisaFlow/.
           VITE_BASE: /VisaFlow/
+          # Le vrai backend. Sans ces deux valeurs, le site se construit en
+          # démonstration : la console plateforme, le tunnel de souscription et
+          # les portails clients n'atteignent rien.
+          #
+          # La clé « anon » est PUBLIQUE par construction : elle voyage dans
+          # chaque page d'une application Supabase, et ne donne aucun droit par
+          # elle-même. Ce qu'on peut lire avec, ce sont les politiques de
+          # sécurité au niveau des lignes qui le décident, et elles exigent une
+          # session. La clé de service, elle, ne doit JAMAIS apparaître ici.
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
 
       - name: Repli des routes profondes
         # Pages ne connait pas le routeur : toute URL inconnue doit renvoyer

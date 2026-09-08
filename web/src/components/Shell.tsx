@@ -13,12 +13,30 @@ import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
 
+type TKeyOf = Parameters<ReturnType<typeof useI18n>['t']>[0]
+
 interface NavEntry {
   to: string
-  labelKey: Parameters<ReturnType<typeof useI18n>['t']>[0]
+  labelKey: TKeyOf
   icon: IconName
   count?: number
   need?: Capability
+}
+
+/* Un groupe de la barre latérale.
+   Le cahier des charges demande une navigation par métier (Visa, Fret,
+   Finance), et dans la même page qu'on n'ait jamais l'impression d'ouvrir un
+   ERP. Les deux tiennent ensemble à une condition : chaque groupe se replie, et
+   celui qu'on n'utilise pas ne s'ouvre jamais. Une agence de visas seule ne
+   voit aucune ligne de fret, pas même repliée. */
+interface NavGroup {
+  key: string
+  labelKey?: TKeyOf
+  entries: NavEntry[]
+  /** Faux quand l'agence n'a pas ce métier : le groupe n'existe pas du tout. */
+  visible?: boolean
+  /** Un groupe sans titre ne se replie pas : c'est le haut de la barre. */
+  collapsible?: boolean
 }
 
 /** Pastille de compteur qui bat une fois quand le nombre change. */
@@ -45,6 +63,20 @@ export function Shell() {
   const { t, locale, setLocale } = useI18n()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  /* Quels groupes sont ouverts. On mémorise le choix : une barre qui se
+     replie à chaque navigation est plus fatigante qu'une barre trop longue.
+     Absent du dictionnaire veut dire ouvert, pour qu'une agence qui découvre
+     l'outil voie tout la première fois. */
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(window.localStorage.getItem('visaflow.nav') ?? '{}') as Record<string, boolean> } catch { return {} }
+  })
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: prev[key] === false }
+      try { window.localStorage.setItem('visaflow.nav', JSON.stringify(next)) } catch { /* stockage indisponible */ }
+      return next
+    })
+  }
   const [paletteOpen, setPaletteOpen] = useState(false)
   const location = useLocation()
 
@@ -90,46 +122,106 @@ export function Shell() {
 
   const newRequests = db.requests.filter((r) => r.status === 'nouvelle').length
 
-  const work: NavEntry[] = [
-    { to: '/', labelKey: 'today.title', icon: 'sun' },
-    { to: '/demandes', labelKey: 'inbox.title', icon: 'mail', count: newRequests },
-    { to: '/tableau-de-bord', labelKey: 'nav.dashboard', icon: 'dashboard' },
-    { to: '/pipeline', labelKey: 'nav.pipeline', icon: 'pipeline' },
-    { to: '/dossiers', labelKey: 'nav.cases', icon: 'cases', count: openCases.length },
-    { to: '/pieces', labelKey: 'nav.documents', icon: 'documents', count: blocked },
-    ...(db.agency.services.includes('fret')
-      ? [{ to: '/cargaisons', labelKey: 'nav.shipments' as const, icon: 'ship' as const, count: v.shipments.filter((x) => x.status === 'en_cours').length }]
-      : []),
-    { to: '/clients', labelKey: 'nav.clients', icon: 'clients' },
-  ]
-  const flow: NavEntry[] = [
-    { to: '/messages', labelKey: 'nav.messages', icon: 'messages', count: unanswered },
-    { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
-    // La file de creneaux passe avant les rendez-vous : c'est le travail
-    // d'avant, celui qui porte l'essentiel de la marge.
-    { to: '/creneaux', labelKey: 'nav.slots', icon: 'clock', count: waitingSlots },
-    { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
-    { to: '/taches', labelKey: 'nav.myTasks', icon: 'tasks', count: pendingTasks },
-  ]
-  const admin: NavEntry[] = [
-    { to: '/automatisations', labelKey: 'nav.automations', icon: 'automations', need: 'automation:manage' },
-    { to: '/rapports', labelKey: 'nav.reports', icon: 'reports', need: 'reports:view' },
-    { to: '/statistiques', labelKey: 'nav.stats', icon: 'dashboard', need: 'reports:view' },
-    { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
+  const fait = db.agency.services
+  const aVisas = fait.includes('visas')
+  const aFret = fait.includes('fret')
+
+  const groups: NavGroup[] = [
+    {
+      key: 'tete',
+      entries: [
+        { to: '/', labelKey: 'nav.today', icon: 'sun' },
+        { to: '/demandes', labelKey: 'inbox.title', icon: 'mail', count: newRequests },
+        { to: '/clients', labelKey: 'nav.clients', icon: 'clients' },
+      ],
+    },
+    {
+      key: 'commercial',
+      labelKey: 'nav.commercial',
+      collapsible: true,
+      entries: [
+        { to: '/commercial', labelKey: 'nav.leads', icon: 'sparkle' },
+        { to: '/devis', labelKey: 'nav.quotes', icon: 'copy', need: 'payment:write' },
+      ],
+    },
+    {
+      key: 'visa',
+      labelKey: 'nav.visa',
+      collapsible: true,
+      visible: aVisas,
+      entries: [
+        { to: '/dossiers', labelKey: 'nav.cases', icon: 'cases', count: openCases.length },
+        { to: '/pipeline', labelKey: 'nav.pipeline', icon: 'pipeline' },
+        { to: '/pieces', labelKey: 'nav.documents', icon: 'documents', count: blocked },
+        { to: '/rendez-vous', labelKey: 'nav.appointments', icon: 'appointments', count: todayAppointments },
+        // La file de créneaux passe avant les rendez-vous : c'est le travail
+        // d'avant, celui qui porte l'essentiel de la marge.
+        { to: '/creneaux', labelKey: 'nav.slots', icon: 'clock', count: waitingSlots },
+      ],
+    },
+    {
+      key: 'fret',
+      labelKey: 'nav.fret',
+      collapsible: true,
+      visible: aFret,
+      entries: [
+        { to: '/cargaisons', labelKey: 'nav.shipments', icon: 'ship', count: v.shipments.filter((x) => x.status === 'en_cours').length },
+        { to: '/livraisons', labelKey: 'nav.deliveries', icon: 'box', need: 'shipment:write' },
+        { to: '/entrepot', labelKey: 'nav.warehouse', icon: 'building', need: 'shipment:write' },
+      ],
+    },
+    {
+      key: 'finance',
+      labelKey: 'nav.finance',
+      collapsible: true,
+      entries: [
+        { to: '/factures', labelKey: 'nav.invoices', icon: 'payments', need: 'payment:write' },
+        { to: '/paiements', labelKey: 'nav.payments', icon: 'payments', need: 'finance:global' },
+      ],
+    },
+    {
+      key: 'suivi',
+      labelKey: 'nav.workspace',
+      collapsible: true,
+      entries: [
+        { to: '/messages', labelKey: 'nav.messages', icon: 'messages', count: unanswered },
+        { to: '/taches', labelKey: 'nav.myTasks', icon: 'tasks', count: pendingTasks },
+      ],
+    },
+    {
+      key: 'pilotage',
+      labelKey: 'nav.pilotage',
+      collapsible: true,
+      entries: [
+        { to: '/tableau-de-bord', labelKey: 'nav.dashboard', icon: 'dashboard' },
+        { to: '/rapports', labelKey: 'nav.reports', icon: 'reports', need: 'reports:view' },
+        { to: '/statistiques', labelKey: 'nav.stats', icon: 'grid', need: 'reports:view' },
+        { to: '/automatisations', labelKey: 'nav.automations', icon: 'automations', need: 'automation:manage' },
+      ],
+    },
+    {
+      key: 'pied',
+      entries: [
+        { to: '/reglages', labelKey: 'nav.settings', icon: 'settings', need: 'settings:view' },
+      ],
+    },
   ]
 
-  const renderNav = (entries: NavEntry[]) =>
-    entries
-      .filter((e) => !e.need || v.can(e.need))
-      .map((e) => (
-        <NavLink key={e.to} to={e.to} end={e.to === '/'} className={({ isActive }) => `navitem ${isActive ? 'navitem--active' : ''}`}>
-          <Icon name={e.icon} className="navitem__icon" />
-          <span className="grow t-truncate">{t(e.labelKey)}</span>
-          {e.count !== undefined && <Count value={e.count} />}
-        </NavLink>
-      ))
+  // Un groupe vide ne s'affiche pas : filtrer les droits AVANT de dessiner
+  // évite un titre de section suivi de rien.
+  const shown = groups
+    .filter((g) => g.visible !== false)
+    .map((g) => ({ ...g, entries: g.entries.filter((e) => !e.need || v.can(e.need)) }))
+    .filter((g) => g.entries.length > 0)
 
-  const adminEntries = admin.filter((e) => !e.need || v.can(e.need))
+  const renderEntries = (entries: NavEntry[]) =>
+    entries.map((e) => (
+      <NavLink key={e.to} to={e.to} end={e.to === '/'} className={({ isActive }) => `navitem ${isActive ? 'navitem--active' : ''}`}>
+        <Icon name={e.icon} className="navitem__icon" />
+        <span className="grow t-truncate">{t(e.labelKey)}</span>
+        {e.count !== undefined && <Count value={e.count} />}
+      </NavLink>
+    ))
 
   return (
     <div className="shell">
@@ -166,16 +258,25 @@ export function Shell() {
         </div>
 
         <nav className="sidebar__nav">
-          {renderNav(work)}
-          <div className="sidebar__group">
-            <div className="sidebar__group-label">{t('nav.workspace')}</div>
-            {renderNav(flow)}
-          </div>
-          {adminEntries.length > 0 && (
-            <div className="sidebar__group">
-              <div className="sidebar__group-label">{t('nav.admin')}</div>
-              {renderNav(admin)}
-            </div>
+          {shown.map((g) =>
+            g.labelKey && g.collapsible ? (
+              <div className="sidebar__group" key={g.key}>
+                <button
+                  type="button"
+                  className="sidebar__group-label sidebar__group-toggle"
+                  aria-expanded={openGroups[g.key] !== false}
+                  onClick={() => toggleGroup(g.key)}
+                >
+                  <span className="grow">{t(g.labelKey)}</span>
+                  <Icon name="chevron" size={12} className={openGroups[g.key] === false ? '' : 'sidebar__chev--open'} />
+                </button>
+                {openGroups[g.key] !== false && renderEntries(g.entries)}
+              </div>
+            ) : (
+              <div className={g.key === 'tete' ? '' : 'sidebar__group'} key={g.key}>
+                {renderEntries(g.entries)}
+              </div>
+            ),
           )}
           <div className="sidebar__group">
             <div className="sidebar__group-label">{t('nav.portal')}</div>

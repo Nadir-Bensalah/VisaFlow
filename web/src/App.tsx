@@ -27,6 +27,11 @@ import { Automations } from './pages/Automations'
 import { Reports } from './pages/Reports'
 import { Stats } from './pages/Stats'
 import { Settings } from './pages/Settings'
+import { Leads } from './pages/Leads'
+import { Quotes } from './pages/Quotes'
+import { Invoices } from './pages/Invoices'
+import { Deliveries } from './pages/Deliveries'
+import { Warehouse } from './pages/Warehouse'
 import { Login } from './pages/Login'
 import { AgencyHome } from './pages/public/AgencyHome'
 import { AskForm } from './pages/public/AskForm'
@@ -101,6 +106,8 @@ export default function App() {
           <Route path="/dossiers/:id" element={<CaseDetail />} />
           <Route path="/cargaisons" element={<Shipments />} />
           <Route path="/cargaisons/:id" element={<ShipmentDetail />} />
+          <Route path="/livraisons" element={<Deliveries />} />
+          <Route path="/entrepot" element={<Warehouse />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/pieces" element={<Documents />} />
@@ -108,6 +115,9 @@ export default function App() {
           <Route path="/creneaux" element={<Slots />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/taches" element={<Tasks />} />
+          <Route path="/commercial" element={<Leads />} />
+          <Route path="/devis" element={<Require capability="payment:write"><Quotes /></Require>} />
+          <Route path="/factures" element={<Require capability="payment:write"><Invoices /></Require>} />
           <Route path="/paiements" element={<Require capability="finance:global"><Payments /></Require>} />
           <Route path="/automatisations" element={<Require capability="automation:manage"><Automations /></Require>} />
           <Route path="/rapports" element={<Require capability="reports:view"><Reports /></Require>} />

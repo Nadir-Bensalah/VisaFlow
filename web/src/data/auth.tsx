@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { HAS_BACKEND, supabase } from '@/lib/supabase'
+import { sessionTouch } from '@/data/securite'
 
 /* L'authentification réelle, quand un backend est configuré.
    Elle vit à côté du magasin d'agence, pas dedans : le super-admin de la
@@ -39,10 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!alive) return
       setSession(data.session)
       setReady(true)
+      // Le journal des appareils. Il ne bloque rien et ne lève jamais : une
+      // trace manquante ne doit pas empêcher quelqu'un de travailler.
+      if (data.session) void sessionTouch()
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next)
+      if (event === 'SIGNED_IN' && next) void sessionTouch()
     })
     return () => { alive = false; sub.subscription.unsubscribe() }
   }, [])

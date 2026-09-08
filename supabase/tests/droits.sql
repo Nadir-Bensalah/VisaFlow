@@ -80,6 +80,11 @@ begin
       -- La demande de souscription d'une agence : un formulaire public, sans
       -- compte, limité à cinq par téléphone et par jour, qui ne rend rien.
       'request_agency_signup',
+      -- Le suivi par lien révocable. Elle ne prend qu'un jeton, ne rend rien
+      -- sans jeton valide, et rend la même chose pour un jeton inconnu, révoqué
+      -- ou périmé : aucun essai ne renseigne. C'est la raison d'être de ces
+      -- deux fonctions d'être appelées par un client qui n'a pas de compte.
+      'tracking_open', 'tracking_resolve',
       -- L'outil du banc lui-même, absent de la production.
       'assert'
     );

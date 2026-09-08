@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
+import { AuditTrail } from '@/components/AuditTrail'
+import { TrackingLinks } from '@/components/TrackingLinks'
 import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -202,6 +204,9 @@ export function CaseDetail() {
           <Card title={t('caseDetail.notes')}>
             <NoteBox caseId={kase.id} />
           </Card>
+
+          <TrackingLinks kind="VISA_CASE" entityId={kase.id} />
+          <AuditTrail entityType="cases" entityId={kase.id} />
         </div>
       </div>
 
