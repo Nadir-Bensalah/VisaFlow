@@ -2,6 +2,15 @@
    exactement les memes cles : le type Dict s'en charge au compilateur. */
 
 export const fr = {
+  slot: {
+    whoToCall: 'Un créneau se libère : qui appeler',
+    freed: '{n} créneau(x) libéré(s)',
+    readyCount: '{ready} dossiers prêts sur {total}. Réserver pour un dossier incomplet brûle le créneau : le client ne passe pas l’accueil.',
+    filesReady: '{n} pièces, toutes reçues',
+    filesMissing: 'il manque {n} pièces',
+    bioOk: 'biométrie valable',
+    seen: 'Créneau vu, pas encore pris',
+  },
   dup: {
     found: '{n} client(s) déjà connu(s) pourraient être la même personne :',
     passeport_et_naissance: 'même passeport et même naissance',
@@ -922,6 +931,7 @@ export const fr = {
     autre: 'Autre',
   },
   attempt: {
+    creneau_libre: 'Créneau vu, pas encore pris',
     aucun_creneau: 'Aucun créneau',
     creneau_pris: 'Créneau pris',
     site_indisponible: 'Site indisponible',

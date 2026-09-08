@@ -1,6 +1,15 @@
 import type { Dict } from './fr'
 
 export const zh: Dict = {
+  slot: {
+    whoToCall: '有空位释放：该通知谁',
+    freed: '释放 {n} 个空位',
+    readyCount: '{total} 个案件中有 {ready} 个材料齐全。为材料不全者预约等于浪费名额：他过不了柜台。',
+    filesReady: '{n} 份材料，全部齐备',
+    filesMissing: '缺 {n} 份材料',
+    bioOk: '生物识别仍有效',
+    seen: '已看到空位，尚未预约',
+  },
   dup: {
     found: '有 {n} 位已登记客户可能是同一人：',
     passeport_et_naissance: '护照与出生日期相同',
@@ -567,6 +576,7 @@ export const zh: Dict = {
     autre: '其他',
   },
   attempt: {
+    creneau_libre: '看到空位，尚未预约',
     aucun_creneau: '没有名额',
     creneau_pris: '已抢到名额',
     site_indisponible: '网站无法访问',

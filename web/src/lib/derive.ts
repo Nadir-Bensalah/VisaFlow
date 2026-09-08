@@ -276,6 +276,8 @@ export function realWaitDays(db: Database, consulateId: string): number | undefi
 
 export const ATTEMPT_TONE: Record<AttemptResult, Tone> = {
   creneau_pris: 'green',
+  // Un créneau vu et pas encore pris : c'est une alerte, pas un résultat.
+  creneau_libre: 'blue',
   aucun_creneau: 'gray',
   site_indisponible: 'orange',
   compte_bloque: 'red',

@@ -26,6 +26,7 @@ import {
   cashCheck, promiseCheck, agencyMay, complianceGaps, onttDeadlines,
 } from './src/lib/conformite'
 import { arNormalize, sameArabicName, matchClient, findDuplicates } from './src/lib/noms'
+import { slotCandidates, freedSlots } from './src/lib/creneaux'
 
 let passed = 0
 const failures: string[] = []
@@ -339,6 +340,57 @@ ok(findDuplicates(gens, { nativeName: 'فاطمه الزهراء' }).length === 
   'le nom SEUL ne signale rien : il ne prouve rien, c\'est tout le sujet')
 ok(findDuplicates(gens, { passport: 'K1234567', birth: '1990-05-12', exclude: 'c1' }).length === 0,
   'on ne se signale pas soi-même comme son propre doublon')
+
+console.log('--- 10 · L\'alerte de créneau libéré ---')
+// La règle qui compte : un dossier PRÊT passe devant un dossier plus ancien
+// mais incomplet. Réserver pour un dossier incomplet brûle le créneau.
+const dbSlot = {
+  queue: [
+    { id: 'q1', consulateId: 'co1', caseId: 'k1', status: 'attente', priority: 'normale', joinedAt: '2026-01-01' },
+    { id: 'q2', consulateId: 'co1', caseId: 'k2', status: 'attente', priority: 'normale', joinedAt: '2026-06-01' },
+    { id: 'q3', consulateId: 'co1', caseId: 'k3', status: 'servi',   priority: 'urgente', joinedAt: '2026-01-01' },
+  ],
+  cases: [
+    // Sans consulat sur le dossier, un rendez-vous annulé ne libère aucun
+    // créneau identifiable : c'est voulu.
+    { id: 'k1', clientId: 'cl1', status: 'ouvert', reference: 'A-1', consulateId: 'co1' },
+    { id: 'k2', clientId: 'cl2', status: 'ouvert', reference: 'A-2' },
+    { id: 'k3', clientId: 'cl3', status: 'ouvert', reference: 'A-3' },
+  ],
+  clients: [
+    { id: 'cl1', firstName: 'Ancien', lastName: 'Incomplet', phone: '1' },
+    { id: 'cl2', firstName: 'Recent', lastName: 'Pret', phone: '2' },
+    { id: 'cl3', firstName: 'Servi', lastName: 'Deja', phone: '3' },
+  ],
+  documents: [
+    { id: 'd1', caseId: 'k1', required: true, state: 'manquante' },
+    { id: 'd2', caseId: 'k1', required: true, state: 'validee' },
+    { id: 'd3', caseId: 'k2', required: true, state: 'validee' },
+    { id: 'd4', caseId: 'k2', required: true, state: 'recue' },
+  ],
+  appointments: [] as unknown[],
+  attempts: [] as unknown[],
+}
+const cands = slotCandidates(dbSlot as never, 'co1')
+ok(cands.length === 2, 'un dossier déjà servi ne figure plus dans la file')
+ok(cands[0].clientName === 'Recent Pret',
+  'le dossier PRÊT passe devant le plus ancien mais incomplet : sinon on brûle le créneau')
+ok(cands[0].ready && cands[0].docsRequired === 2 && cands[0].docsMissing === 0,
+  'le dossier prêt est compté comme tel')
+ok(!cands[1].ready && cands[1].docsMissing === 1,
+  'et l\'incomplet dit précisément ce qui lui manque')
+
+const demain = new Date(Date.now() + 3 * 86400000).toISOString()
+const dbLibre = {
+  ...dbSlot,
+  appointments: [{ id: 'a1', caseId: 'k1', status: 'reporte', at: demain, location: 'TLS' }],
+  attempts: [{ id: 's1', consulateId: 'co1', result: 'creneau_libre', at: new Date().toISOString(), slotAt: demain }],
+}
+ok(freedSlots(dbLibre as never).length === 2,
+  'un rendez-vous reporté ET un créneau vu comptent tous deux comme libérés')
+const hier = new Date(Date.now() - 86400000).toISOString()
+ok(freedSlots({ ...dbSlot, appointments: [{ id: 'a2', caseId: 'k1', status: 'reporte', at: hier }] } as never).length === 0,
+  'un créneau déjà passé n\'est pas un créneau libre')
 
 console.log('')
 if (failures.length > 0) {

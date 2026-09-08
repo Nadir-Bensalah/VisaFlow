@@ -6,6 +6,8 @@ import { useI18n } from '@/i18n'
 import { Button, Card, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
 import { Ago, PageHead, PriorityPill } from '@/components/bits'
 import { Icon } from '@/components/Icon'
+import { SlotAlert } from '@/components/SlotAlert'
+import { freedSlots } from '@/lib/creneaux'
 import { ATTEMPT_TONE, clientName, daysSince, queueOf, realWaitDays } from '@/lib/derive'
 import type { AttemptResult, Consulate, Priority, QueueEntry } from '@/data/types'
 
@@ -15,7 +17,11 @@ import type { AttemptResult, Consulate, Priority, QueueEntry } from '@/data/type
    travail reel de l'agent, jusqu'ici invisible, tient en deux gestes :
    il essaie, et parfois il obtient. On trace les deux. */
 
-const RESULTS: AttemptResult[] = ['aucun_creneau', 'creneau_pris', 'site_indisponible', 'compte_bloque', 'erreur']
+/* « creneau_libre » vient juste après « aucun créneau » : c'est le résultat le
+   plus précieux du lot, celui qui déclenche l'alerte et fait gagner la course. */
+const RESULTS: AttemptResult[] = [
+  'aucun_creneau', 'creneau_libre', 'creneau_pris', 'site_indisponible', 'compte_bloque', 'erreur',
+]
 
 export function Slots() {
   const { db, actions } = useStore()
@@ -89,6 +95,12 @@ export function Slots() {
           <Card><Empty title={t('slots.noQueue')} hint={t('slots.noQueueHint')} /></Card>
         ) : (
           <div className="stack">
+            {/* Quand un créneau se libère, la question n'est pas « qui est le
+                premier », mais « qui est le premier dont le dossier est prêt ».
+                C'est tout le produit d'un concurrent entier. */}
+            {lines.filter(({ consulate }) => freedSlots(db).some((f) => f.consulateId === consulate.id))
+              .map(({ consulate }) => <SlotAlert key={`alerte-${consulate.id}`} consulateId={consulate.id} />)}
+
             {lines.map(({ consulate, entries }) => {
               const real = realWaitDays(db, consulate.id)
               return (

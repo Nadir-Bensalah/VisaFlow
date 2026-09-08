@@ -1,6 +1,15 @@
 import type { Dict } from './fr'
 
 export const en: Dict = {
+  slot: {
+    whoToCall: 'A slot is free: who to call',
+    freed: '{n} slot(s) freed',
+    readyCount: '{ready} of {total} files are complete. Booking for an incomplete file burns the slot: the client will not get past the desk.',
+    filesReady: '{n} documents, all in',
+    filesMissing: '{n} documents missing',
+    bioOk: 'biometrics still valid',
+    seen: 'Slot seen, not yet booked',
+  },
   dup: {
     found: '{n} existing client(s) may be the same person:',
     passeport_et_naissance: 'same passport and birth date',
@@ -568,6 +577,7 @@ export const en: Dict = {
     autre: 'Other',
   },
   attempt: {
+    creneau_libre: 'Slot seen, not booked yet',
     aucun_creneau: 'No slot',
     creneau_pris: 'Slot taken',
     site_indisponible: 'Site unavailable',

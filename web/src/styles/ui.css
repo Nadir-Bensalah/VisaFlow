@@ -1321,3 +1321,22 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   border-radius: var(--radius-field); background: transparent; cursor: pointer;
 }
 .schengen__stay:hover { background: var(--fill, var(--bg-subtle)); }
+
+/* L'alerte de créneau libéré : qui appeler, et dans quel ordre. */
+.slot__freed {
+  display: flex; align-items: center; gap: var(--sp-2); margin: 0;
+  padding: 10px var(--sp-5); border-bottom: 1px solid var(--hairline);
+  background: var(--tint-blue); color: var(--text-primary); font-size: var(--size-small);
+}
+.slot__freed svg { flex: none; color: var(--blue); }
+.slot__rank {
+  flex: none; width: 24px; height: 24px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--hairline); color: var(--text-secondary);
+  font-size: var(--size-caption); font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.slot__rank.is-ready { background: var(--green); color: #fff; }
+/* Un dossier incomplet reste visible mais s'efface : on ne le cache pas, on ne
+   le met pas non plus en avant. */
+.slot__notReady { opacity: 0.62; }

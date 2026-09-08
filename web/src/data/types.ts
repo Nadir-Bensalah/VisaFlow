@@ -75,7 +75,14 @@ export type RefusalCode =
 export type DepositCentre = 'tls_tunis' | 'tls_sfax' | 'vfs_tunis' | 'consulat' | 'autre'
 
 /** Ce qu'un agent a obtenu en essayant de prendre un creneau. */
-export type AttemptResult = 'aucun_creneau' | 'creneau_pris' | 'site_indisponible' | 'compte_bloque' | 'erreur'
+/**
+ * `creneau_libre` : un créneau est VISIBLE mais pas encore réservé. C'est
+ * l'instant où il faut savoir pour qui le prendre, et c'est tout le produit
+ * d'un concurrent entier.
+ */
+export type AttemptResult =
+  | 'aucun_creneau' | 'creneau_libre' | 'creneau_pris'
+  | 'site_indisponible' | 'compte_bloque' | 'erreur'
 
 export type QueueStatus = 'attente' | 'servi' | 'abandonne'
 
