@@ -3,54 +3,57 @@
 Ce fichier est tenu au fil de l'eau. Il ne contient que ce que je ne peux pas
 faire à ta place.
 
-## Faire marcher le courriel (30 minutes, une seule fois)
+## Faire marcher le courriel : deux gestes chez Brevo
 
-Tout est écrit et déployé. Il manque un compte chez un expéditeur, un domaine
-vérifié, et deux lignes à taper. Tant que ce n'est pas fait, l'application
-marche exactement comme aujourd'hui : elle grise ses boutons « envoyer par
-courriel » au lieu de proposer une action qui échouerait.
+Le compte Brevo de Capmedia est branché, la clé est posée, le code est déployé.
+Deux choses bloquent, et elles sont chez Brevo, pas chez nous.
 
-**1. Ouvrir un compte Resend.** Va sur resend.com, crée un compte gratuit.
-C'est trois mille courriels par mois sans payer, largement assez pour démarrer.
+### 1. Désactiver la restriction d'adresse IP (indispensable)
 
-**2. Vérifier un domaine.** Dans Resend, onglet « Domains », ajoute le domaine
-que tu utiliseras pour écrire (par exemple `visaflow.tn`). Resend affiche trois
-lignes à copier chez ton hébergeur de nom de domaine (SPF, DKIM, DMARC). Colle
-les, attends dix minutes, la pastille passe au vert.
+Brevo refuse actuellement la clé avec ce message :
 
-Cette étape n'est pas une formalité. Sans domaine vérifié, tout ce qui part
-tombe en indésirable, chez Gmail comme ailleurs.
+> We have detected you are using an unrecognised IP address 2a05:d019:eed:300b:...
 
-**3. Créer la clé.** Dans Resend, onglet « API Keys », bouton « Create API Key ».
-Copie la clé, elle commence par `re_`. Elle ne se réaffiche jamais.
+Ce n'est pas un problème d'expéditeur : la clé est bonne, elle est lue, et
+l'adresse change à chaque appel. Une fonction de bord tourne sur AWS et n'a pas
+d'adresse fixe : il n'y a aucune liste à remplir, il faut lever la restriction.
 
-**4. Poser la clé et l'adresse d'expéditeur.** Deux commandes, dans le dossier
-du projet :
+**Chemin exact** : Brevo, en haut à droite ton nom, **SMTP & API**, onglet
+**API Keys**, puis la section **Autorisation IP** (ou « Authorised IPs » dans
+les réglages de sécurité du compte). Désactive la restriction, ou choisis
+« toutes les adresses ».
+
+Ce que ça change côté sécurité : la clé seule suffira à envoyer. C'est le
+fonctionnement normal d'une clé d'API, et elle vit dans le coffre Supabase,
+jamais dans le dépôt.
+
+### 2. Le login SMTP (pour le mot de passe oublié)
+
+Les courriels d'authentification (mot de passe oublié, invitation par lien,
+vérification d'adresse) ne passent pas par l'API : ils passent par le SMTP, et
+la restriction d'adresse IP ne les concerne pas. Ils peuvent donc marcher avant
+le point 1.
+
+Il me manque une seule information : **le login SMTP**. Ce n'est ni la clé, ni
+forcément ton adresse : c'est souvent un identifiant numérique.
+
+**Chemin exact** : Brevo, **SMTP & API**, onglet **SMTP**, ligne **Login**.
+Copie-la et donne-la moi. J'ai déjà essayé les huit adresses plausibles, aucune
+ne passe.
+
+Ensuite, une seule commande, et elle vérifie Brevo avant de toucher à quoi que
+ce soit :
 
 ```bash
-supabase secrets set RESEND_API_KEY=re_la_cle_copiee --project-ref ppzjkvgfgoxmdbbsphbr
-supabase secrets set "EMAIL_FROM=VisaFlow <no-reply@visaflow.tn>" --project-ref ppzjkvgfgoxmdbbsphbr
+python3 brancher_smtp.py "<le login>" "contact@capmedia.tn"
 ```
 
-Remplace `visaflow.tn` par le domaine que tu viens de vérifier. L'adresse peut
-être n'importe quoi devant l'arobase, `no-reply` est l'usage.
+### 3. L'expéditeur
 
-**5. Vérifier que c'est parti.** Une commande, qui n'envoie rien :
+`EMAIL_FROM` est posé sur `VisaFlow <contact@capmedia.tn>`. Si ce n'est pas une
+adresse vérifiée chez Brevo, dis-le : on la change en une commande. Un expéditeur
+non vérifié fait tomber le message en indésirable même quand l'envoi réussit.
 
-```bash
-curl -s -X POST "https://ppzjkvgfgoxmdbbsphbr.supabase.co/functions/v1/send-email" \
-  -H "content-type: application/json" \
-  -H "authorization: Bearer LA_CLE_DE_SERVICE" \
-  -d '{"probe":true}'
-```
-
-Tu dois lire `"ready":true`. Si tu lis `"ready":false`, le message dit ce qui
-manque, en français. À partir de là, les boutons de l'application s'allument
-tout seuls.
-
-Ce que ça débloque, immédiatement : le mot de passe oublié, la facture envoyée
-au client, l'invitation d'un employé par lien au lieu d'un mot de passe dicté
-au téléphone, et la vérification d'adresse.
 
 ## Avant d'écrire une ligne de plus
 

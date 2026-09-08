@@ -129,7 +129,68 @@ const RESEND: Fournisseur = {
   },
 }
 
-const FOURNISSEURS: Record<string, Fournisseur> = { resend: RESEND }
+/**
+ * Brevo, l'autre porte, et celle qu'on emprunte aujourd'hui.
+ *
+ * Capmedia a déjà un compte Brevo : c'est celui-là qui sert en attendant qu'un
+ * compte propre à VisaFlow soit ouvert. Deux différences avec Resend, et il
+ * faut les connaître :
+ *
+ *   · La clé passe dans un en-tête `api-key`, pas en jeton porteur.
+ *   · Brevo peut restreindre une clé à une liste d'adresses IP. Une fonction
+ *     de bord sort par des adresses qui changent, donc cette restriction doit
+ *     être DÉSACTIVÉE côté Brevo, sinon tout est refusé en 401 avec un message
+ *     qui parle d'adresse non reconnue. On le remonte tel quel plutôt que de
+ *     le traduire en « échec » : c'est la seule information utile ce jour-là.
+ */
+const BREVO: Fournisseur = {
+  nom: 'brevo',
+  cle: () => Deno.env.get('BREVO_API_KEY') || undefined,
+  async envoyer(m, cle) {
+    try {
+      // Brevo veut l'expéditeur en deux morceaux. On accepte les deux écritures
+      // d'EMAIL_FROM : « Nom <adresse> » ou l'adresse seule.
+      const brut = m.from.trim()
+      const avecNom = brut.match(/^\s*(.*?)\s*<([^>]+)>\s*$/)
+      const expNom = avecNom ? avecNom[1].replace(/^"|"$/g, '') : 'VisaFlow'
+      const expMail = avecNom ? avecNom[2] : brut
+
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': cle, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          sender: { name: expNom, email: expMail },
+          to: [{ email: m.to }],
+          subject: m.subject,
+          ...(m.html ? { htmlContent: m.html } : {}),
+          ...(m.text ? { textContent: m.text } : {}),
+          ...(m.replyTo ? { replyTo: { email: m.replyTo } } : {}),
+          // Brevo range les étiquettes dans un tableau de chaînes, et refuse
+          // le message entier si l'une d'elles est mal formée.
+          tags: Object.entries(m.tags).map(([k, v]) => propre(`${k}_${v}`)),
+        }),
+        signal: AbortSignal.timeout(30_000),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const d = data as { message?: string; code?: string }
+        return {
+          ok: false, providerId: null, httpStatus: res.status,
+          erreur: [d.code, d.message].filter(Boolean).join(' : ') || `HTTP ${res.status}`,
+        }
+      }
+      return {
+        ok: true,
+        providerId: String((data as { messageId?: string })?.messageId ?? ''),
+        httpStatus: res.status, erreur: null,
+      }
+    } catch (e) {
+      return { ok: false, providerId: null, httpStatus: null, erreur: String(e) }
+    }
+  },
+}
+
+const FOURNISSEURS: Record<string, Fournisseur> = { resend: RESEND, brevo: BREVO }
 const fournisseur = FOURNISSEURS[Deno.env.get('EMAIL_PROVIDER') ?? 'resend'] ?? RESEND
 
 /* ------------------------------------------------------------------ */
@@ -201,7 +262,7 @@ Deno.serve(async (req) => {
   const cle = fournisseur.cle()
   // La raison exacte, pour que Nadir sache quoi poser. Deux variables, pas une.
   const manque = !cle
-    ? `${fournisseur.nom === 'resend' ? 'RESEND_API_KEY' : 'la clé du fournisseur'} n'est pas posée`
+    ? `${fournisseur.nom === 'resend' ? 'RESEND_API_KEY' : fournisseur.nom === 'brevo' ? 'BREVO_API_KEY' : 'la clé du fournisseur'} n'est pas posée`
     : !from
       ? 'EMAIL_FROM n\'est pas posée : sans adresse d\'expéditeur sur un domaine à nous, le message tomberait en indésirable'
       : null
