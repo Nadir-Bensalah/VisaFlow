@@ -234,10 +234,61 @@ for seau in ("pieces", "transport", "recus"):
     st, data = http(f"/storage/v1/object/list/{seau}", "POST", {"prefix": "", "limit": 5})
     ok(st >= 400 or data == [], f"le seau {seau} ne se liste pas sans compte", f"{st}")
 
+# =====================================================================
+# 8 · L'espace plateforme, réservé au super-admin
+# =====================================================================
+# Un patron d'agence ne doit JAMAIS voir cet étage. C'est le pouvoir de tout
+# voir : il ne s'accorde pas par le rôle d'agence, il vit dans une table à part.
+def bloc_plateforme():
+    print("\n8 · L'espace plateforme")
+    admin_jwt = connexion("admin@visaflow.platform")
+
+    st, data = http("/rest/v1/rpc/platform_overview", "POST", {}, token=admin_jwt)
+    ok(st == 200 and isinstance(data, dict) and "agencies_total" in data,
+       "le super-admin lit la vue d'ensemble", f"{st}")
+
+    st, data = http("/rest/v1/rpc/platform_agencies", "POST", {}, token=admin_jwt)
+    ok(st == 200 and isinstance(data, list) and len(data) >= 2,
+       "le super-admin voit toutes les agences", f"{st} {len(data) if isinstance(data,list) else data}")
+
+    # Le mur : un owner d'agence, le plus haut rôle métier, reste dehors.
+    st, data = http("/rest/v1/rpc/platform_overview", "POST", {}, token=jetons["tca_owner"])
+    ok(st >= 400, "un owner d'agence n'entre pas dans la vue plateforme", f"{st} {str(data)[:70]}")
+
+    st, data = http("/rest/v1/rpc/platform_agencies", "POST", {}, token=jetons["tca_owner"])
+    ok(st >= 400 or data == [], "un owner d'agence ne liste pas les autres agences", f"{st}")
+
+    # Un owner ne se déclare pas super-admin par une simple insertion.
+    st, data = http("/rest/v1/platform_admins", "POST",
+                    {"id": charge_utile(jetons["tca_owner"])["sub"], "name": "Pirate", "email": "x@x.tn"},
+                    token=jetons["tca_owner"])
+    ok(st >= 400, "un owner ne s'inscrit pas dans platform_admins", f"{st}")
+
+    # Il ne lit même pas la liste des super-admins.
+    st, data = http("/rest/v1/platform_admins?select=email", token=jetons["tca_owner"])
+    ok(st >= 400 or data == [], "la liste des super-admins est invisible pour une agence", f"{st}")
+
+    # La facturation de la plateforme non plus.
+    st, data = http("/rest/v1/platform_invoices?select=amount", token=jetons["tca_owner"])
+    ok(st >= 400 or data == [], "la facturation plateforme est invisible pour une agence", f"{st}")
+
+    # Un admin non-superuser ne suspend pas d'agence par-dessus la jambe... si
+    # la fonction l'autorise (elle vérifie seulement is_platform_admin ici).
+    # On vérifie au moins qu'un owner d'agence ne suspend personne.
+    _, ags = service("/rest/v1/agencies?select=id,slug")
+    sah = next(a["id"] for a in ags if a["slug"] == "sahara")
+    st, data = http("/rest/v1/rpc/platform_set_agency_state", "POST",
+                    {"p_agency": sah, "p_state": "suspendue"}, token=jetons["tca_owner"])
+    ok(st >= 400, "un owner d'agence ne suspend aucune agence", f"{st}")
+    _, verif = service(f"/rest/v1/agencies?id=eq.{sah}&select=suspended_at")
+    ok(verif[0]["suspended_at"] is None, "l'agence visée n'a pas été suspendue", str(verif))
+
+bloc_plateforme()
+
 print()
 if rouges:
     print(f"{len(rouges)} FAILLE(S) sur {verts + len(rouges)} vérifications :")
     for r in rouges:
         print("  · " + r)
     sys.exit(1)
-print(f"Banc d'étanchéité : {verts} vérifications, aucune faille.")
+print(f"Banc d'étanchéité complet : {verts} vérifications, aucune faille.")
