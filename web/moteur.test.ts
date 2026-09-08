@@ -12,6 +12,7 @@
 
 import {
   customsCompute, originPreferentialAllowed, preferentialCodeAllowed, ndpValid,
+  customsDeadlines, tceNeedsAmendment,
   type CustomsArticleCalc,
 } from './src/lib/douane'
 import {
@@ -173,6 +174,25 @@ ok(r4.lines[0].vdCaf === 1000, 'une déduction facturée distinctement se retran
 ok(r4.rpd === 10, 'un seul article : plancher de 10 DT')
 ok(r4.air === 101, 'le code 480 déclenche l\'avance de 10 % sur valeur plus droits')
 ok(r4.totalPayable === 111, 'le total à payer inclut l\'avance')
+
+console.log('--- 6 · Les délais durs et le titre de commerce extérieur ---')
+// Mêmes vecteurs que le banc SQL : arrivée un samedi, l'échéance saute le dimanche.
+const dl = customsDeadlines('2026-09-05T08:00:00+01:00')!
+ok(dl.summary.due === '2026-09-07', "arrivée le samedi : l'échéance saute le dimanche et tombe au lundi")
+ok(new Date(dl.summary.due).getUTCDay() !== 0, "l'échéance ne tombe jamais un dimanche")
+ok(dl.storage.due === '2026-09-20', 'le séjour maximum en magasin est de quinze jours')
+
+const tce = { designation: 'Accessoires téléphonie', amount: 10000, quantity: 500 }
+ok(!tceNeedsAmendment(tce, { ...tce, amount: 10500 }).needed,
+  "une hausse de 5 % ne demande pas de modification du titre")
+ok(tceNeedsAmendment(tce, { ...tce, amount: 11500 }).needed,
+  "une hausse de 15 % impose de modifier le titre, sinon le virement est bloqué")
+ok(!tceNeedsAmendment(tce, { ...tce, amount: 8000 }).needed,
+  "une BAISSE de prix n'impose rien : seule la hausse compte")
+ok(tceNeedsAmendment(tce, { ...tce, designation: 'Pièces détachées' }).needed,
+  'changer la désignation impose de modifier le titre')
+ok(tceNeedsAmendment(tce, { ...tce, quantity: 600 }).needed,
+  'une hausse de quantité de 20 % impose aussi la modification')
 
 console.log('')
 if (failures.length > 0) {

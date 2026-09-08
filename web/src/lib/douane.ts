@@ -226,3 +226,83 @@ export function customsCompute(
     alerts,
   }
 }
+
+// ------------------------------------------------------------------
+// Les délais durs, et le titre de commerce extérieur
+// ------------------------------------------------------------------
+
+const DAY_MS = 86400000
+const asDay = (iso: string) => {
+  const d = new Date(iso)
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS)
+}
+const dayIso = (n: number) => new Date(n * DAY_MS).toISOString().slice(0, 10)
+
+export type CustomsDeadline = { due: string; daysLeft: number; overdue: boolean }
+
+/**
+ * Les deux délais qui coûtent cher.
+ *
+ * La déclaration sommaire est due à UN JOUR FRANC après l'arrivée, dimanches et
+ * jours fériés non comptés. Les fériés tunisiens ne sont pas en base : on écarte
+ * les dimanches et on le dit, plutôt que de promettre une exactitude qu'on n'a
+ * pas. Le séjour en magasin ou aire de dédouanement est plafonné à quinze jours.
+ */
+export function customsDeadlines(
+  arrivedAt?: string,
+  goodsRemovedAt?: string,
+): { arrival: string; summary: CustomsDeadline; storage: CustomsDeadline } | null {
+  if (!arrivedAt) return null
+  const arrival = asDay(arrivedAt)
+  const now = asDay(new Date().toISOString())
+
+  let summaryDue = arrival + 1
+  // Dimanche = 0. Un jour franc ne se compte pas un dimanche.
+  while (new Date(summaryDue * DAY_MS).getUTCDay() === 0) summaryDue += 1
+
+  const storageDue = arrival + 15
+  return {
+    arrival: dayIso(arrival),
+    summary: { due: dayIso(summaryDue), daysLeft: summaryDue - now, overdue: now > summaryDue },
+    storage: {
+      due: dayIso(storageDue),
+      daysLeft: storageDue - now,
+      overdue: now > storageDue && !goodsRemovedAt,
+    },
+  }
+}
+
+export type TceCheck = {
+  needed: boolean
+  reasons: ('designation_modifiee' | 'prix_en_hausse' | 'quantite_en_hausse')[]
+  amountPct: number
+  quantityPct: number
+}
+
+/**
+ * Le titre de commerce extérieur doit être MODIFIÉ si la désignation change, ou
+ * si le prix ou la quantité augmente de plus de 10 %. Seule la hausse compte :
+ * une baisse n'appelle rien. Se tromper ici bloque le virement au fournisseur,
+ * car la loi interdit la sortie de devises sans documents conformes.
+ */
+export function tceNeedsAmendment(
+  title: { designation?: string; amount?: number; quantity?: number },
+  next: { designation?: string; amount?: number; quantity?: number },
+): TceCheck {
+  const reasons: TceCheck['reasons'] = []
+  if (next.designation && title.designation && next.designation !== title.designation) {
+    reasons.push('designation_modifiee')
+  }
+  const pct = (before?: number, after?: number) =>
+    before && before > 0 && after != null ? ((after - before) / before) * 100 : 0
+  const amountPct = pct(title.amount, next.amount)
+  const quantityPct = pct(title.quantity, next.quantity)
+  if (amountPct > 10) reasons.push('prix_en_hausse')
+  if (quantityPct > 10) reasons.push('quantite_en_hausse')
+  return {
+    needed: reasons.length > 0,
+    reasons,
+    amountPct: Math.round(amountPct * 100) / 100,
+    quantityPct: Math.round(quantityPct * 100) / 100,
+  }
+}

@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n'
 import { useState } from 'react'
 import { Avatar, Button, Card, Empty, Pill, Progress, useToast } from '@/components/ui'
 import { ShipmentEditor } from '@/components/ShipmentEditor'
-import { CountersCard, CustomsCard, LotsCard, RouteCard } from '@/components/FretCards'
+import { CountersCard, CustomsCard, DouaneDocsCard, LotsCard, RouteCard } from '@/components/FretCards'
 import { Icon } from '@/components/Icon'
 import { FileDrop } from '@/components/FileDrop'
 import { Ago, Countdown, DocPill, PageHead } from '@/components/bits'
@@ -129,6 +129,7 @@ export function ShipmentDetail() {
 
           <LotsCard shipment={shipment} />
           <CustomsCard shipment={shipment} />
+          <DouaneDocsCard shipment={shipment} />
         </div>
 
         <div className="stack">

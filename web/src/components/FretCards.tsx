@@ -8,7 +8,7 @@ import {
   chargeableUnits, consolidationAdvice, lotSolidarity, routeWarning,
   shipmentCounters, shipmentRoute,
 } from '@/lib/fret'
-import { customsCompute } from '@/lib/douane'
+import { customsCompute, customsDeadlines, tceNeedsAmendment } from '@/lib/douane'
 import type { Shipment } from '@/data/types'
 
 /**
@@ -327,6 +327,145 @@ function Line({ label, value }: { label: string; value?: React.ReactNode }) {
     <div className="row-between">
       <span className="t-small t-secondary">{label}</span>
       <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '—'}</span>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------
+// Les délais durs, le titre de commerce extérieur, les connaissements
+// ------------------------------------------------------------------
+
+/**
+ * Trois choses qui bloquent une marchandise au port, et qu'on découvre toujours
+ * trop tard : un délai dépassé, un titre de commerce extérieur qui ne colle plus
+ * à la facture, et un connaissement qu'on croit avoir alors qu'il est au nom du
+ * groupeur.
+ */
+export function DouaneDocsCard({ shipment }: { shipment: Shipment }) {
+  const { db } = useStore()
+  const { t, formatDate, formatNumber } = useI18n()
+
+  const deadlines = customsDeadlines(shipment.arrivedAt, shipment.goodsRemovedAt)
+  const tce = db.tce.find((x) => x.shipmentId === shipment.id)
+  // Le titre porte un montant ; si la facture a dérivé de plus de 10 %, il faut
+  // le modifier, faute de quoi la banque ne laisse pas sortir les devises.
+  const drift = tce
+    ? tceNeedsAmendment(
+        { designation: tce.designation, amount: tce.amount, quantity: tce.quantity },
+        { designation: tce.designation, amount: shipment.declaredValue, quantity: tce.quantity },
+      )
+    : null
+
+  const masters = db.bls.filter((b) => b.shipmentId === shipment.id && b.kind === 'master')
+  const houses = db.bls.filter((b) => b.shipmentId === shipment.id && b.kind === 'house')
+
+  if (!deadlines && !tce && masters.length === 0) return null
+
+  return (
+    <Card title={t('fret.douaneDocs')}>
+      <div className="col gap-5">
+        {deadlines && (
+          <div className="col gap-2">
+            <span className="t-caption t-tertiary">{t('fret.deadlines')}</span>
+            <Deadline
+              label={t('fret.summaryDecl')}
+              hint={t('fret.summaryDeclHint')}
+              due={formatDate(deadlines.summary.due)}
+              daysLeft={deadlines.summary.daysLeft}
+              overdue={deadlines.summary.overdue}
+            />
+            <Deadline
+              label={t('fret.storageLimit')}
+              hint={t('fret.storageLimitHint')}
+              due={formatDate(deadlines.storage.due)}
+              daysLeft={deadlines.storage.daysLeft}
+              overdue={deadlines.storage.overdue}
+            />
+          </div>
+        )}
+
+        {tce && (
+          <div className="col gap-2">
+            <span className="t-caption t-tertiary">{t('fret.tce')}</span>
+            <Line
+              label={`${tce.number ?? '—'} · ${tce.bank ?? ''}`}
+              value={
+                <Pill tone={tce.status === 'impute' ? 'green' : tce.status === 'domicilie' ? 'blue' : 'orange'}>
+                  {t(`fret.tce_${tce.status}` as 'fret.tce_domicilie')}
+                </Pill>
+              }
+            />
+            {tce.amount != null && (
+              <Line label={t('fret.tceAmount')} value={`${formatNumber(tce.amount)} ${tce.currency ?? ''}`.trim()} />
+            )}
+            {/* La règle des 10 % : au-delà, nouveau titre, sinon pas de devises. */}
+            {drift?.needed && (
+              <p className="fret__warn">
+                <Icon name="alert" size={14} />
+                <span>{t('fret.tceAmend', { pct: drift.amountPct })}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {masters.length > 0 && (
+          <div className="col gap-2">
+            <span className="t-caption t-tertiary">{t('fret.bls')}</span>
+            {masters.map((m) => (
+              <div key={m.id} className="col gap-1">
+                <div className="row-between">
+                  <span className="t-small">
+                    <span className="t-medium">{t('fret.masterBl')}</span>
+                    {' · '}
+                    <span className="t-mono">{m.number}</span>
+                  </span>
+                  {m.releaseType && (
+                    <Pill tone="gray">{t(`fret.rel_${m.releaseType}` as 'fret.rel_telex_release')}</Pill>
+                  )}
+                </div>
+                {/* L'importateur n'a JAMAIS le Master B/L : le lui promettre est
+                    une faute. Les House qui en descendent sont les siens. */}
+                <span className="t-caption t-tertiary">{t('fret.masterHint')}</span>
+                {houses.filter((h) => h.parentId === m.id).map((h) => (
+                  <div key={h.id} className="row-between fret__house">
+                    <span className="t-caption">
+                      <span className="t-mono">{h.number}</span>
+                      {h.consignee ? ` · ${h.consignee}` : ''}
+                    </span>
+                    {h.releaseType && (
+                      <span className="t-caption t-tertiary">
+                        {t(`fret.rel_${h.releaseType}` as 'fret.rel_telex_release')}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+function Deadline({ label, hint, due, daysLeft, overdue }: {
+  label: string; hint: string; due: string; daysLeft: number; overdue: boolean
+}) {
+  const { t } = useI18n()
+  return (
+    <div className={`fret__deadline${overdue ? ' is-over' : ''}`}>
+      <div className="col gap-1 grow" style={{ minWidth: 0 }}>
+        <span className="t-small t-medium">{label}</span>
+        <span className="t-caption t-tertiary">{hint}</span>
+      </div>
+      <div className="col gap-1" style={{ textAlign: 'end', flex: 'none' }}>
+        <span className="t-small">{due}</span>
+        <span className={`t-caption ${overdue ? 't-red' : daysLeft <= 3 ? 't-orange' : 't-tertiary'}`}>
+          {overdue
+            ? t('fret.overdueBy', { n: Math.abs(daysLeft) })
+            : t('fret.daysLeft', { n: daysLeft })}
+        </span>
+      </div>
     </div>
   )
 }

@@ -1281,3 +1281,15 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   font-size: var(--size-small); color: var(--text-secondary); line-height: 1.5;
 }
 .tariff__why svg { flex: none; margin-top: 2px; color: var(--text-tertiary); }
+
+/* Les délais durs et l'arborescence des connaissements. */
+.fret__deadline {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: 10px var(--sp-3); border-radius: var(--radius-field);
+  border: 1px solid var(--hairline);
+}
+.fret__deadline.is-over { border-color: var(--red); background: var(--tint-red, rgba(255,59,48,0.06)); }
+.fret__house {
+  padding: 6px var(--sp-3); margin-inline-start: var(--sp-4);
+  border-inline-start: 2px solid var(--hairline-strong);
+}
