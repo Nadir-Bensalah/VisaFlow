@@ -102,9 +102,9 @@ export function I18nProvider({ children, currency = 'TND' }: { children: ReactNo
       t: (key, vars) => interpolate(lookup(dict, key) ?? lookup(DICTS.fr, key) ?? key, vars),
       tt: (text) => (text ? (text[locale] ?? text.fr) : ''),
       formatDate: (iso, opts) => {
-        if (!iso) return '—'
+        if (!iso) return '·'
         const d = new Date(iso)
-        if (Number.isNaN(d.getTime())) return '—'
+        if (Number.isNaN(d.getTime())) return '·'
         return new Intl.DateTimeFormat(bcp47, opts ?? { day: '2-digit', month: 'short', year: 'numeric' }).format(d)
       },
       formatMoney: (amount, cur) =>

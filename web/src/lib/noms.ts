@@ -5,7 +5,7 @@
  * latins. Le problème est reconnu au niveau des ÉTATS : la « correspondance des
  * noms des citoyens entre les deux pays » figure parmi les six conditions de
  * réouverture de Ras Jedir en juin 2024. Le même client revient donc sous trois
- * orthographes — Mohamed, Mohammed, Muhammad — et rapprocher un dossier d'une
+ * orthographes (Mohamed, Mohammed, Muhammad) et rapprocher un dossier d'une
  * pièce sur l'égalité stricte des chaînes ne marche tout simplement pas.
  *
  * Conséquence tenue ici : on ne rapproche JAMAIS sur le nom. Le passeport et la
