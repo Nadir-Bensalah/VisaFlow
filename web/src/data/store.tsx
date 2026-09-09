@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { buildSeed } from './seed'
+import { buildSeed } from '@/data/seed'
 import { HAS_BACKEND, supabase } from '@/lib/supabase'
 import { useAuth } from './auth'
 import { loadSnapshot, currentAgencyId } from './remote'
@@ -216,7 +216,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
     ? (db.users.find((u) => scopeOf(u) === 'agence')?.id ?? db.users[0]?.id ?? '')
     : remote
       ? (auth.user?.id ?? session ?? db.users[0]?.id ?? '')
-      : (session ?? db.users[0].id)
+      : (session ?? db.users[0]?.id ?? '')
   const [live, setLive] = useState(true)
   // Le bureau regardé par la direction. Il survit au rechargement, pas à un
   // nouvel onglet : on ne veut pas qu'un manager croie l'agence vide parce

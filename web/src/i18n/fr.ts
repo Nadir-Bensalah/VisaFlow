@@ -889,6 +889,7 @@ export const fr = {
     newActivity: '{n} nouveautés',
   },
   signup: {
+    agencyNamePlaceholder: 'Le nom que vos clients connaissent',
     title: 'Ouvrez votre agence sur VisaFlow',
     subtitle: 'Quinze jours d’essai, sans carte bancaire. Votre adresse est réservée en une minute.',
     agencyName: 'Nom de l’agence',

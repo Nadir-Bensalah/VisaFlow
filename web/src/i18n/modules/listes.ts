@@ -8,6 +8,7 @@
 export const listes = {
   fr: {
     ls: {
+      toSet: 'À renseigner',
       /* Les familles, en kicker au-dessus du titre */
       famAccueil: 'Accueil',
       famSuivi: 'Suivi',
@@ -160,6 +161,7 @@ export const listes = {
   },
   en: {
     ls: {
+      toSet: 'To be set',
       famAccueil: 'Home',
       famSuivi: 'Tracking',
       famClients: 'Clients',
@@ -299,6 +301,7 @@ export const listes = {
   },
   ar: {
     ls: {
+      toSet: 'يُحدَّد لاحقاً',
       famAccueil: 'الرئيسية',
       famSuivi: 'المتابعة',
       famClients: 'العملاء',
@@ -438,6 +441,7 @@ export const listes = {
   },
   zh: {
     ls: {
+      toSet: '待填写',
       famAccueil: '首页',
       famSuivi: '跟进',
       famClients: '客户',

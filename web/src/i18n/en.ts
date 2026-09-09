@@ -603,6 +603,7 @@ export const en: Dict = {
     updated: 'Updated just now', newActivity: '{n} updates',
   },
   signup: {
+    agencyNamePlaceholder: 'The name your clients know',
     title: 'Open your agency on VisaFlow',
     subtitle: 'Fifteen days free, no card. Your address is reserved in a minute.',
     agencyName: 'Agency name', country: 'Country', services: 'Your business',

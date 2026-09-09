@@ -85,7 +85,7 @@ export function Signup() {
             <div className="col gap-5">
               <div className="grid grid--2">
                 <Field label={t('signup.agencyName')}>
-                  <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="Tunis Consulting" />
+                  <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder={t('signup.agencyNamePlaceholder')} />
                 </Field>
                 <Field label={t('signup.country')}>
                   <Select value={country} onChange={(e) => setCountry(e.target.value)}>

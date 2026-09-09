@@ -1,5 +1,5 @@
 import { CHECKLISTS } from './checklists'
-import { buildSeed } from './seed'
+import { buildSeed } from '@/data/seed'
 import { registerTenant, slugify } from '@/tenant'
 import type { Agency, Database, Locale, Service, User } from './types'
 

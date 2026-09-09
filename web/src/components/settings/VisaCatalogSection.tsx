@@ -32,8 +32,8 @@ export function VisaCatalogSection() {
               title={`${tt(visa.country)} · ${tt(visa.label)}`}
               action={
                 <span className="row gap-2">
-                  <Pill tone="blue">{t('reports.days', { n: visa.processingDays })}</Pill>
-                  <Pill tone="gray">{formatMoney(visa.feeAgency + visa.feeConsulate)}</Pill>
+                  <Pill tone={visa.processingDays > 0 ? 'blue' : 'orange'}>{visa.processingDays > 0 ? t('reports.days', { n: visa.processingDays }) : t('ls.toSet')}</Pill>
+                  <Pill tone={visa.feeAgency + visa.feeConsulate > 0 ? 'gray' : 'orange'}>{visa.feeAgency + visa.feeConsulate > 0 ? formatMoney(visa.feeAgency + visa.feeConsulate) : t('ls.toSet')}</Pill>
                   <IconButton icon="edit" label={t('crud.edit')} onClick={() => setEditing(visa)} />
                   <Switch
                     checked={visa.active}
@@ -123,7 +123,7 @@ function VisaEditor({ visa, onClose }: { visa: VisaType | null; onClose: () => v
           <Input value={draft.label.fr} onChange={(e) => setDraft({ ...draft, label: { ...draft.label, fr: e.target.value } })} />
         </Field>
         <Field label={t('reports.delay')}>
-          <Input type="number" min={1} value={draft.processingDays} onChange={(e) => setDraft({ ...draft, processingDays: Number(e.target.value) })} />
+          <Input type="number" min={0} value={draft.processingDays} onChange={(e) => setDraft({ ...draft, processingDays: Number(e.target.value) })} />
         </Field>
         <Field label={t('settings.checklists')}>
           <Select value={draft.checklistId} onChange={(e) => setDraft({ ...draft, checklistId: e.target.value })}>

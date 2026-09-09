@@ -21,6 +21,14 @@ function versionDuBuild(): string {
 // En local et sur un domaine propre (agence.visaflow.app) la base reste /.
 const base = process.env.VITE_BASE ?? '/'
 
+/* LE JEU DE DÉMONSTRATION NE PART PAS CHEZ LES AGENCES.
+   `src/data/seed.ts` fabrique une agence inventée avec ses clients et ses
+   dossiers : utile au développement et au banc d'écran, inacceptable dans le
+   fichier que télécharge une vraie agence, où ces noms finissaient par
+   apparaître. Sauf demande explicite (VITE_DEMO=1), la construction remplace
+   ce module par `seed.vide.ts`, qui rend une base vide. */
+const avecDemo = process.env.VITE_DEMO === '1'
+
 export default defineConfig({
   base,
   plugins: [react()],
@@ -29,7 +37,13 @@ export default defineConfig({
     __VF_BUILT_AT__: JSON.stringify(new Date().toISOString()),
   },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: [
+      ...(avecDemo ? [] : [{
+        find: /^@\/data\/seed$/,
+        replacement: fileURLToPath(new URL('./src/data/seed.vide.ts', import.meta.url)),
+      }]),
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ],
   },
   build: { outDir: 'dist', sourcemap: false },
 })

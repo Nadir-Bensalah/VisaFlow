@@ -390,7 +390,7 @@ function Overview({ kase }: { kase: VisaCase }) {
         <div className="fd-fact">
           <span className="fd-fact__label">{t('cases.visa')}</span>
           <span className="fd-fact__value">{tt(visa.country)} · {tt(visa.label)}</span>
-          <span className="fd-fact__hint">{t('reports.days', { n: visa.processingDays })}</span>
+          <span className="fd-fact__hint">{visa.processingDays > 0 ? t('reports.days', { n: visa.processingDays }) : t('ls.toSet')}</span>
         </div>
         <div className="fd-fact">
           <span className="fd-fact__label">{t('caseDetail.dueOn')}</span>

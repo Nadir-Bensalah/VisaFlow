@@ -118,7 +118,10 @@ export function urgency(db: Database, kase: VisaCase): Urgency {
 export function isLate(db: Database, kase: VisaCase): boolean {
   if (kase.status !== 'ouvert') return false
   const visa = db.visaTypes.find((v) => v.id === kase.visaTypeId)
-  const need = visa?.processingDays ?? 10
+  // Zéro veut dire « délai pas encore renseigné » : sans chiffre saisi par
+  // l'agence, on ne déclare pas un dossier en retard sur une invention.
+  const need = visa?.processingDays ?? 0
+  if (need <= 0) return false
   return daysUntil(kase.travelDate) < need && kase.stage !== 'retrait'
 }
 

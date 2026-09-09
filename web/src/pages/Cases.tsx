@@ -253,7 +253,9 @@ export function NewCase({ clientId: preset, onClose, onCreated }: { clientId?: s
   const selected = db.visaTypes.find((x) => x.id === visaTypeId)
   const pieces = db.checklists.find((c) => c.id === selected?.checklistId)?.items.filter((i) => i.required).length ?? 0
   const daysToTravel = travelDate ? Math.round((new Date(travelDate).getTime() - Date.now()) / 86400000) : Infinity
-  const tooShort = Boolean(selected) && daysToTravel < (selected?.processingDays ?? 0)
+  // Un délai à zéro veut dire « pas encore renseigné » : on n'alerte pas sur un
+  // départ trop proche à partir d'un chiffre que personne n'a saisi.
+  const tooShort = Boolean(selected) && (selected?.processingDays ?? 0) > 0 && daysToTravel < (selected?.processingDays ?? 0)
 
   const submit = () => {
     const id = actions.createCase({
@@ -325,7 +327,7 @@ export function NewCase({ clientId: preset, onClose, onCreated }: { clientId?: s
               </div>
               <div className="row-between">
                 <span className="t-small t-secondary">{t('reports.delay')}</span>
-                <span className="t-small">{t('reports.days', { n: selected.processingDays })}</span>
+                <span className="t-small">{selected.processingDays > 0 ? t('reports.days', { n: selected.processingDays }) : t('ls.toSet')}</span>
               </div>
               <div className="row-between">
                 <span className="t-small t-secondary">{t('cases.progress')}</span>

@@ -603,6 +603,7 @@ export const zh: Dict = {
     updated: '刚刚更新', newActivity: '{n} 项更新',
   },
   signup: {
+    agencyNamePlaceholder: '客户熟悉的名称',
     title: '在 VisaFlow 上开设你的公司',
     subtitle: '十五天免费试用，无需银行卡。一分钟锁定你的专属网址。',
     agencyName: '公司名称', country: '国家', services: '你的业务',

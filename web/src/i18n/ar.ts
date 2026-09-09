@@ -603,6 +603,7 @@ export const ar: Dict = {
     updated: 'تم التحيين الآن', newActivity: '{n} مستجدات',
   },
   signup: {
+    agencyNamePlaceholder: 'الاسم الذي يعرفه حرفاؤكم',
     title: 'افتح وكالتك على VisaFlow',
     subtitle: 'خمسة عشر يوما تجربة، دون بطاقة بنكية. عنوانك يُحجز في دقيقة.',
     agencyName: 'اسم الوكالة', country: 'البلد', services: 'نشاطك',

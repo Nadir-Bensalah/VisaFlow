@@ -16,15 +16,14 @@ export interface TenantBrand {
   createdAt?: string
 }
 
-const BUILTIN: TenantBrand[] = [
-  { slug: 'tca', name: 'Tunis Consulting', mark: 'TC', accent: '#0066CC' },
-  { slug: 'sahara', name: 'Sahara Voyages', mark: 'SV', accent: '#B04503' },
-  { slug: 'medina', name: 'Medina Travel', mark: 'MT', accent: '#5E5CE6' },
-]
+/* Aucune agence n'est écrite en dur : le registre se remplit à l'inscription,
+   et en mode connecté c'est le serveur qui fait foi. Une agence d'exemple ici
+   finirait par s'afficher chez un vrai client. */
+const BUILTIN: TenantBrand[] = []
 
 const REGISTRY_KEY = 'visaflow.tenants'
 
-export const DEFAULT_TENANT = 'tca'
+export const DEFAULT_TENANT = 'agence'
 
 /** Adresses interdites : elles servent la plateforme elle-meme. */
 export const RESERVED = new Set([
@@ -88,7 +87,8 @@ export function resolveTenantSlug(host = window.location.hostname, search = wind
 }
 
 export function findTenant(slug: string): TenantBrand {
-  return allTenants().find((t) => t.slug === slug) ?? BUILTIN[0]
+  return allTenants().find((t) => t.slug === slug)
+    ?? { slug, name: '', mark: 'VF', accent: '#0066CC' }
 }
 
 /** Adresse publique de l'agence, telle qu'affichee dans les reglages. */
