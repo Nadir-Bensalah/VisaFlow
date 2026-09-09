@@ -311,7 +311,7 @@ function Formule({ plan: p, agences }: { plan: Plan; agences: number }) {
         <li><span>Bureaux</span><span>{lim(p.max_offices)}</span></li>
         <li><span>Dossiers actifs</span><span>{lim(p.max_active_cases)}</span></li>
         <li><span>Cargaisons actives</span><span>{lim(p.max_active_shipments)}</span></li>
-        <li><span>Stockage</span><span>{illimite(p.max_storage_mb) ? '∞' : (p.max_storage_mb as number) >= 1024 ? `${nb(Math.round((p.max_storage_mb as number) / 1024))} Go` : `${nb(p.max_storage_mb as number)} Mo`}</span></li>
+        <li><span>Stockage</span><span>{illimite(p.max_storage_mb) ? '∞' : (p.max_storage_mb as number) >= 1000 ? `${nb(Math.round((p.max_storage_mb as number) / 1000))} Go` : `${nb(p.max_storage_mb as number)} Mo`}</span></li>
       </ul>
       {p.note && <p className="fi-plan__note">{p.note}</p>}
     </div>
