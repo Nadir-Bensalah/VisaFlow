@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useI18n } from '@/i18n'
 import type { TKey } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import type { Tone } from '@/lib/derive'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Button, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
+import {
+  Erreur, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Toolbar, Vide, useChargement,
+} from '@/components/page'
 import {
   TICKET_CATEGORIES, TICKET_PRIORITIES, loadMyTickets, openTicket, rateTicket, replyToTicket,
 } from '@/data/support'
 import type { Ticket, TicketCategory, TicketPriority, TicketStatus } from '@/data/support'
+import '@/styles/modules.css'
 
 /**
  * L'aide, côté agence.
@@ -61,100 +64,156 @@ const PRIO_TONE: Record<TicketPriority, Tone> = {
 
 const OUVERTS: TicketStatus[] = ['ouvert', 'pris_en_charge', 'en_attente_client']
 
+type Vue = 'ouverts' | 'clos' | 'tous'
+
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
 export function Support() {
   const { t, formatDate } = useI18n()
   const toast = useToast()
 
-  const [rows, setRows] = useState<Ticket[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<'ouverts' | 'clos' | 'tous'>('ouverts')
+  const [view, setView] = useState<Vue>('ouverts')
+  const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
-    if (!HAS_BACKEND) return
-    try {
-      setRows(await loadMyTickets())
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }, [])
+  const { data, loading, refreshing, error, reload } = useChargement(
+    () => (HAS_BACKEND ? loadMyTickets() : Promise.resolve([] as Ticket[])),
+  )
+  const rows = useMemo(() => data ?? [], [data])
 
-  useEffect(() => { void reload() }, [reload])
+  const compte = useMemo(() => {
+    const ouverts = rows.filter((r) => OUVERTS.includes(r.status))
+    const attente = rows.filter((r) => r.status === 'en_attente_client')
+    const regles = rows.filter((r) => r.status === 'resolu' || r.status === 'ferme')
+    const notes = rows.map((r) => r.satisfaction).filter((n): n is number => n !== null)
+    const moyenne = notes.length ? Math.round((notes.reduce((s, n) => s + n, 0) / notes.length) * 10) / 10 : null
+    return { ouverts: ouverts.length, attente: attente.length, regles: regles.length, moyenne, notes: notes.length }
+  }, [rows])
+
+  const shown = useMemo(() => {
+    const n = norm(q.trim())
+    return rows.filter((r) => {
+      const ok = view === 'tous' ? true : view === 'ouverts' ? OUVERTS.includes(r.status) : !OUVERTS.includes(r.status)
+      if (!ok) return false
+      if (!n) return true
+      return norm(`${r.subject} ${r.message}`).includes(n)
+    })
+  }, [rows, view, q])
+
+  const open = rows.find((r) => r.id === openId) ?? null
+
+  const head = (
+    <PageHeader
+      kicker={t('mq.kickerHelp')}
+      title={t('sup.title')}
+      subtitle={t('mq.supportSub')}
+      refreshing={refreshing && !loading}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <Button icon="refresh" onClick={() => void reload()} disabled={refreshing}>{t('mq.refresh')}</Button>
+        <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('sup.newTicket')}</Button>
+      </> : undefined}
+    />
+  )
 
   if (!HAS_BACKEND) {
     return (
       <>
-        <PageHead title={t('sup.title')} subtitle={t('sup.subtitle')} />
-        <Card><Empty title={t('sup.offline')} hint={t('sup.offlineHint')} scene="alerte" /></Card>
+        {head}
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="message" /></Section>
       </>
     )
   }
 
-  const shown = rows.filter((r) =>
-    view === 'tous' ? true
-      : view === 'ouverts' ? OUVERTS.includes(r.status)
-        : !OUVERTS.includes(r.status))
-
-  const open = rows.find((r) => r.id === openId) ?? null
-
   return (
     <>
-      <PageHead
-        title={t('sup.title')}
-        subtitle={t('sup.subtitle')}
-        action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('sup.newTicket')}</Button>}
-      />
+      {head}
 
-      {error && <Card><p className="t-small t-orange">{t('sup.loadError', { msg: error })}</p></Card>}
+      {error && <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />}
 
-      <Card flush>
-        <div className="row" style={{ padding: 'var(--sp-4) var(--sp-6)', borderBottom: '1px solid var(--hairline)' }}>
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'ouverts', label: t('sup.tkOuvert') },
-              { value: 'clos', label: t('sup.tkResolu') },
-              { value: 'tous', label: t('sup.status') },
-            ]}
-          />
-        </div>
+      {loading && !data ? (
+        <>
+          <Squelette type="kpis" n={4} />
+          <Section flush><Squelette type="table" n={5} /></Section>
+        </>
+      ) : (
+        <>
+          <KpiGrid>
+            <Kpi label={t('mq.supOpen')} value={compte.ouverts} icon="messages" tone="blue" hint={t('mq.supOpenHint')} />
+            <Kpi label={t('mq.supWaiting')} value={compte.attente} icon="bell"
+                 tone={compte.attente > 0 ? 'orange' : undefined} hint={t('mq.supWaitingHint')} />
+            <Kpi label={t('mq.supResolved')} value={compte.regles} icon="check" tone="green"
+                 hint={t('mq.supResolvedHint', { n: rows.length })} />
+            <Kpi label={t('mq.supRating')} value={compte.moyenne === null ? '·' : `${compte.moyenne} / 5`} icon="star"
+                 hint={compte.moyenne === null ? t('mq.supRatingNone') : t('mq.supRatingHint', { n: compte.notes })} />
+          </KpiGrid>
 
-        {shown.length === 0 ? (
-          <Empty
-            title={t('sup.noTickets')}
-            hint={t('sup.noTicketsHint')}
-            action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('sup.newTicket')}</Button>}
-          />
-        ) : (
-          <div className="tablewrap">
-            <table className="table table--clickable">
-              <thead>
-                <tr>
-                  <th>{t('sup.subject')}</th>
-                  <th>{t('sup.category')}</th>
-                  <th>{t('sup.priority')}</th>
-                  <th>{t('sup.status')}</th>
-                  <th>{t('sup.updated')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((r) => (
-                  <tr key={r.id} onClick={() => setOpenId(r.id)}>
-                    <td className="t-small t-medium">{r.subject}</td>
-                    <td className="t-small t-secondary">{t(CAT_LABEL[r.category])}</td>
-                    <td><Pill tone={PRIO_TONE[r.priority]}>{t(PRIO_LABEL[r.priority])}</Pill></td>
-                    <td><Pill tone={STATUS_TONE[r.status]} dot>{t(STATUS_LABEL[r.status])}</Pill></td>
-                    <td className="t-caption t-tertiary">{formatDate(r.updated_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+          {rows.length === 0 ? (
+            <Section>
+              <Empty
+                title={t('sup.noTickets')}
+                hint={t('sup.noTicketsHint')}
+                scene="message"
+                action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('sup.newTicket')}</Button>}
+              />
+            </Section>
+          ) : (
+            <Section flush>
+              <Toolbar right={<><span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: shown.length, total: rows.length })}</span><Input className="md-search" value={q} onChange={(e) => setQ(e.target.value)}
+                       placeholder={t('mq.supSearch')} aria-label={t('mq.search')} /></>}>
+                <Segmented<Vue>
+                  value={view}
+                  onChange={setView}
+                  label={t('sup.status')}
+                  options={[
+                    { value: 'ouverts', label: `${t('mq.supOpenShort')} · ${compte.ouverts}` },
+                    { value: 'clos', label: `${t('mq.supClosed')} · ${compte.regles}` },
+                    { value: 'tous', label: `${t('mq.all')} · ${rows.length}` },
+                  ]}
+                />
+              </Toolbar>
+
+              {shown.length === 0 ? (
+                <Vide title={t('mq.nothingInFilter')} hint={t('mq.nothingInFilterHint')} icon="search" />
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{t('sup.subject')}</th>
+                      <th className="col-optional">{t('sup.category')}</th>
+                      <th className="col-optional">{t('sup.priority')}</th>
+                      <th>{t('sup.status')}</th>
+                      <th className="col-optional">{t('sup.updated')}</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((r) => (
+                      <tr key={r.id} className="adm-row--click" onClick={() => setOpenId(r.id)}>
+                        <td>
+                          <div className="adm-cell-main">
+                            <span>{r.subject}</span>
+                            <span className="t-caption">{t('mq.supMessages', { n: r.thread.length })} · {t('sup.opened')} {formatDate(r.created_at)}</span>
+                          </div>
+                        </td>
+                        <td className="col-optional t-secondary">{t(CAT_LABEL[r.category])}</td>
+                        <td className="col-optional"><Pill tone={PRIO_TONE[r.priority]}>{t(PRIO_LABEL[r.priority])}</Pill></td>
+                        <td><Pill tone={STATUS_TONE[r.status]} dot>{t(STATUS_LABEL[r.status])}</Pill></td>
+                        <td className="col-optional t-tertiary">{formatDate(r.updated_at)}</td>
+                        <td className="actions" onClick={(e) => e.stopPropagation()}>
+                          {r.status !== 'ferme' && <Button size="sm" icon="mail" onClick={() => setOpenId(r.id)}>{t('sup.reply')}</Button>}
+                          <Button size="sm" onClick={() => setOpenId(r.id)}>{t('mq.open')}</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </Section>
+          )}
+        </>
+      )}
 
       {creating && (
         <TicketCreator
@@ -300,24 +359,16 @@ function TicketThread({ ticket, onClose, onChanged }: {
           {ticket.thread.map((m) => {
             const nous = m.author_kind === 'agence'
             return (
-              <div
-                key={m.id}
-                className="col gap-1"
-                style={{
-                  padding: 'var(--sp-3) var(--sp-4)',
-                  borderRadius: 'var(--radius-md, 10px)',
-                  // Le camp se lit à la couleur : dans un fil de dix messages,
-                  // relire l'étiquette à chaque ligne fatigue.
-                  background: nous ? 'var(--surface-sunken, rgba(0,0,0,.04))' : 'var(--tint-blue, rgba(0,102,204,.08))',
-                }}
-              >
+              // Le camp se lit à la couleur : dans un fil de dix messages,
+              // relire l'étiquette à chaque ligne fatigue.
+              <div key={m.id} className={`md-bulle ${nous ? 'md-bulle--nous' : 'md-bulle--eux'}`}>
                 <span className="row gap-2">
                   <Icon name={nous ? 'clients' : 'shield'} size={14} />
                   <span className="t-caption t-medium">{nous ? t('sup.fromAgency') : t('sup.fromPlatform')}</span>
                   <span className="grow" />
                   <span className="t-caption t-tertiary">{formatDate(m.at, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                 </span>
-                <span className="t-small" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
+                <span className="t-small md-bulle__texte">{m.body}</span>
               </div>
             )
           })}
@@ -336,7 +387,7 @@ function TicketThread({ ticket, onClose, onChanged }: {
             {ticket.satisfaction ? (
               <span className="t-small t-tertiary">{t('sup.rated')} · {ticket.satisfaction}/5</span>
             ) : (
-              <div className="row gap-2">
+              <div className="row gap-2 wrap">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <Button
                     key={n}

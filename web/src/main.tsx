@@ -10,6 +10,7 @@ import { resolveTenantSlug } from './tenant'
 import './styles/base.css'
 import './styles/ui.css'
 import './styles/admin.css'
+import './styles/page.css'
 
 const slug = resolveTenantSlug()
 

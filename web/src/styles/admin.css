@@ -147,3 +147,10 @@
   background: rgba(209, 0, 0, 0.06); color: var(--red);
 }
 .adm-erreur .btn { margin-inline-start: auto; }
+
+/* Les gestes de l'en-tête sur téléphone : un sélecteur de période de quatre
+   options mesure 500 px ; il défile dans sa propre boîte au lieu de pousser
+   la page. */
+.adm-page__actions { max-width: 100%; min-width: 0; }
+.adm-page__actions > .segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.adm-page__actions > .segmented::-webkit-scrollbar { display: none; }

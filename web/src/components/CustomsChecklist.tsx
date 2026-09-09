@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Card, Empty, Pill, Select, useToast } from '@/components/ui'
+import { Card, Pill, Select, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { loadChecklistFor, loadPublicStatus, loadPublicStatusOptions, publishStatus } from '@/data/cargo2'
 import type { ChecklistResult, PublicStatus, PublicStatusOption } from '@/data/cargo2'
@@ -57,7 +58,7 @@ export function CustomsChecklist({ shipmentId }: { shipmentId: string }) {
   if (!HAS_BACKEND) {
     return (
       <Card title={t('cg2.checklist')}>
-        <Empty title={t('cg2.offline')} hint={t('cg2.offlineHint')} scene="alerte" />
+        <Vide icon="alert" title={t('cg2.offline')} />
       </Card>
     )
   }
@@ -74,7 +75,7 @@ export function CustomsChecklist({ shipmentId }: { shipmentId: string }) {
       {error && <p className="t-small t-orange">{t('cg2.loadError', { msg: error })}</p>}
 
       {!result || !result.checklist ? (
-        <Empty title={t('cg2.checklistNone')} hint={t('cg2.checklistNoneHint')} scene="vide" />
+        <Vide icon="tasks" title={t('cg2.checklistNone')} hint={t('cg2.checklistNoneHint')} />
       ) : (
         <div className="col gap-4">
           <div className="row-between">

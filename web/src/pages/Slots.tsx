@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Button, Card, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
-import { Ago, PageHead, PriorityPill } from '@/components/bits'
+import { Button, Empty, Field, IconButton, Input, Modal, Pill, Segmented, Select, useToast } from '@/components/ui'
+import { Ago, PriorityPill } from '@/components/bits'
+import { Kpi, KpiGrid, PageHeader, Section, Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { SlotAlert } from '@/components/SlotAlert'
 import { freedSlots } from '@/lib/creneaux'
-import { ATTEMPT_TONE, clientName, daysSince, queueOf, realWaitDays } from '@/lib/derive'
+import { ATTEMPT_TONE, clientName, daysSince, daysUntil, queueOf, realWaitDays } from '@/lib/derive'
 import type { AttemptResult, Consulate, Priority, QueueEntry } from '@/data/types'
 
 /* L'ecran du creneau.
@@ -23,76 +24,82 @@ const RESULTS: AttemptResult[] = [
   'aucun_creneau', 'creneau_libre', 'creneau_pris', 'site_indisponible', 'compte_bloque', 'erreur',
 ]
 
+type Filter = 'file' | 'urgents' | 'registre' | 'obtenus'
+const FILTERS: Filter[] = ['file', 'urgents', 'registre', 'obtenus']
+
 export function Slots() {
   const { db, actions } = useStore()
   const v = useVisible()
-  const { t, tt, formatDate } = useI18n()
+  const { t, tt, formatDate, formatNumber } = useI18n()
   const toast = useToast()
-  const [view, setView] = useState<'queue' | 'attempts'>('queue')
   const [adding, setAdding] = useState(false)
   const [serving, setServing] = useState<QueueEntry | null>(null)
   const [trying, setTrying] = useState<Consulate | null>(null)
+  const [params, setParams] = useSearchParams()
+  const demande = params.get('filtre')
+  const filter: Filter = FILTERS.includes(demande as Filter) ? (demande as Filter) : 'file'
+  const setFilter = (f: Filter) => setParams(f === 'file' ? {} : { filtre: f }, { replace: true })
 
+  const canWrite = v.can('case:write')
   const consulates = db.consulates.filter((c) => c.active)
+
+  /* Urgent : la priorité le dit, ou la date de départ le dit. */
+  const isUrgent = (e: QueueEntry) => {
+    if (e.priority === 'urgente' || e.priority === 'haute') return true
+    const kase = v.cases.find((c) => c.id === e.caseId)
+    return daysUntil(kase?.travelDate) <= 14
+  }
+
+  const waiting = v.queue.filter((q) => q.status === 'attente')
+  const urgent = waiting.filter(isUrgent)
+  const won7 = v.attempts.filter((a) => a.result === 'creneau_pris' && daysSince(a.at) <= 7)
+  const today = v.attempts.filter((a) => a.at.slice(0, 10) === new Date().toISOString().slice(0, 10))
 
   // Une file par poste, deja triee : priorite d'abord, anciennete ensuite.
   const lines = useMemo(
     () =>
       consulates
-        .map((consulate) => ({ consulate, entries: queueOf(db, consulate.id, v.queue) }))
+        .map((consulate) => ({
+          consulate,
+          entries: queueOf(db, consulate.id, v.queue).filter((e) => (filter === 'urgents' ? isUrgent(e) : true)),
+        }))
         .filter((l) => l.entries.length > 0)
         .sort((a, b) => b.entries.length - a.entries.length),
-    [consulates, db, v.queue],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [consulates, db, v.queue, v.cases, filter],
   )
 
-  const waiting = v.queue.filter((q) => q.status === 'attente').length
-  const today = v.attempts.filter((a) => a.at.slice(0, 10) === new Date().toISOString().slice(0, 10))
-  const won = today.filter((a) => a.result === 'creneau_pris').length
+  const attempts = filter === 'obtenus' ? v.attempts.filter((a) => a.result === 'creneau_pris') : v.attempts
+  const showQueue = filter === 'file' || filter === 'urgents'
 
   return (
     <>
-      <PageHead
+      <PageHeader
+        kicker={t('ls.famSuivi')}
         title={t('slots.title')}
         subtitle={t('slots.subtitle')}
-        action={
-          v.can('case:write')
-            ? <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>{t('slots.join')}</Button>
-            : undefined
-        }
+        actions={canWrite ? <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>{t('slots.join')}</Button> : undefined}
       />
 
-      <div className="grid grid--3" style={{ marginBottom: 'var(--sp-5)' }}>
-        <Card>
-          <div className="col gap-1">
-            <span className="t-caption t-tertiary">{t('slots.waiting')}</span>
-            <span className="t-display t-num">{waiting}</span>
-          </div>
-        </Card>
-        <Card>
-          <div className="col gap-1">
-            <span className="t-caption t-tertiary">{t('slots.triedToday')}</span>
-            <span className="t-display t-num">{today.length}</span>
-          </div>
-        </Card>
-        <Card>
-          <div className="col gap-1">
-            <span className="t-caption t-tertiary">{t('slots.wonToday')}</span>
-            <span className="t-display t-num" style={{ color: won > 0 ? 'var(--green)' : undefined }}>{won}</span>
-          </div>
-        </Card>
-      </div>
+      <KpiGrid>
+        <Kpi label={t('ls.kInQueue')} value={formatNumber(waiting.length)} tone="blue" icon="clock" to="/creneaux" />
+        <Kpi label={t('ls.kUrgent')} value={formatNumber(urgent.length)} tone={urgent.length ? 'red' : 'gray'} icon="alert" hint={t('ls.urgentHint')} to="/creneaux?filtre=urgents" />
+        <Kpi label={t('ls.kWon7')} value={formatNumber(won7.length)} tone={won7.length ? 'green' : 'gray'} icon="check" to="/creneaux?filtre=obtenus" />
+        <Kpi label={t('slots.triedToday')} value={formatNumber(today.length)} tone="gray" icon="refresh" to="/creneaux?filtre=registre" />
+      </KpiGrid>
 
       <div style={{ marginBottom: 'var(--sp-5)' }}>
-        <Segmented
-          value={view}
-          onChange={setView}
-          options={[{ value: 'queue', label: t('slots.queues') }, { value: 'attempts', label: t('slots.log') }]}
-        />
+        <Segmented value={filter} onChange={setFilter} label={t('action.filter')} options={[
+          { value: 'file', label: t('slots.queues') },
+          { value: 'urgents', label: t('ls.fUrgent') },
+          { value: 'registre', label: t('slots.log') },
+          { value: 'obtenus', label: t('slots.wonToday') },
+        ]} />
       </div>
 
-      {view === 'queue' ? (
+      {showQueue ? (
         lines.length === 0 ? (
-          <Card><Empty title={t('slots.noQueue')} hint={t('slots.noQueueHint')} /></Card>
+          <Section><Vide icon="clock" title={t('slots.noQueue')} hint={t('slots.noQueueHint')} /></Section>
         ) : (
           <div className="stack">
             {/* Quand un créneau se libère, la question n'est pas « qui est le
@@ -104,32 +111,17 @@ export function Slots() {
             {lines.map(({ consulate, entries }) => {
               const real = realWaitDays(db, consulate.id)
               return (
-                <Card
+                <Section
                   key={consulate.id}
                   title={`${tt(consulate.country)} · ${consulate.city}`}
-                  action={
-                    v.can('case:write')
-                      ? <Button icon="clock" onClick={() => setTrying(consulate)}>{t('slots.iTried')}</Button>
-                      : undefined
-                  }
+                  action={canWrite ? <Button icon="clock" size="sm" onClick={() => setTrying(consulate)}>{t('slots.iTried')}</Button> : undefined}
                   flush
                 >
-                  <div className="row gap-4 t-caption t-tertiary" style={{ padding: '0 var(--sp-5) var(--sp-3)', flexWrap: 'wrap' }}>
+                  <div className="ls-meta">
                     <span>{t(`centre.${consulate.centre}` as 'centre.tls_tunis')}</span>
-                    <span>·</span>
                     <span>{t('slots.inLine', { n: entries.length })}</span>
-                    {real !== undefined && (
-                      <>
-                        <span>·</span>
-                        <span className="t-medium" style={{ color: 'var(--ink)' }}>{t('slots.realWait', { n: real })}</span>
-                      </>
-                    )}
-                    {consulate.announcedDays !== undefined && (
-                      <>
-                        <span>·</span>
-                        <span>{t('slots.announced', { n: consulate.announcedDays })}</span>
-                      </>
-                    )}
+                    {real !== undefined && <span className="t-medium" style={{ color: 'var(--text-primary)' }}>{t('slots.realWait', { n: real })}</span>}
+                    {consulate.announcedDays !== undefined && <span>{t('slots.announced', { n: consulate.announcedDays })}</span>}
                   </div>
                   <div className="list">
                     {entries.map((entry, i) => {
@@ -138,41 +130,43 @@ export function Slots() {
                       return (
                         <div key={entry.id} className="list__row">
                           {/* Le rang est ce que le client voit dans son portail. */}
-                          <span className="t-num t-medium" style={{ width: 32, textAlign: 'right' }}>{i + 1}</span>
+                          <span className="ls-rank t-num">{i + 1}</span>
                           <Link to={`/dossiers/${kase.id}`} className="col grow" style={{ minWidth: 0 }}>
                             <span className="t-medium t-small t-truncate">{clientName(db, kase.clientId)}</span>
                             <span className="t-caption t-tertiary t-truncate">
                               {kase.reference} · {t('slots.since', { n: daysSince(entry.joinedAt) })}
+                              {kase.travelDate ? ` · ${t('caseDetail.travelOn')} ${formatDate(kase.travelDate)}` : ''}
                             </span>
                           </Link>
                           <PriorityPill priority={entry.priority} />
-                          {v.can('case:write') && (
-                            <>
-                              <IconButton icon="check" label={t('slots.served')} onClick={() => setServing(entry)} />
+                          {canWrite && (
+                            <span className="ls-actions">
+                              <Button size="sm" icon="check" onClick={() => setServing(entry)}>{t('ls.markWon')}</Button>
                               <IconButton
                                 icon="close"
                                 label={t('slots.leave')}
                                 onClick={() => { if (window.confirm(t('slots.leaveConfirm'))) { actions.leaveQueue(entry.id); toast(t('slots.left')) } }}
                               />
-                            </>
+                            </span>
                           )}
                         </div>
                       )
                     })}
                   </div>
-                </Card>
+                </Section>
               )
             })}
           </div>
         )
-      ) : v.attempts.length === 0 ? (
-        <Card><Empty title={t('slots.noAttempt')} /></Card>
+      ) : attempts.length === 0 ? (
+        <Section><Vide icon="clock" title={t('slots.noAttempt')} /></Section>
       ) : (
-        <Card flush>
+        <Section flush>
           <div className="list">
-            {v.attempts.slice(0, 80).map((a) => {
+            {attempts.slice(0, 80).map((a) => {
               const consulate = db.consulates.find((c) => c.id === a.consulateId)
               const by = db.users.find((u) => u.id === a.byId)
+              const kase = a.caseId ? v.cases.find((c) => c.id === a.caseId) : undefined
               return (
                 <div key={a.id} className="list__row">
                   <span className="t-num t-caption t-tertiary" style={{ width: 44 }}>
@@ -181,20 +175,26 @@ export function Slots() {
                   <Icon name="clock" size={16} className="t-tertiary" />
                   <span className="col grow" style={{ minWidth: 0 }}>
                     <span className="t-medium t-small t-truncate">
-                      {consulate ? `${tt(consulate.country)} · ${consulate.city}` : '—'}
+                      {consulate ? `${tt(consulate.country)} · ${consulate.city}` : '·'}
+                      {kase ? ` · ${clientName(db, kase.clientId)}` : ''}
                     </span>
                     <span className="t-caption t-tertiary t-truncate">
-                      {by?.name ?? '—'}
+                      {by?.name ?? '·'}
                       {a.slotAt ? ` · ${formatDate(a.slotAt, { day: '2-digit', month: 'short' })}` : ''}
                     </span>
                   </span>
                   <span className="t-caption t-tertiary"><Ago iso={a.at} /></span>
                   <Pill tone={ATTEMPT_TONE[a.result]}>{t(`attempt.${a.result}` as 'attempt.aucun_creneau')}</Pill>
+                  {kase && (
+                    <span className="ls-actions">
+                      <Link to={`/dossiers/${kase.id}`} className="btn btn--secondary btn--sm">{t('action.open')}</Link>
+                    </span>
+                  )}
                 </div>
               )
             })}
           </div>
-        </Card>
+        </Section>
       )}
 
       {adding && <JoinQueue onClose={() => setAdding(false)} />}
@@ -309,7 +309,7 @@ export function Slots() {
             {kase ? `${kase.reference} · ${clientName(db, kase.clientId)}` : ''}
           </p>
           <Field label={t('slots.slotAt')} hint={t('slots.slotAtHint')}>
-            <Input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+            <Input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} autoFocus />
           </Field>
         </div>
       </Modal>

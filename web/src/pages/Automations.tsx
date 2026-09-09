@@ -1,11 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@/data/store'
 import { useI18n } from '@/i18n'
-import { Button, Card, Field, IconButton, Input, Modal, Pill, Select, Switch, useToast } from '@/components/ui'
-import { Ago, PageHead } from '@/components/bits'
+import { Button, Empty, Field, Input, Modal, Pill, Segmented, Select, Switch, useToast } from '@/components/ui'
+import { Ago } from '@/components/bits'
 import { Icon } from '@/components/Icon'
+import { Kpi, KpiGrid, PageHeader, Section, Table, Toolbar, Vide } from '@/components/page'
 import { ACTIVE_STAGES } from '@/lib/derive'
 import type { ActionType, AutomationRule, Channel, Stage, TriggerType } from '@/data/types'
+import '@/styles/modules.css'
+
+/* Les règles qui relancent à la place de l'équipe.
+ *
+ * Chaque règle dit ce qu'elle a fait et quand : une automatisation muette
+ * finit par être coupée « au cas où », et plus personne n'ose la rallumer. */
 
 const TRIGGERS: TriggerType[] = [
   'piece_manquante_depuis', 'dossier_sans_activite', 'rendez_vous_dans',
@@ -13,78 +20,147 @@ const TRIGGERS: TriggerType[] = [
 ]
 const ACTION_TYPES: ActionType[] = ['message_client', 'tache_agent', 'alerte_interne', 'changer_etape']
 
+type Vue = 'actives' | 'pause' | 'toutes'
+
 export function Automations() {
   const { db, actions } = useStore()
-  const { t, tt } = useI18n()
+  const { t, tt, formatDate } = useI18n()
   const toast = useToast()
   const [editing, setEditing] = useState<AutomationRule | 'nouvelle' | null>(null)
   const [removing, setRemoving] = useState<AutomationRule | null>(null)
+  const [vue, setVue] = useState<Vue>('toutes')
 
-  const triggerLabel = (rule: (typeof db.rules)[number]) =>
+  const triggerLabel = (rule: AutomationRule) =>
     t(`auto.t.${rule.trigger.type}` as 'auto.t.depart_dans', {
       n: rule.trigger.days ?? 0,
       stage: rule.trigger.stage ? t(`stage.${rule.trigger.stage}` as 'stage.nouveau') : '',
     })
 
+  const compte = useMemo(() => {
+    const actives = db.rules.filter((r) => r.active).length
+    const runs = db.rules.reduce((s, r) => s + r.runs, 0)
+    const derniere = db.rules.map((r) => r.lastRunAt).filter((x): x is string => Boolean(x)).sort().pop() ?? null
+    return { actives, pause: db.rules.length - actives, runs, derniere }
+  }, [db.rules])
+
+  const montres = useMemo(() => db.rules.filter((r) =>
+    vue === 'toutes' ? true : vue === 'actives' ? r.active : !r.active,
+  ), [db.rules, vue])
+
   return (
     <>
-      <PageHead
+      <PageHeader
+        kicker={t('mq.kickerPilotage')}
         title={t('auto.title')}
-        subtitle={t('auto.subtitle')}
-        action={
-          <div className="row gap-2">
-            <Button icon="plus" onClick={() => setEditing('nouvelle')}>{t('auto.newRule')}</Button>
-            <Button
-              variant="primary"
-              icon="sparkle"
-              onClick={() => {
-                const n = actions.runRules()
-                toast(t('auto.simulated', { n }))
-              }}
-            >
-              {t('auto.simulate')}
-            </Button>
-          </div>
-        }
+        subtitle={t('mq.autoSub')}
+        actions={<>
+          <Button icon="plus" onClick={() => setEditing('nouvelle')}>{t('auto.newRule')}</Button>
+          <Button
+            variant="primary"
+            icon="sparkle"
+            disabled={compte.actives === 0}
+            onClick={() => {
+              const n = actions.runRules()
+              toast(t('auto.simulated', { n }))
+            }}
+          >
+            {t('auto.simulate')}
+          </Button>
+        </>}
       />
 
-      <div className="col gap-4">
-        {db.rules.map((rule) => (
-          <Card key={rule.id}>
-            <div className="row-between wrap gap-4">
-              <div className="col grow gap-3" style={{ minWidth: 240 }}>
-                <div className="row gap-3">
-                  <span className="t-medium">{tt(rule.name)}</span>
-                  {rule.active ? <Pill tone="green" dot>{t('auto.active')}</Pill> : <Pill tone="gray" dot>{t('auto.paused')}</Pill>}
-                </div>
-                <div className="row gap-3 wrap t-small t-secondary">
-                  <span className="row gap-2">
-                    <Icon name="clock" size={15} className="t-tertiary" />
-                    {triggerLabel(rule)}
-                  </span>
-                  <Icon name="arrow" size={14} className="t-tertiary" />
-                  <span className="row gap-2">
-                    <Icon name={rule.action.type === 'message_client' ? 'messages' : rule.action.type === 'tache_agent' ? 'tasks' : 'alert'} size={15} className="t-tertiary" />
-                    {t(`auto.a.${rule.action.type}` as 'auto.a.message_client')}
-                    {rule.action.templateKey && ` · ${tt(db.templates.find((x) => x.key === rule.action.templateKey)?.name)}`}
-                  </span>
-                </div>
-                <div className="t-caption t-tertiary">
-                  {t('auto.runs', { n: rule.runs })}
-                  {rule.lastRunAt && <> · {t('auto.lastRun')} <Ago iso={rule.lastRunAt} /></>}
-                </div>
-              </div>
-              <div className="row gap-2">
-                <IconButton icon="edit" label={t('crud.edit')} onClick={() => setEditing(rule)} />
-                <IconButton icon="trash" label={t('crud.remove')} onClick={() => setRemoving(rule)} />
-                <Switch checked={rule.active} onChange={() => actions.toggleRule(rule.id)} label={tt(rule.name)} />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <KpiGrid>
+        <Kpi label={t('mq.autoActive')} value={compte.actives} icon="automations" tone="green"
+             hint={t('mq.autoActiveHint', { n: db.rules.length })} />
+        <Kpi label={t('auto.paused')} value={compte.pause} icon="lock"
+             tone={compte.pause > 0 ? 'orange' : undefined} hint={t('mq.autoPausedHint')} />
+        <Kpi label={t('mq.autoRuns')} value={compte.runs} icon="sparkle" hint={t('mq.autoRunsHint')} />
+        <Kpi label={t('auto.lastRun')} icon="clock"
+             value={compte.derniere ? formatDate(compte.derniere, { day: '2-digit', month: 'short' }) : '·'}
+             hint={compte.derniere ? formatDate(compte.derniere, { hour: '2-digit', minute: '2-digit' }) : t('mq.autoNeverRan')} />
+      </KpiGrid>
 
-      <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-6)' }}>
+      {db.rules.length === 0 ? (
+        <Section>
+          <Empty
+            title={t('mq.autoNone')}
+            hint={t('mq.autoNoneHint')}
+            scene="termine"
+            action={<Button variant="primary" icon="plus" onClick={() => setEditing('nouvelle')}>{t('auto.newRule')}</Button>}
+          />
+        </Section>
+      ) : (
+        <Section flush>
+          <Toolbar right={<span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: montres.length, total: db.rules.length })}</span>}>
+            <Segmented<Vue>
+              value={vue}
+              onChange={setVue}
+              label={t('auto.active')}
+              options={[
+                { value: 'toutes', label: `${t('mq.all')} · ${db.rules.length}` },
+                { value: 'actives', label: `${t('auto.active')} · ${compte.actives}` },
+                { value: 'pause', label: `${t('auto.paused')} · ${compte.pause}` },
+              ]}
+            />
+          </Toolbar>
+
+          {montres.length === 0 ? (
+            <Vide title={t('mq.nothingInFilter')} hint={t('mq.nothingInFilterHint')} icon="filter" />
+          ) : (
+            <Table>
+              <thead>
+                <tr>
+                  <th>{t('clients.name')}</th>
+                  <th className="col-optional">{t('auto.trigger')}</th>
+                  <th className="col-optional">{t('auto.action')}</th>
+                  <th className="num col-optional">{t('mq.autoRuns')}</th>
+                  <th>{t('auto.active')}</th>
+                  <th className="actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {montres.map((rule) => (
+                  <tr key={rule.id} className={`adm-row--click ${rule.active ? '' : 'adm-row--off'}`} onClick={() => setEditing(rule)}>
+                    <td>
+                      <div className="adm-cell-main">
+                        <span>{tt(rule.name)}</span>
+                        <span className="t-caption">
+                          {rule.lastRunAt ? <>{t('auto.lastRun')} <Ago iso={rule.lastRunAt} /></> : t('mq.autoNeverRan')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="col-optional t-secondary">
+                      <span className="row gap-2"><Icon name="clock" size={14} className="t-tertiary" />{triggerLabel(rule)}</span>
+                    </td>
+                    <td className="col-optional t-secondary">
+                      <span className="row gap-2">
+                        <Icon name={rule.action.type === 'message_client' ? 'messages' : rule.action.type === 'tache_agent' ? 'tasks' : 'alert'} size={14} className="t-tertiary" />
+                        <span>
+                          {t(`auto.a.${rule.action.type}` as 'auto.a.message_client')}
+                          {rule.action.templateKey && ` · ${tt(db.templates.find((x) => x.key === rule.action.templateKey)?.name)}`}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="num col-optional">{rule.runs}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <span className="row gap-2">
+                        <Switch checked={rule.active} onChange={() => actions.toggleRule(rule.id)} label={tt(rule.name)} />
+                        {rule.active ? <Pill tone="green" dot>{t('auto.active')}</Pill> : <Pill tone="gray" dot>{t('auto.paused')}</Pill>}
+                      </span>
+                    </td>
+                    <td className="actions" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" icon="edit" onClick={() => setEditing(rule)}>{t('crud.edit')}</Button>
+                      <Button size="sm" icon="trash" onClick={() => setRemoving(rule)}>{t('crud.remove')}</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Section>
+      )}
+
+      <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-2)' }}>
         {t('settings.complianceHint')}
       </p>
 

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Card, Empty } from '@/components/ui'
+import { Card } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { loadCaseTravelMargin } from '@/data/voyage'
 import type { CaseTravelMargin } from '@/data/voyage'
@@ -47,8 +48,10 @@ export function CaseMarginCard({ caseId }: { caseId: string }) {
 
   if (!HAS_BACKEND) {
     return (
+      // Dans une fiche, l'état « non branché » tient en une ligne : le grand
+      // dessin d'alerte est pour une page entière.
       <Card title={t('voy.marginTitle')}>
-        <Empty title={t('voy.offline')} hint={t('voy.offlineHint')} scene="alerte" />
+        <Vide icon="payments" title={t('voy.offline')} />
       </Card>
     )
   }
@@ -58,7 +61,7 @@ export function CaseMarginCard({ caseId }: { caseId: string }) {
   }
 
   if (!data || data.lines.length === 0) {
-    return <Card title={t('voy.marginTitle')}><p className="t-small t-tertiary">{t('voy.noLines')}</p></Card>
+    return <Card title={t('voy.marginTitle')}><Vide icon="payments" title={t('voy.noLines')} /></Card>
   }
 
   const positive = data.total.margin >= 0

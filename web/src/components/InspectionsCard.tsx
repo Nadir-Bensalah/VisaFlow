@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import {
   INSPECTION_KINDS, loadInspections, loadInspectionsState, loadTechnicalDocuments,
@@ -96,7 +97,7 @@ export function InspectionsCard({ shipmentId }: { shipmentId: string }) {
   if (!HAS_BACKEND) {
     return (
       <Card title={t('cg2.inspections')}>
-        <Empty title={t('cg2.offline')} hint={t('cg2.offlineHint')} scene="alerte" />
+        <Vide icon="alert" title={t('cg2.offline')} />
       </Card>
     )
   }
@@ -134,7 +135,7 @@ export function InspectionsCard({ shipmentId }: { shipmentId: string }) {
       )}
 
       {rows.length === 0 ? (
-        <Empty title={t('cg2.noInspections')} hint={t('cg2.noInspectionsHint')} scene="vide" />
+        <Vide icon="shield" title={t('cg2.noInspections')} hint={t('cg2.noInspectionsHint')} />
       ) : (
         <div className="col gap-3">
           {rows.map((r) => (
@@ -185,7 +186,7 @@ export function InspectionsCard({ shipmentId }: { shipmentId: string }) {
       {lastTech ? (
         <div className="col gap-1">
           <div className="row-between">
-            <span className="t-small t-mono">{lastTech.reference ?? '—'}</span>
+            <span className="t-small t-mono">{lastTech.reference ?? '·'}</span>
             <Pill tone={lastTech.status === 'approuve' ? 'green' : lastTech.status === 'rejete' ? 'red' : 'orange'}>
               {t(`cg2.tcStatus_${lastTech.status}` as 'cg2.tcStatus_depose')}
             </Pill>

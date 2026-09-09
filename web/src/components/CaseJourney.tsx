@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { rpc } from '@/data/remote'
-import { Card } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import type { IconName } from '@/components/Icon'
 import type { VisaCase } from '@/data/types'
@@ -31,6 +31,11 @@ import type { VisaCase } from '@/data/types'
  * dossier consulaire et servent au pipeline. Celle-ci sert à répondre au
  * téléphone. Les deux cohabitent parce qu'elles répondent à deux questions
  * différentes.
+ *
+ * Il se lit en deux colonnes sur un bureau, l'œil descend la première puis la
+ * seconde. Chaque jalon sur lequel on peut agir mène à l'onglet de la fiche
+ * où le geste se fait : les pièces, les paiements, les prestations, les
+ * rendez-vous. Il vit dans l'onglet Aperçu de la fiche, sans carte à lui.
  */
 
 type Etat = 'fait' | 'encours' | 'afaire' | 'bloque' | 'sansobjet'
@@ -114,17 +119,21 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
   const apres = (etape: string) => rang > passeIndex.indexOf(etape)
   const a = (etape: string) => rang === passeIndex.indexOf(etape)
 
+  /* Les onglets de la fiche : un jalon actionnable mène là où le geste se
+     fait, pas vers une page globale où il faudrait retrouver le dossier. */
+  const onglet = (nom: 'pieces' | 'paiements' | 'prestations' | 'rdv') => `/dossiers/${kase.id}?onglet=${nom}`
+
   /* Une ligne « voyage » se lit d'abord dans le suivi voyage quand il existe,
      sinon dans la pièce de la liste. Les deux disent la même chose vue de deux
      endroits : la pièce prouve au consulat, le suivi sert à l'agence. */
-  const ligneVoyage = (key: 'assurance' | 'hotel' | 'billet', n?: Note): { etat: Etat; detail?: string } => {
+  const ligneVoyage = (key: 'assurance' | 'hotel' | 'billet', n?: Note): { etat: Etat; detail?: string; href?: string } => {
     if (n?.note) {
       const bout = [n.reference, n.date ? formatDate(n.date) : null].filter(Boolean).join(' · ')
-      return { etat: 'fait', detail: bout || t('parc.noted') }
+      return { etat: 'fait', detail: bout || t('parc.noted'), href: onglet('prestations') }
     }
     const e = pieceEtat(key)
-    if (e === 'sansobjet') return { etat: 'sansobjet', detail: t('parc.notNoted') }
-    return { etat: e, detail: t('parc.fromDoc') }
+    if (e === 'sansobjet') return { etat: 'sansobjet', detail: t('parc.notNoted'), href: HAS_BACKEND ? onglet('prestations') : undefined }
+    return { etat: e, detail: t('parc.fromDoc'), href: onglet('pieces') }
   }
 
   const assurance = ligneVoyage('assurance', extra.travel?.assurance)
@@ -149,6 +158,7 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
         : client.passportExpiry
           ? t('parc.passportSoon', { date: formatDate(client.passportExpiry) })
           : client.passportNumber,
+      href: client && !client.passportNumber ? `/clients/${client.id}` : undefined,
     },
     {
       key: 'destination', label: t('parc.destination'), icon: 'plane',
@@ -162,7 +172,7 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
       key: 'documents', label: t('parc.documents'), icon: 'documents',
       etat: requis.length === 0 ? 'afaire' : manquants.length === 0 ? 'fait' : 'encours',
       detail: `${requis.length - manquants.length}/${requis.length}`,
-      href: `/dossiers/${kase.id}`,
+      href: onglet('pieces'),
     },
     {
       key: 'missing', label: t('parc.missing'), icon: 'alert',
@@ -170,8 +180,9 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
       detail: manquants.length === 0
         ? t('parc.allDocs')
         : manquants.length === 1 ? t('parc.missingCount', { n: 1 }) : t('parc.missingCountP', { n: manquants.length }),
+      href: manquants.length > 0 ? onglet('pieces') : undefined,
     },
-    { key: 'form', label: t('parc.form'), icon: 'documents', etat: pieceEtat('formulaire') },
+    { key: 'form', label: t('parc.form'), icon: 'documents', etat: pieceEtat('formulaire'), href: piece('formulaire') ? onglet('pieces') : undefined },
     {
       key: 'payment', label: t('parc.payment'), icon: 'payments',
       etat: kase.amountTotal === 0 ? 'sansobjet' : solde === 0 ? 'fait' : kase.amountPaid > 0 ? 'encours' : 'afaire',
@@ -180,6 +191,7 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
         : solde === 0
           ? t('parc.paidAll')
           : t('parc.paidPart', { paid: formatMoney(kase.amountPaid), total: formatMoney(kase.amountTotal) }),
+      href: kase.amountTotal > 0 ? onglet('paiements') : undefined,
     },
     {
       key: 'translations', label: t('parc.translations'), icon: 'language',
@@ -195,10 +207,11 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
           : extra.trad.toutes_livrees
             ? `${extra.trad.livrees}/${extra.trad.total}`
             : t('parc.translationsLeft', { n: extra.trad.total - extra.trad.livrees }),
+      href: HAS_BACKEND ? onglet('prestations') : undefined,
     },
-    { key: 'insurance', label: t('parc.insurance'), icon: 'shield', etat: assurance.etat, detail: assurance.detail },
-    { key: 'hotel', label: t('parc.hotel'), icon: 'building', etat: hotel.etat, detail: hotel.detail },
-    { key: 'ticket', label: t('parc.ticket'), icon: 'plane', etat: billet.etat, detail: billet.detail },
+    { key: 'insurance', label: t('parc.insurance'), icon: 'shield', etat: assurance.etat, detail: assurance.detail, href: assurance.href },
+    { key: 'hotel', label: t('parc.hotel'), icon: 'building', etat: hotel.etat, detail: hotel.detail, href: hotel.href },
+    { key: 'ticket', label: t('parc.ticket'), icon: 'plane', etat: billet.etat, detail: billet.detail, href: billet.href },
     {
       key: 'appointment', label: t('parc.appointment'), icon: 'appointments',
       etat: rdvPris ? 'fait' : attente ? 'encours' : 'afaire',
@@ -207,7 +220,7 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
         : attente
           ? t('parc.queued', { date: formatDate(attente.joinedAt) })
           : t('parc.noAppt'),
-      href: '/rendez-vous',
+      href: onglet('rdv'),
     },
     {
       key: 'submission', label: t('parc.submission'), icon: 'upload',
@@ -248,33 +261,37 @@ export function CaseJourney({ kase }: { kase: VisaCase }) {
 
   const comptes = jalons.filter((j) => j.etat !== 'sansobjet')
   const faits = comptes.filter((j) => j.etat === 'fait').length
+  // Deux colonnes remplies de haut en bas : la grille a besoin du nombre de
+  // lignes pour couper la liste en son milieu.
+  const lignes = Math.ceil(jalons.length / 2)
 
   return (
-    <Card
-      title={t('parc.title')}
-      action={<span className="t-caption t-tertiary">{t('parc.subtitle', { done: faits, total: comptes.length })}</span>}
-    >
-      <div className="parcours">
+    <section className="fd-parc" aria-label={t('parc.title')}>
+      <div className="fd-parc__head">
+        <h3 className="fd-parc__title">{t('parc.title')}</h3>
+        <span className="t-caption t-tertiary">{t('parc.subtitle', { done: faits, total: comptes.length })}</span>
+      </div>
+      <div className="fd-parc__grid" style={{ '--fd-rows': lignes } as CSSProperties}>
         {jalons.map((j) => (
-          <div key={j.key} className={`parcours__row parcours__row--${j.etat}`}>
+          <div key={j.key} className={`fd-jalon fd-jalon--${j.etat}`} aria-current={j.etat === 'encours' ? 'step' : undefined}>
             <span className={`parcours__dot parcours__dot--${TON[j.etat]}`}>
               {j.etat === 'fait' && <Icon name="check" size={11} />}
               {j.etat === 'bloque' && <Icon name="alert" size={11} />}
             </span>
-            <Icon name={j.icon} size={14} className="parcours__icon" />
-            <span className="parcours__label t-small">{j.label}</span>
-            <span className="parcours__detail t-caption t-tertiary t-truncate">{j.detail ?? ''}</span>
+            <Icon name={j.icon} size={14} className="fd-jalon__icon" />
+            <span className="fd-jalon__label">{j.label}</span>
+            <span className="fd-jalon__detail" title={j.detail}>{j.detail ?? ''}</span>
             {j.href ? (
-              <Link to={j.href} className="parcours__go" aria-label={j.label}>
+              <Link to={j.href} className="fd-jalon__go" aria-label={`${t('fiche.view')} : ${j.label}`}>
                 <Icon name="arrow" size={13} />
               </Link>
             ) : (
-              <span className="parcours__go" />
+              <span className="fd-jalon__go" />
             )}
           </div>
         ))}
       </div>
-      <p className="t-caption t-tertiary" style={{ marginTop: 'var(--sp-4)', marginBottom: 0 }}>{t('parc.hint')}</p>
-    </Card>
+      <p className="t-caption t-tertiary fd-parc__hint">{t('parc.hint')}</p>
+    </section>
   )
 }

@@ -3,6 +3,7 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Field, Input, Modal, Pill, Select, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import {
   addAirWaybill, addOriginCertificate, addRoadShipment, hasBackend,
@@ -37,7 +38,11 @@ export function TransportDocsCard({ shipmentId }: { shipmentId: string }) {
 
   return (
     <Card title={t('log.transportDocs')}>
-      {!hasBackend && <p className="t-small t-tertiary">{t('log.offline')}</p>}
+      {!hasBackend && <Vide icon="alert" title={t('log.offline')} />}
+
+      {/* Sans serveur, une seule ligne : trois sections vides feraient une colonne de « aucun ». */}
+      {hasBackend && (
+      <>
 
       {/* ---------------- Lettre de transport aérien ---------------- */}
       <div className="row-between" style={{ marginBottom: 'var(--sp-2)' }}>
@@ -97,16 +102,16 @@ export function TransportDocsCard({ shipmentId }: { shipmentId: string }) {
               <Icon name="box" size={18} className="t-tertiary" />
               <span className="col grow gap-1" style={{ minWidth: 0 }}>
                 <span className="t-small t-medium">
-                  {r.carrierName ?? '—'}
+                  {r.carrierName ?? '·'}
                   {r.cmrNumber ? <span className="t-mono t-tertiary"> · {t('log.cmr')} {r.cmrNumber}</span> : null}
                 </span>
                 <span className="t-caption t-tertiary t-mono">
-                  {[r.truckRegistration, r.trailerRegistration].filter(Boolean).join(' + ') || '—'}
+                  {[r.truckRegistration, r.trailerRegistration].filter(Boolean).join(' + ') || '·'}
                 </span>
                 {/* Le chauffeur et son numéro : c'est ce qu'on cherche quand la
                     douane appelle, et qu'on ne trouve jamais. */}
                 <span className="t-caption t-tertiary">
-                  {[r.driverName, r.driverPhone, r.borderCrossing].filter(Boolean).join(' · ') || '—'}
+                  {[r.driverName, r.driverPhone, r.borderCrossing].filter(Boolean).join(' · ') || '·'}
                 </span>
               </span>
               <span className="t-caption t-tertiary">{formatDate(r.departureAt ?? undefined)}</span>
@@ -158,6 +163,9 @@ export function TransportDocsCard({ shipmentId }: { shipmentId: string }) {
           })}
         </div>
       )}
+      </>
+      )}
+
 
       {adding === 'awb' && (
         <AwbEditor

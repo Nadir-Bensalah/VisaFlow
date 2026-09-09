@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useI18n } from '@/i18n'
-import { Card, Empty, Pill } from '@/components/ui'
+import { Empty, Pill } from '@/components/ui'
+import { Erreur, Kpi, KpiGrid, Ligne, Section, Squelette, Table, Vide, useChargement } from '@/components/page'
 import { largeurPct, maxDe } from '@/lib/graphes'
 import { loadVisaReport, type VisaReport } from '@/data/pilotage'
+import '@/styles/modules.css'
 
 /* Le rapport visa de la section 127.
  *
@@ -16,43 +17,17 @@ import { loadVisaReport, type VisaReport } from '@/data/pilotage'
  * chez l'agence et le taux publié par le poste ne sont pas la même chose. Deux
  * colonnes, deux libellés, et une note qui le dit. */
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <div className="stat" style={{ padding: 0 }}>
-        <div className="stat__label">{label}</div>
-        <div className="stat__value">{value}</div>
-        {hint && <div className="stat__hint">{hint}</div>}
-      </div>
-    </Card>
-  )
-}
-
 export function ReportVisa({ officeId, from, to }: { officeId: string | null; from: string; to: string }) {
   const { t, tt, formatMoney, formatNumber } = useI18n()
-  const [rep, setRep] = useState<VisaReport | null>(null)
-  const [loading, setLoading] = useState(HAS_BACKEND)
-  const [error, setError] = useState<string | null>(null)
+  const { data: rep, loading, error, reload } = useChargement(
+    () => (HAS_BACKEND ? loadVisaReport(officeId, from, to) : Promise.resolve(null as VisaReport | null)),
+    [officeId, from, to],
+  )
 
-  const charger = useCallback(async () => {
-    if (!HAS_BACKEND) { setLoading(false); return }
-    setLoading(true)
-    try {
-      setRep(await loadVisaReport(officeId, from, to))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [officeId, from, to])
-
-  useEffect(() => { void charger() }, [charger])
-
-  if (!HAS_BACKEND) return <Card><Empty title={t('pil.offline')} hint={t('pil.offlineHint')} /></Card>
-  if (loading) return <Card><Empty title={t('pil.loading')} /></Card>
-  if (error) return <Card><Empty title={t('pil.loadError', { msg: error })} /></Card>
-  if (!rep) return <Card><Empty title={t('pil.empty')} /></Card>
+  if (!HAS_BACKEND) return <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="passeport" /></Section>
+  if (error) return <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />
+  if (loading && !rep) return <><Squelette type="kpis" n={4} /><Squelette type="cartes" n={4} /></>
+  if (!rep) return <Section><Vide title={t('pil.empty')} icon="passport" /></Section>
 
   // Un délai qu'on ne sait pas mesurer s'affiche vide, jamais à zéro : zéro
   // jour voudrait dire « instantané », et ce n'est pas ce qu'on sait.
@@ -65,83 +40,70 @@ export function ReportVisa({ officeId, from, to }: { officeId: string | null; fr
 
   return (
     <div className="stack">
-      <div className="grid grid--4">
-        <Stat label={t('pil.cases')} value={formatNumber(rep.cases)} />
-        <Stat label={t('pil.successRate')} value={pct(rep.successRate)}
-              hint={`${rep.accepted} / ${rep.decided}`} />
-        <Stat label={t('pil.delayDecision')} value={jours(rep.delays.toDecision)}
-              hint={t('pil.delays')} />
-        {rep.revenue === null ? (
-          <Stat label={t('pil.revenue')} value="·" hint={t('pil.hiddenMoney')} />
-        ) : (
-          <Stat label={t('pil.revenue')} value={formatMoney(rep.revenue)} />
-        )}
-      </div>
+      <KpiGrid>
+        <Kpi label={t('pil.cases')} value={formatNumber(rep.cases)} icon="cases" tone="blue" />
+        <Kpi label={t('pil.successRate')} value={pct(rep.successRate)} icon="check" tone="green"
+             hint={`${rep.accepted} / ${rep.decided}`} />
+        <Kpi label={t('pil.delayDecision')} value={jours(rep.delays.toDecision)} icon="clock" hint={t('pil.delays')} />
+        {rep.revenue === null
+          ? <Kpi label={t('pil.revenue')} value="·" icon="payments" hint={t('pil.hiddenMoney')} />
+          : <Kpi label={t('pil.revenue')} value={formatMoney(rep.revenue)} icon="payments" tone="green" />}
+      </KpiGrid>
 
       <div className="grid grid--2">
         {/* LE tableau de l'écran : l'observé contre la référence, jamais fondus */}
-        <Card title={t('pil.refusalsTitle')} className="grid__wide" flush>
+        <Section title={t('pil.refusalsTitle')} className="grid__wide" flush>
           {rep.refusalsByConsulate.length === 0 ? (
-            <div style={{ padding: 'var(--sp-5)' }}><Empty title={t('pil.notEnough')} /></div>
+            <Vide title={t('pil.notEnough')} icon="reports" />
           ) : (
-            <div className="tablewrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>{t('pil.refusalsTitle')}</th>
-                    <th className="num">{t('pil.decided')}</th>
-                    <th className="num">{t('pil.refused')}</th>
-                    <th className="num">{t('pil.observed')}</th>
-                    <th className="num">{t('pil.reference')}</th>
-                    <th className="num">{t('pil.referenceYear')}</th>
-                    <th className="num">{t('pil.gap')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rep.refusalsByConsulate.map((r) => {
-                    const ecart = r.observedRate !== null && r.referenceRate !== null
-                      ? Math.round((r.observedRate - r.referenceRate) * 10) / 10
-                      : null
-                    return (
-                      <tr key={r.consulateId}>
-                        <td className="t-small t-medium">{tt(r.country)} · {r.city}</td>
-                        <td className="num t-small">{r.observedDecided}</td>
-                        <td className="num t-small">{r.observedRefused}</td>
-                        <td className="num t-small t-medium">
-                          {r.observedRate === null ? '·' : `${r.observedRate} %`}
-                        </td>
-                        <td className="num t-small t-tertiary">
-                          {r.referenceRate === null ? '·' : `${r.referenceRate} %`}
-                        </td>
-                        <td className="num t-caption t-tertiary">{r.referenceYear ?? '·'}</td>
-                        <td className="num t-small">
-                          {ecart === null ? '·' : (
-                            <Pill tone={ecart <= 0 ? 'green' : 'red'}>{ecart > 0 ? `+${ecart}` : ecart}</Pill>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <thead>
+                <tr>
+                  <th>{t('pil.refusalsTitle')}</th>
+                  <th className="num">{t('pil.decided')}</th>
+                  <th className="num col-optional">{t('pil.refused')}</th>
+                  <th className="num">{t('pil.observed')}</th>
+                  <th className="num col-optional">{t('pil.reference')}</th>
+                  <th className="num col-optional">{t('pil.referenceYear')}</th>
+                  <th className="num">{t('pil.gap')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rep.refusalsByConsulate.map((r) => {
+                  const ecart = r.observedRate !== null && r.referenceRate !== null
+                    ? Math.round((r.observedRate - r.referenceRate) * 10) / 10
+                    : null
+                  return (
+                    <tr key={r.consulateId}>
+                      <td className="t-medium">{tt(r.country)} · {r.city}</td>
+                      <td className="num">{r.observedDecided}</td>
+                      <td className="num col-optional">{r.observedRefused}</td>
+                      <td className="num t-medium">{r.observedRate === null ? '·' : `${r.observedRate} %`}</td>
+                      <td className="num col-optional t-tertiary">{r.referenceRate === null ? '·' : `${r.referenceRate} %`}</td>
+                      <td className="num col-optional t-caption t-tertiary">{r.referenceYear ?? '·'}</td>
+                      <td className="num">
+                        {ecart === null ? <span className="t-tertiary">·</span> : (
+                          <Pill tone={ecart <= 0 ? 'green' : 'red'}>{ecart > 0 ? `+${ecart}` : ecart}</Pill>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </Table>
           )}
-          <p className="t-caption t-tertiary" style={{ padding: 'var(--sp-3) var(--sp-5)' }}>
-            {t('pil.refusalsHint')}
-          </p>
-        </Card>
+          <p className="t-caption t-tertiary md-note">{t('pil.refusalsHint')}</p>
+        </Section>
 
-        <Card title={t('pil.delays')}>
-          <div className="col gap-4">
-            <Ligne label={t('pil.delayDecision')} value={jours(rep.delays.toDecision)} />
-            <Ligne label={t('pil.delayDeposit')} value={jours(rep.delays.toDeposit)} />
-            <Ligne label={t('pil.delayDocs')} value={jours(rep.delays.docsComplete)} />
-            <Ligne label={t('pil.delayClose')} value={jours(rep.delays.toClose)} />
-          </div>
-        </Card>
+        <Section title={t('pil.delays')}>
+          <Ligne label={t('pil.delayDecision')}>{jours(rep.delays.toDecision)}</Ligne>
+          <Ligne label={t('pil.delayDeposit')}>{jours(rep.delays.toDeposit)}</Ligne>
+          <Ligne label={t('pil.delayDocs')}>{jours(rep.delays.docsComplete)}</Ligne>
+          <Ligne label={t('pil.delayClose')}>{jours(rep.delays.toClose)}</Ligne>
+        </Section>
 
-        <Card title={t('pil.byCountry')}>
-          {rep.byCountry.length === 0 ? <Empty title={t('pil.empty')} /> : (
+        <Section title={t('pil.byCountry')}>
+          {rep.byCountry.length === 0 ? <Vide title={t('pil.empty')} icon="portal" /> : (
             <div className="col gap-3">
               {rep.byCountry.slice(0, 8).map((c) => (
                 <div key={c.code} className="col gap-2">
@@ -156,10 +118,10 @@ export function ReportVisa({ officeId, from, to }: { officeId: string | null; fr
               ))}
             </div>
           )}
-        </Card>
+        </Section>
 
-        <Card title={t('pil.byType')}>
-          {rep.byType.length === 0 ? <Empty title={t('pil.empty')} /> : (
+        <Section title={t('pil.byType')}>
+          {rep.byType.length === 0 ? <Vide title={t('pil.empty')} icon="passport" /> : (
             <div className="col gap-3">
               {rep.byType.slice(0, 8).map((c) => (
                 <div key={c.id} className="col gap-2">
@@ -174,52 +136,47 @@ export function ReportVisa({ officeId, from, to }: { officeId: string | null; fr
               ))}
             </div>
           )}
-        </Card>
+        </Section>
 
         {/* Par agent : des chiffres bruts, dans l'ordre rendu par le serveur,
             c'est-à-dire par nom. Aucun tri par performance ici. */}
-        <Card title={t('pil.byAgent')} flush>
-          <div className="tablewrap">
-            <table className="table">
+        <Section title={t('pil.byAgent')} flush>
+          {rep.byAgent.length === 0 ? <Vide title={t('pil.empty')} icon="clients" /> : (
+            <Table>
               <thead>
                 <tr>
                   <th>{t('pil.person')}</th>
                   <th className="num">{t('pil.opened')}</th>
-                  <th className="num">{t('pil.openNow')}</th>
-                  <th className="num">{t('pil.decided')}</th>
+                  <th className="num col-optional">{t('pil.openNow')}</th>
+                  <th className="num col-optional">{t('pil.decided')}</th>
                   <th className="num">{t('pil.accepted')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rep.byAgent.map((a) => (
                   <tr key={a.userId}>
-                    <td className="t-small t-medium">{a.name}</td>
-                    <td className="num t-small">{a.opened}</td>
-                    <td className="num t-small">{a.openNow}</td>
-                    <td className="num t-small">{a.decided}</td>
-                    <td className="num t-small">{a.accepted}</td>
+                    <td className="t-medium">{a.name}</td>
+                    <td className="num">{a.opened}</td>
+                    <td className="num col-optional">{a.openNow}</td>
+                    <td className="num col-optional">{a.decided}</td>
+                    <td className="num">{a.accepted}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <Card title={t('pil.missingDocs')}>
-          {rep.missingDocuments.length === 0 ? <Empty title={t('pil.empty')} /> : (
-            <div className="col gap-3">
-              {rep.missingDocuments.map((m) => (
-                <div key={m.key} className="row-between">
-                  <span className="t-small">{tt(m.label) || m.key}</span>
-                  <span className="t-small t-num t-medium">{m.n}</span>
-                </div>
-              ))}
-            </div>
+            </Table>
           )}
-        </Card>
+        </Section>
+
+        <Section title={t('pil.missingDocs')}>
+          {rep.missingDocuments.length === 0 ? <Vide title={t('pil.empty')} icon="documents" /> : (
+            <>
+              {rep.missingDocuments.map((m) => <Ligne key={m.key} label={tt(m.label) || m.key}>{m.n}</Ligne>)}
+            </>
+          )}
+        </Section>
 
         {rep.refusalReasons.length > 0 && (
-          <Card title={t('pil.refusalReasons')}>
+          <Section title={t('pil.refusalReasons')}>
             <div className="col gap-3">
               {rep.refusalReasons.map((r) => (
                 <div key={r.code} className="col gap-2">
@@ -233,31 +190,15 @@ export function ReportVisa({ officeId, from, to }: { officeId: string | null; fr
                 </div>
               ))}
             </div>
-          </Card>
+          </Section>
         )}
 
         {rep.revenueByCountry.length > 0 && (
-          <Card title={t('pil.revenueByCountry')}>
-            <div className="col gap-3">
-              {rep.revenueByCountry.slice(0, 8).map((r) => (
-                <div key={r.code} className="row-between">
-                  <span className="t-small">{tt(r.label)}</span>
-                  <span className="t-small t-num t-medium">{formatMoney(r.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <Section title={t('pil.revenueByCountry')}>
+            {rep.revenueByCountry.slice(0, 8).map((r) => <Ligne key={r.code} label={tt(r.label)}>{formatMoney(r.amount)}</Ligne>)}
+          </Section>
         )}
       </div>
-    </div>
-  )
-}
-
-function Ligne({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="row-between">
-      <span className="t-small">{label}</span>
-      <span className="t-num t-medium" style={{ fontSize: 'var(--size-h4)' }}>{value}</span>
     </div>
   )
 }

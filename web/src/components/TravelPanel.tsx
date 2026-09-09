@@ -4,8 +4,9 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import type { Tone } from '@/lib/derive'
-import { Button, Card, Combobox, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Combobox, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
 import type { ComboOption } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { FileDrop } from '@/components/FileDrop'
 import {
@@ -90,8 +91,10 @@ export function TravelPanel({ caseId, clientId, officeId }: {
 
   if (!HAS_BACKEND) {
     return (
+      // Dans une fiche, l'état « non branché » tient en une ligne : le grand
+      // dessin d'alerte est pour une page entière.
       <Card title={t('voy.travel')}>
-        <Empty title={t('voy.offline')} hint={t('voy.offlineHint')} scene="alerte" />
+        <Vide icon="plane" title={t('voy.offline')} />
       </Card>
     )
   }

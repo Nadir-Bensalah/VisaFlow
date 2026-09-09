@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { loadInsurance, saveInsurance } from '@/data/cargo2'
 import type { CargoInsurance, InsuranceDraft, InsuranceStatus } from '@/data/cargo2'
@@ -78,7 +79,7 @@ export function InsuranceCard({ shipmentId }: { shipmentId: string }) {
   if (!HAS_BACKEND) {
     return (
       <Card title={t('cg2.insurance')}>
-        <Empty title={t('cg2.offline')} hint={t('cg2.offlineHint')} scene="alerte" />
+        <Vide icon="alert" title={t('cg2.offline')} />
       </Card>
     )
   }
@@ -93,14 +94,14 @@ export function InsuranceCard({ shipmentId }: { shipmentId: string }) {
       {error && <p className="t-small t-orange">{t('cg2.loadError', { msg: error })}</p>}
 
       {rows.length === 0 ? (
-        <Empty title={t('cg2.noInsurance')} hint={t('cg2.noInsuranceHint')} scene="vide" />
+        <Vide icon="shield" title={t('cg2.noInsurance')} hint={t('cg2.noInsuranceHint')} />
       ) : (
         <div className="col gap-3">
           {rows.map((r) => (
             <div key={r.id} className="row-between" style={{ alignItems: 'flex-start', gap: 'var(--sp-4)' }}>
               <div className="col gap-1 grow" style={{ minWidth: 0 }}>
                 <span className="t-small t-medium">{r.insurer ?? t('cg2.none')}</span>
-                <span className="t-caption t-tertiary t-mono">{r.policyNumber ?? '—'}</span>
+                <span className="t-caption t-tertiary t-mono">{r.policyNumber ?? '·'}</span>
                 <span className="t-caption t-tertiary">
                   {formatDate(r.startDate ?? undefined)} → {formatDate(r.endDate ?? undefined)}
                 </span>

@@ -190,7 +190,7 @@ function Line({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="row-between">
       <span className="t-small t-secondary">{label}</span>
-      <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '—'}</span>
+      <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '·'}</span>
     </div>
   )
 }

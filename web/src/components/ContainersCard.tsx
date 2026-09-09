@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Select, useToast } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Pill, Select, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { avisConteneur } from '@/lib/conteneur'
 import {
@@ -57,7 +58,7 @@ export function ContainersCard({ shipmentId }: { shipmentId: string }) {
         flush={rows.length > 0}
       >
         {rows.length === 0 ? (
-          <Empty title={t('ref.noContainer')} hint={t('ref.keyHint')} scene="aucune" />
+          <Vide icon="box" title={t('fcargo.noContainer')} hint={t('ref.keyHint')} />
         ) : (
           <div className="tablewrap">
             <table className="table">

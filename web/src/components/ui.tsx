@@ -242,7 +242,7 @@ export function Combobox({
       {open && (
         <ul className="combo__list" id={listId} role="listbox">
           {shown.length === 0 ? (
-            <li className="combo__empty">{emptyLabel ?? '—'}</li>
+            <li className="combo__empty">{emptyLabel ?? '·'}</li>
           ) : shown.map((o, i) => (
             <li
               key={o.value}

@@ -3,11 +3,13 @@ import { useStore } from '@/data/store'
 import { useI18n } from '@/i18n'
 import { Card, Pill } from '@/components/ui'
 import { Icon } from '@/components/Icon'
+import { Kpi, KpiGrid, Vide } from '@/components/page'
 import { clientName } from '@/lib/derive'
 import {
   chargeableUnits, consolidationAdvice, lotSolidarity, routeWarning,
   shipmentCounters, shipmentRoute,
 } from '@/lib/fret'
+import type { CounterLine } from '@/lib/fret'
 import { customsCompute, customsDeadlines, tceNeedsAmendment } from '@/lib/douane'
 import type { Shipment } from '@/data/types'
 
@@ -15,6 +17,10 @@ import type { Shipment } from '@/data/types'
  * Les écrans du fret réel. Ce que l'agence regarde tous les matins, c'est le
  * stationnement au port : c'est là que l'argent se perd, un jour à la fois, sur
  * trois factures différentes qu'on confond tout le temps.
+ *
+ * Chaque carte a un état vide COMPACT (`Vide`) : dans une fiche à onglets, une
+ * carte qui rend `null` laisse un onglet blanc, et une grande illustration en
+ * fait un dessin. Ni l'un ni l'autre.
  */
 
 // ------------------------------------------------------------------
@@ -40,15 +46,16 @@ export function RouteCard({ shipment }: { shipment: Shipment }) {
         ) : undefined
       }
     >
-      {warn && (
+      {/* Le transbordement manquant se signale même quand des tronçons existent. */}
+      {warn === 'transbordement_manquant' && (
         <p className="fret__warn">
           <Icon name="alert" size={14} />
-          <span>{t(warn === 'aucun_troncon' ? 'fret.warnNoLeg' : 'fret.warnTransship')}</span>
+          <span>{t('fret.warnTransship')}</span>
         </p>
       )}
 
       {route.legsCount === 0 ? (
-        <p className="t-small t-tertiary">{t('fret.noLeg')}</p>
+        <Vide icon="ship" title={t('fcargo.noLeg')} hint={t('fcargo.noLegHint')} />
       ) : (
         <ol className="fret__route">
           {route.legs.map((l) => (
@@ -80,83 +87,91 @@ export function RouteCard({ shipment }: { shipment: Shipment }) {
 }
 
 // ------------------------------------------------------------------
-// Les trois compteurs
+// Les trois compteurs, en trois tuiles
 // ------------------------------------------------------------------
 
-export function CountersCard({ shipment }: { shipment: Shipment }) {
+/**
+ * Surestaries, détention, magasinage : trois tuiles côte à côte, le délai
+ * restant en gros et en couleur. Le montant n'apparaît que si un barème a
+ * été saisi par l'agence ; aucun tarif n'est écrit ici.
+ */
+export function CountersTiles({ shipment }: { shipment: Shipment }) {
   const { db } = useStore()
   const { t, formatMoney } = useI18n()
   const lines = shipmentCounters(shipment, db.tariffs)
   const started = lines.filter((l) => l.status !== 'non_demarre')
   const total = lines.reduce((sum, l) => sum + (l.amount ?? 0), 0)
   const anyOverdue = lines.some((l) => l.status === 'en_depassement')
-
-  if (started.length === 0) {
-    return (
-      <Card title={t('fret.counters')}>
-        <p className="t-small t-tertiary">{t('fret.countersNotStarted')}</p>
-      </Card>
-    )
-  }
+  const approx = lines.filter((l) => l.outOfPeriod)
 
   return (
     <Card
       title={t('fret.counters')}
       action={
         total > 0 ? (
-          <span className={`t-medium ${anyOverdue ? 't-red' : ''}`}>{formatMoney(total)}</span>
+          <span className={`t-medium t-num ${anyOverdue ? 't-red' : ''}`}>
+            {t('fcargo.parkingTotal')} · {formatMoney(total)}
+          </span>
         ) : undefined
       }
     >
-      <div className="col gap-3">
-        {lines.map((l) => (
-          <div key={l.kind} className={`fret__counter${l.status === 'en_depassement' ? ' is-over' : ''}`}>
-            <div className="col gap-1 grow" style={{ minWidth: 0 }}>
-              <span className="t-small t-medium">{t(`fret.${l.kind}` as 'fret.surestaries')}</span>
-              {/* Qui facture quoi : c'est exactement ce qu'on confond. */}
-              <span className="t-caption t-tertiary">
-                {t(`fret.${l.kind}Hint` as 'fret.surestariesHint')}
-                {l.billedBy ? ` · ${l.billedBy}` : ''}
-              </span>
-              {l.status === 'tarif_absent' && (
-                <span className="t-caption t-orange">{t('fret.noTariffHint')}</span>
-              )}
-              {l.outOfPeriod && (
-                <span className="t-caption t-orange">{t('fret.outOfPeriod')}</span>
-              )}
-            </div>
-
-            <div className="col gap-1" style={{ textAlign: 'end', flex: 'none' }}>
-              {l.status === 'non_demarre' ? (
-                <span className="t-small t-tertiary">{t('fret.notStarted')}</span>
-              ) : (
-                <>
-                  <span className="t-small">
-                    {t('fret.elapsed', { n: l.elapsedDays ?? 0 })}
-                    {l.running ? ` · ${t('fret.running')}` : ''}
-                  </span>
-                  {l.freeDays != null && (
-                    <span className="t-caption t-tertiary">
-                      {t('fret.freeDays', { n: l.freeDays })}
-                      {l.containers && l.containers > 1 ? ` · ${t('fret.containers', { n: l.containers })}` : ''}
-                    </span>
-                  )}
-                  {l.status === 'en_depassement' ? (
-                    <span className="t-small t-medium t-red">
-                      {t('fret.overdue', { n: l.overdueDays ?? 0 })} · {formatMoney(l.amount ?? 0)}
-                    </span>
-                  ) : l.status === 'dans_les_francs' ? (
-                    <Pill tone="green">{t('fret.withinFree')}</Pill>
-                  ) : (
-                    <Pill tone="orange">{t('fret.noTariff')}</Pill>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+      {started.length === 0 ? (
+        <Vide icon="clock" title={t('fret.countersNotStarted')} />
+      ) : (
+        <div className="fc-kpis">
+          <KpiGrid>
+            {lines.map((l) => <CounterTile key={l.kind} line={l} />)}
+          </KpiGrid>
+          {/* Un barème saisi après le départ du compteur donne un montant
+              approché : on le dit sous les tuiles, pas dans le chiffre. */}
+          {approx.length > 0 && <p className="fc-kpis__foot">{t('fret.outOfPeriod')}</p>}
+        </div>
+      )}
     </Card>
+  )
+}
+
+function CounterTile({ line: l }: { line: CounterLine }) {
+  const { t, formatMoney } = useI18n()
+  const label = t(`fret.${l.kind}` as 'fret.surestaries')
+  // Qui facture quoi : c'est exactement ce qu'on confond.
+  const billed = l.billedBy ? ` · ${l.billedBy}` : ''
+
+  if (l.status === 'non_demarre') {
+    return <Kpi label={label} value={t('fcargo.notStartedValue')} hint={t('fret.notStarted')} tone="gray" icon="clock" />
+  }
+  if (l.status === 'tarif_absent') {
+    // Sans barème on montre l'horloge, jamais un montant deviné.
+    return (
+      <Kpi
+        label={label}
+        value={t('fcargo.elapsedValue', { n: l.elapsedDays ?? 0 })}
+        hint={`${t('fret.noTariff')}${billed}`}
+        tone="orange"
+        icon="alert"
+      />
+    )
+  }
+  if (l.status === 'en_depassement') {
+    return (
+      <Kpi
+        label={label}
+        value={t('fcargo.overValue', { n: l.overdueDays ?? 0 })}
+        hint={`${formatMoney(l.amount ?? 0)}${billed}`}
+        tone="red"
+        icon="alert"
+      />
+    )
+  }
+  const left = Math.max(0, (l.freeDays ?? 0) - (l.elapsedDays ?? 0))
+  return (
+    <Kpi
+      label={label}
+      value={t('fcargo.leftValue', { n: left })}
+      hint={`${t('fcargo.leftHint', { n: left, free: l.freeDays ?? 0 })}${billed}`}
+      tone={left <= 2 ? 'orange' : 'green'}
+      icon="clock"
+    />
   )
 }
 
@@ -168,7 +183,14 @@ export function LotsCard({ shipment }: { shipment: Shipment }) {
   const { db } = useStore()
   const { t, formatNumber } = useI18n()
   const lots = db.lots.filter((l) => l.shipmentId === shipment.id)
-  if (lots.length === 0) return null
+
+  if (lots.length === 0) {
+    return (
+      <Card title={t('fret.lots')}>
+        <Vide icon="grid" title={t('fcargo.noLots')} hint={t('fcargo.noLotsHint')} />
+      </Card>
+    )
+  }
 
   const sol = lotSolidarity(shipment.strippedAt, lots)
   const totalCbm = lots.reduce((s, l) => s + (l.volumeCbm ?? 0), 0)
@@ -195,9 +217,9 @@ export function LotsCard({ shipment }: { shipment: Shipment }) {
           <thead>
             <tr>
               <th>{t('cases.client')}</th>
-              <th>{t('fret.marks')}</th>
+              <th className="col-optional">{t('fret.marks')}</th>
               <th className="num">{t('ship.volume')}</th>
-              <th className="num">{t('fret.chargeable')}</th>
+              <th className="num col-optional">{t('fret.chargeable')}</th>
               <th>{t('cases.stage')}</th>
             </tr>
           </thead>
@@ -207,10 +229,10 @@ export function LotsCard({ shipment }: { shipment: Shipment }) {
                 <td className="t-small">
                   <Link to={`/clients/${l.clientId}`}>{clientName(db, l.clientId)}</Link>
                 </td>
-                <td className="t-caption t-mono t-tertiary">{l.marks ?? '—'}</td>
+                <td className="t-caption t-mono t-tertiary col-optional">{l.marks ?? '·'}</td>
                 <td className="num t-small">{formatNumber(l.volumeCbm ?? 0)} m³</td>
                 {/* La règle W/M : minimum une unité payante, même pour un carton. */}
-                <td className="num t-small">{chargeableUnits(l.weightKg, l.volumeCbm).toFixed(2)}</td>
+                <td className="num t-small col-optional">{chargeableUnits(l.weightKg, l.volumeCbm).toFixed(2)}</td>
                 <td>
                   {l.blockedReason
                     ? <Pill tone="red">{l.blockedReason}</Pill>
@@ -247,7 +269,14 @@ export function CustomsCard({ shipment }: { shipment: Shipment }) {
   const { db } = useStore()
   const { t, formatMoney, formatDate } = useI18n()
   const decl = db.declarations.find((d) => d.shipmentId === shipment.id)
-  if (!decl) return null
+
+  if (!decl) {
+    return (
+      <Card title={t('fret.customs')}>
+        <Vide icon="shield" title={t('fcargo.noDeclaration')} hint={t('fcargo.noDeclarationHint')} />
+      </Card>
+    )
+  }
 
   const articles = db.customsArticles
     .filter((a) => a.declarationId === decl.id)
@@ -295,7 +324,7 @@ export function CustomsCard({ shipment }: { shipment: Shipment }) {
           {r.air > 0 && <Line label={t('fret.air')} value={formatMoney(r.air)} />}
           <div className="row-between" style={{ paddingTop: 4 }}>
             <span className="t-small t-medium">{t('fret.totalPayable')}</span>
-            <span className="t-medium" style={{ fontSize: 18 }}>{formatMoney(r.totalPayable)}</span>
+            <span className="t-medium t-num" style={{ fontSize: 18 }}>{formatMoney(r.totalPayable)}</span>
           </div>
         </div>
 
@@ -326,7 +355,7 @@ function Line({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="row-between">
       <span className="t-small t-secondary">{label}</span>
-      <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '—'}</span>
+      <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '·'}</span>
     </div>
   )
 }
@@ -359,7 +388,13 @@ export function DouaneDocsCard({ shipment }: { shipment: Shipment }) {
   const masters = db.bls.filter((b) => b.shipmentId === shipment.id && b.kind === 'master')
   const houses = db.bls.filter((b) => b.shipmentId === shipment.id && b.kind === 'house')
 
-  if (!deadlines && !tce && masters.length === 0) return null
+  if (!deadlines && !tce && masters.length === 0) {
+    return (
+      <Card title={t('fret.douaneDocs')}>
+        <Vide icon="clock" title={t('fcargo.noDouaneDocs')} hint={t('fcargo.noDouaneDocsHint')} />
+      </Card>
+    )
+  }
 
   return (
     <Card title={t('fret.douaneDocs')}>
@@ -388,7 +423,7 @@ export function DouaneDocsCard({ shipment }: { shipment: Shipment }) {
           <div className="col gap-2">
             <span className="t-caption t-tertiary">{t('fret.tce')}</span>
             <Line
-              label={`${tce.number ?? '—'} · ${tce.bank ?? ''}`}
+              label={`${tce.number ?? '·'} · ${tce.bank ?? ''}`}
               value={
                 <Pill tone={tce.status === 'impute' ? 'green' : tce.status === 'domicilie' ? 'blue' : 'orange'}>
                   {t(`fret.tce_${tce.status}` as 'fret.tce_domicilie')}

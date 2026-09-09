@@ -5,7 +5,7 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import type { TKey } from '@/i18n'
 import { Card, Empty, Input, Segmented, Tabs } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { PageHeader } from '@/components/page'
 import { Icon } from '@/components/Icon'
 
 import { TariffsSection } from '@/components/TariffsSection'
@@ -186,7 +186,7 @@ export function Settings() {
   if (allowed.length === 0) {
     return (
       <>
-        <PageHead title={t('settings.title')} subtitle={t('settings.subtitle')} />
+        <PageHeader kicker={t('ls.famAgence')} title={t('settings.title')} subtitle={t('settings.subtitle')} />
         <Card><Empty title={t('rg.none')} hint={t('rg.noneHint')} /></Card>
       </>
     )
@@ -194,7 +194,7 @@ export function Settings() {
 
   return (
     <>
-      <PageHead title={t('settings.title')} subtitle={t('settings.subtitle')} />
+      <PageHeader kicker={t('ls.famAgence')} title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       <div className="col gap-4" style={{ marginBottom: 'var(--sp-6)' }}>
         <div className="row-between wrap gap-3">

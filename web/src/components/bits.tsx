@@ -6,18 +6,19 @@ import { useNow } from '@/data/clock'
 import { DOC_TONE, PRIORITY_TONE, STAGE_TONE, clientName, daysSince, daysUntil, progress, urgency } from '@/lib/derive'
 import { Avatar, Pill, Progress } from './ui'
 import { Icon } from './Icon'
+import { PageHeader } from './page'
 import type { ReactNode } from 'react'
+import '@/styles/listes.css'
 
+/**
+ * L'ancien en-tête des pages de l'agence, gardé comme adaptateur.
+ *
+ * Toutes les pages passent par `PageHeader` (components/page.tsx), le même
+ * dessin que la console plateforme. Les pages qui appellent encore `PageHead`
+ * gardent leur signature et reçoivent ce rendu sans être modifiées.
+ */
 export function PageHead({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
-  return (
-    <header className="page-head row-between wrap">
-      <div>
-        <h1>{title}</h1>
-        {subtitle && <p className="t-small">{subtitle}</p>}
-      </div>
-      {action}
-    </header>
-  )
+  return <PageHeader title={title} subtitle={subtitle} actions={action} />
 }
 
 export function StagePill({ stage }: { stage: Stage }) {
@@ -47,7 +48,7 @@ export function Ago({ iso }: { iso?: string }) {
   const { t } = useI18n()
   // L'horloge fait re-rendre : « il y a 3 min » ne reste pas figé.
   const now = useNow()
-  if (!iso) return <span className="t-tertiary">—</span>
+  if (!iso) return <span className="t-tertiary">·</span>
   const days = daysSince(iso)
   if (days <= 0) {
     const hours = Math.round((now - new Date(iso).getTime()) / 3600000)
@@ -60,7 +61,7 @@ export function Ago({ iso }: { iso?: string }) {
 export function Countdown({ iso }: { iso?: string }) {
   const { t } = useI18n()
   useNow()
-  if (!iso) return <span className="t-tertiary">—</span>
+  if (!iso) return <span className="t-tertiary">·</span>
   const days = daysUntil(iso)
   if (days < 0) return <span style={{ color: 'var(--red)' }}>{t('time.overdue', { n: -days })}</span>
   if (days === 0) return <span style={{ color: 'var(--orange)' }}>{t('time.today')}</span>

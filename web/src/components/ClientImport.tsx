@@ -194,7 +194,7 @@ export function ClientImport({ onClose }: { onClose: () => void }) {
                     {body.slice(0, 12).map((r, ri) => (
                       <tr key={ri}>
                         {FIELDS.filter((f) => map[f] >= 0).map((f) => (
-                          <td key={f}>{(r[map[f]] ?? '').trim() || '—'}</td>
+                          <td key={f}>{(r[map[f]] ?? '').trim() || '·'}</td>
                         ))}
                       </tr>
                     ))}

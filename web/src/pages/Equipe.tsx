@@ -4,7 +4,8 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { Avatar, Button, Card, Empty, IconButton, Pill, useToast } from '@/components/ui'
-import { Ago, PageHead } from '@/components/bits'
+import { Ago } from '@/components/bits'
+import { PageHeader } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { InviteMember } from '@/components/InviteMember'
 import { MemberPanel } from '@/components/MemberPanel'
@@ -208,7 +209,7 @@ export function Equipe() {
   if (!canSee) {
     return (
       <>
-        <PageHead title={t('eq.title')} subtitle={t('eq.subtitle')} />
+        <PageHeader kicker={t('ls.famAgence')} title={t('eq.title')} subtitle={t('eq.subtitle')} />
         <Empty title={t('access.denied')} hint={t('access.deniedHint')} scene="vide" />
       </>
     )
@@ -216,10 +217,11 @@ export function Equipe() {
 
   return (
     <>
-      <PageHead
+      <PageHeader
+        kicker={t('ls.famAgence')}
         title={t('eq.title')}
         subtitle={t('eq.subtitle')}
-        action={
+        actions={
           <span className="row gap-2">
             {HAS_BACKEND && <IconButton icon="refresh" label={t('eq.reload')} onClick={() => { retry(); void reload() }} />}
             {canInvite && <Button icon="plus" variant="primary" onClick={() => setInviting(true)}>{t('eq.invite')}</Button>}

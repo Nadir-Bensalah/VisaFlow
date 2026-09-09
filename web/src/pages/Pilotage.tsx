@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Card, Empty, Segmented, Tabs } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Button, Empty, Segmented, Tabs } from '@/components/ui'
+import { ExportButton } from '@/components/ExportButton'
+import {
+  Erreur, Kpi, KpiGrid, Ligne, PageHeader, Section, Squelette, Table, Vide, useChargement,
+} from '@/components/page'
 import { ReportVisa } from '@/components/ReportVisa'
 import { ReportCargo } from '@/components/ReportCargo'
 import { TeamReport } from '@/components/TeamReport'
@@ -14,6 +17,7 @@ import {
   loadAgencyRows, loadOfficeBoard, periodRange,
   type AgencyRow, type OfficeBoard, type PeriodKey,
 } from '@/data/pilotage'
+import '@/styles/modules.css'
 
 /* Le pilotage, sections 85 et 86.
  *
@@ -37,33 +41,18 @@ export function Pilotage() {
   const [periode, setPeriode] = useState<PeriodKey>('j30')
   const { from, to } = useMemo(() => periodRange(periode), [periode])
 
-  const [board, setBoard] = useState<OfficeBoard | null>(null)
-  const [rows, setRows] = useState<AgencyRow[]>([])
-  const [loading, setLoading] = useState(HAS_BACKEND)
-  const [error, setError] = useState<string | null>(null)
-
   // La direction seule voit la vue consolidée. Le serveur refuserait de toute
   // façon : on n'affiche pas l'onglet pour ne pas promettre ce qui sera refusé.
   const voitToutBureau = v.scope === 'agence'
 
-  const charger = useCallback(async () => {
-    if (!HAS_BACKEND) { setLoading(false); return }
-    setLoading(true)
-    try {
-      if (onglet === 'agence' && voitToutBureau) {
-        setRows(await loadAgencyRows(from, to))
-      } else if (onglet === 'bureau') {
-        setBoard(await loadOfficeBoard(v.officeId, from, to))
-      }
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [onglet, voitToutBureau, v.officeId, from, to])
-
-  useEffect(() => { void charger() }, [charger])
+  const bureau = useChargement(
+    () => (HAS_BACKEND ? loadOfficeBoard(v.officeId, from, to) : Promise.resolve(null as OfficeBoard | null)),
+    [v.officeId, from, to],
+  )
+  const agence = useChargement(
+    () => (HAS_BACKEND && voitToutBureau ? loadAgencyRows(from, to) : Promise.resolve([] as AgencyRow[])),
+    [voitToutBureau, from, to],
+  )
 
   const bureauRegarde = officeFilter
     ? db.agency.offices.find((o) => o.id === officeFilter)?.name ?? null
@@ -77,61 +66,93 @@ export function Pilotage() {
     { value: 'equipe', label: t('pil.tabTeam') },
   ]
 
+  const refreshing = (bureau.refreshing && !bureau.loading) || (agence.refreshing && !agence.loading)
+  const recharger = () => { void bureau.reload(); void agence.reload() }
+
+  const rows = useMemo(() => agence.data ?? [], [agence.data])
+  const colonnesExport = [
+    { key: 'office', label: t('pil.tabOffice'), value: (r: AgencyRow) => (r.isTotal ? t('pil.total') : r.officeName) },
+    { key: 'casesOpened', label: t('pil.casesOpened'), value: (r: AgencyRow) => r.casesOpened },
+    { key: 'casesOpenNow', label: t('pil.casesOpenNow'), value: (r: AgencyRow) => r.casesOpenNow },
+    { key: 'decided', label: t('pil.decided'), value: (r: AgencyRow) => r.decided },
+    { key: 'acceptance', label: t('pil.acceptance'), value: (r: AgencyRow) => r.acceptance },
+    { key: 'avgDecision', label: t('pil.avgDecision'), value: (r: AgencyRow) => r.avgDecisionDays },
+    { key: 'shipmentsOpen', label: t('pil.shipmentsOpenNow'), value: (r: AgencyRow) => r.shipmentsOpen },
+    { key: 'shipmentsDelivered', label: t('pil.shipmentsDelivered'), value: (r: AgencyRow) => r.shipmentsDelivered },
+    { key: 'clientsNew', label: t('pil.clientsNew'), value: (r: AgencyRow) => r.clientsNew },
+    { key: 'tasksOverdue', label: t('pil.tasksOverdue'), value: (r: AgencyRow) => r.tasksOverdue },
+    { key: 'revenue', label: t('pil.collected'), value: (r: AgencyRow) => r.revenue },
+    { key: 'outstanding', label: t('pil.outstanding'), value: (r: AgencyRow) => r.outstanding },
+  ]
+
+  const head = (
+    <PageHeader
+      kicker={t('mq.kickerPilotage')}
+      title={t('pil.title')}
+      subtitle={bureauRegarde ? `${t('mq.pilotageSub')} · ${bureauRegarde}` : t('mq.pilotageSub')}
+      refreshing={refreshing}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <Segmented
+          value={periode}
+          onChange={setPeriode}
+          label={t('pil.period')}
+          options={[
+            { value: 'mois', label: t('pil.thisMonth') },
+            { value: 'j30', label: t('pil.last30') },
+            { value: 'j90', label: t('pil.last90') },
+            { value: 'annee', label: t('pil.thisYear') },
+          ]}
+        />
+        {onglet === 'agence' && <ExportButton rows={rows} columns={colonnesExport} base="pilotage-bureaux" scope="pilotage" disabled={rows.length === 0} />}
+        <Button icon="refresh" onClick={recharger} disabled={refreshing}>{t('mq.refresh')}</Button>
+      </> : undefined}
+    />
+  )
+
   if (!HAS_BACKEND) {
     return (
       <>
-        <PageHead title={t('pil.title')} subtitle={t('pil.subtitle')} />
-        <Card><Empty title={t('pil.offline')} hint={t('pil.offlineHint')} /></Card>
+        {head}
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="journee" /></Section>
       </>
     )
   }
 
   return (
     <>
-      <PageHead
-        title={t('pil.title')}
-        subtitle={bureauRegarde ? `${t('pil.subtitle')} · ${bureauRegarde}` : t('pil.subtitle')}
-        action={
-          <Segmented
-            value={periode}
-            onChange={setPeriode}
-            label={t('pil.period')}
-            options={[
-              { value: 'mois', label: t('pil.thisMonth') },
-              { value: 'j30', label: t('pil.last30') },
-              { value: 'j90', label: t('pil.last90') },
-              { value: 'annee', label: t('pil.thisYear') },
-            ]}
-          />
-        }
-      />
+      {head}
 
-      <div style={{ marginBottom: 'var(--sp-5)' }}>
+      <div className="md-tabs">
         <Tabs value={onglet} onChange={setOnglet} options={onglets} idPrefix="pilotage" />
       </div>
 
-      {error && <Card><Empty title={t('pil.loadError', { msg: error })} /></Card>}
-
       {onglet === 'bureau' && (
-        loading ? <Card><Empty title={t('pil.loading')} /></Card>
-        : board ? <VueBureau board={board} locale={locale} />
-        : <Card><Empty title={t('pil.empty')} /></Card>
+        <>
+          {bureau.error && <Erreur message={bureau.error} retryLabel={t('mq.retry')} onRetry={() => void bureau.reload()} />}
+          {bureau.loading && !bureau.data
+            ? <><Squelette type="kpis" n={4} /><Squelette type="cartes" n={4} /></>
+            : bureau.data
+              ? <VueBureau board={bureau.data} locale={locale} />
+              : <Section><Vide title={t('pil.empty')} icon="reports" /></Section>}
+          <div style={{ marginTop: 'var(--sp-5)' }}>
+            <OverdueCard officeId={v.officeId} />
+          </div>
+        </>
       )}
 
       {onglet === 'agence' && voitToutBureau && (
-        loading ? <Card><Empty title={t('pil.loading')} /></Card>
-        : <VueAgence rows={rows} />
+        <>
+          {agence.error && <Erreur message={agence.error} retryLabel={t('mq.retry')} onRetry={() => void agence.reload()} />}
+          {agence.loading && !agence.data
+            ? <Section flush><Squelette type="table" n={5} /></Section>
+            : <VueAgence rows={rows} />}
+        </>
       )}
 
       {onglet === 'visa' && <ReportVisa officeId={v.officeId} from={from} to={to} />}
       {onglet === 'fret' && <ReportCargo officeId={v.officeId} from={from} to={to} />}
       {onglet === 'equipe' && <TeamReport from={from} to={to} />}
-
-      {onglet === 'bureau' && (
-        <div style={{ marginTop: 'var(--sp-5)' }}>
-          <OverdueCard officeId={v.officeId} />
-        </div>
-      )}
     </>
   )
 
@@ -142,32 +163,39 @@ export function Pilotage() {
     const barres = colonnes(points)
     const avecAnnee = plusieursAnnees(points)
     const maxEtape = maxDe(b.casesByStage.map((s) => s.n))
+    const serieDossiers = b.series.map((s) => s.cases)
+    const serieCargaisons = b.series.map((s) => s.shipments)
 
     return (
       <div className="stack">
-        <div className="grid grid--4">
-          <Stat label={t('pil.casesOpened')} value={formatNumber(b.casesOpened)}
-                hint={`${b.casesOpenNow} ${t('pil.casesOpenNow').toLowerCase()}`} />
-          <Stat label={t('pil.acceptance')}
-                value={b.acceptance === null ? t('pil.notEnough') : `${b.acceptance} %`}
-                hint={`${b.accepted} / ${b.decided}`} />
-          <Stat label={t('pil.avgDecision')}
-                value={b.avgDecisionDays === null ? t('pil.noValue') : t('pil.days', { n: b.avgDecisionDays })} />
+        <KpiGrid>
+          <Kpi label={t('pil.casesOpened')} value={formatNumber(b.casesOpened)} icon="cases" tone="blue"
+               spark={serieDossiers} hint={`${b.casesOpenNow} ${t('pil.casesOpenNow').toLowerCase()}`} />
+          <Kpi label={t('pil.acceptance')} icon="check" tone="green"
+               value={b.acceptance === null ? t('pil.notEnough') : `${b.acceptance} %`}
+               hint={`${b.accepted} / ${b.decided}`} />
+          <Kpi label={t('pil.avgDecision')} icon="clock"
+               value={b.avgDecisionDays === null ? t('pil.noValue') : t('pil.days', { n: b.avgDecisionDays })} />
           {b.money ? (
-            <Stat label={t('pil.collected')} value={formatMoney(b.money.collected)}
-                  hint={`${t('pil.outstanding')} ${formatMoney(b.money.outstanding)}`} />
+            <Kpi label={t('pil.collected')} value={formatMoney(b.money.collected)} icon="payments" tone="green"
+                 hint={`${t('pil.outstanding')} ${formatMoney(b.money.outstanding)}`} />
           ) : (
-            <Stat label={t('pil.tasksOverdue')} value={formatNumber(b.tasksOverdue)}
-                  hint={t('pil.hiddenMoney')} />
+            <Kpi label={t('pil.tasksOverdue')} value={formatNumber(b.tasksOverdue)} icon="alert"
+                 tone={b.tasksOverdue > 0 ? 'red' : undefined} hint={t('pil.hiddenMoney')} />
           )}
-        </div>
+          {db.agency.services.includes('fret') && (
+            <Kpi label={t('pil.shipmentsOpenNow')} value={formatNumber(b.shipmentsOpenNow)} icon="ship"
+                 spark={serieCargaisons} tone={b.shipmentsBlocked > 0 ? 'orange' : undefined}
+                 hint={`${formatNumber(b.shipmentsBlocked)} ${t('pil.shipmentsBlocked').toLowerCase()}`} />
+          )}
+        </KpiGrid>
 
         <div className="grid grid--2">
           {/* La courbe des volumes, dessinée à la main : le projet n'a pas de
               bibliothèque de graphiques, et quarante lignes suffisent. */}
-          <Card title={t('pil.volume')} className="grid__wide">
-            {points.length === 0 ? <Empty title={t('pil.empty')} /> : (
-              <div style={{ overflowX: 'auto' }}>
+          <Section title={t('pil.volume')} className="grid__wide">
+            {points.length === 0 ? <Vide title={t('pil.empty')} icon="reports" /> : (
+              <div className="md-svg">
                 <svg
                   viewBox={`0 0 ${BOITE.width} ${BOITE.height + 20}`}
                   width="100%"
@@ -194,10 +222,10 @@ export function Pilotage() {
                 </svg>
               </div>
             )}
-          </Card>
+          </Section>
 
-          <Card title={t('pil.byStage')}>
-            {b.casesByStage.length === 0 ? <Empty title={t('pil.empty')} /> : (
+          <Section title={t('pil.byStage')}>
+            {b.casesByStage.length === 0 ? <Vide title={t('pil.empty')} icon="pipeline" /> : (
               <div className="col gap-3">
                 {b.casesByStage.map((s) => (
                   <div key={s.stage} className="col gap-2">
@@ -212,56 +240,46 @@ export function Pilotage() {
                 ))}
               </div>
             )}
-          </Card>
+          </Section>
 
-          <Card title={t('pil.tabOffice')}>
-            <div className="col gap-3">
-              <Ligne label={t('pil.casesClosed')} value={formatNumber(b.casesClosed)} />
-              <Ligne label={t('pil.docsMissing')} value={formatNumber(b.docsMissing)} />
-              <Ligne label={t('pil.docsToValidate')} value={formatNumber(b.docsToValidate)} />
-              <Ligne label={t('pil.clientsNew')} value={formatNumber(b.clientsNew)} />
-              <Ligne label={t('pil.people')} value={formatNumber(b.people)} />
-            </div>
-          </Card>
+          <Section title={t('pil.tabOffice')}>
+            <Ligne label={t('pil.casesClosed')}>{formatNumber(b.casesClosed)}</Ligne>
+            <Ligne label={t('pil.docsMissing')}>{formatNumber(b.docsMissing)}</Ligne>
+            <Ligne label={t('pil.docsToValidate')}>{formatNumber(b.docsToValidate)}</Ligne>
+            <Ligne label={t('pil.clientsNew')}>{formatNumber(b.clientsNew)}</Ligne>
+            <Ligne label={t('pil.people')}>{formatNumber(b.people)}</Ligne>
+          </Section>
 
-          <Card title={t('pil.apptsPlanned')}>
-            <div className="col gap-3">
-              <Ligne label={t('pil.apptsPlanned')} value={formatNumber(b.apptsPlanned)} />
-              <Ligne label={t('pil.apptsDone')} value={formatNumber(b.apptsDone)} />
-              <Ligne label={t('pil.apptsMissed')} value={formatNumber(b.apptsMissed)} />
-              <Ligne label={t('pil.tasksOpen')} value={formatNumber(b.tasksOpen)} />
-              <Ligne label={t('pil.tasksOverdue')} value={formatNumber(b.tasksOverdue)} />
-            </div>
-          </Card>
+          <Section title={t('pil.apptsPlanned')}>
+            <Ligne label={t('pil.apptsPlanned')}>{formatNumber(b.apptsPlanned)}</Ligne>
+            <Ligne label={t('pil.apptsDone')}>{formatNumber(b.apptsDone)}</Ligne>
+            <Ligne label={t('pil.apptsMissed')}>{formatNumber(b.apptsMissed)}</Ligne>
+            <Ligne label={t('pil.tasksOpen')}>{formatNumber(b.tasksOpen)}</Ligne>
+            <Ligne label={t('pil.tasksOverdue')}>{formatNumber(b.tasksOverdue)}</Ligne>
+          </Section>
 
-          <Card title={t('pil.shipmentsOpenNow')}>
-            <div className="col gap-3">
-              <Ligne label={t('pil.shipmentsOpened')} value={formatNumber(b.shipmentsOpened)} />
-              <Ligne label={t('pil.shipmentsDelivered')} value={formatNumber(b.shipmentsDelivered)} />
-              <Ligne label={t('pil.shipmentsOpenNow')} value={formatNumber(b.shipmentsOpenNow)} />
-              <Ligne label={t('pil.shipmentsBlocked')} value={formatNumber(b.shipmentsBlocked)} />
-            </div>
-          </Card>
+          <Section title={t('pil.shipmentsOpenNow')}>
+            <Ligne label={t('pil.shipmentsOpened')}>{formatNumber(b.shipmentsOpened)}</Ligne>
+            <Ligne label={t('pil.shipmentsDelivered')}>{formatNumber(b.shipmentsDelivered)}</Ligne>
+            <Ligne label={t('pil.shipmentsOpenNow')}>{formatNumber(b.shipmentsOpenNow)}</Ligne>
+            <Ligne label={t('pil.shipmentsBlocked')}>{formatNumber(b.shipmentsBlocked)}</Ligne>
+          </Section>
 
           {b.leads && (
-            <Card title={t('pil.leads')}>
-              <div className="col gap-3">
-                <Ligne label={t('pil.leadsNew')} value={formatNumber(b.leads.new)} />
-                <Ligne label={t('pil.leadsWon')} value={formatNumber(b.leads.won)} />
-                <Ligne label={t('pil.leadsLost')} value={formatNumber(b.leads.lost)} />
-                <Ligne label={t('pil.leadsOpen')} value={formatNumber(b.leads.open)} />
-              </div>
-            </Card>
+            <Section title={t('pil.leads')}>
+              <Ligne label={t('pil.leadsNew')}>{formatNumber(b.leads.new)}</Ligne>
+              <Ligne label={t('pil.leadsWon')}>{formatNumber(b.leads.won)}</Ligne>
+              <Ligne label={t('pil.leadsLost')}>{formatNumber(b.leads.lost)}</Ligne>
+              <Ligne label={t('pil.leadsOpen')}>{formatNumber(b.leads.open)}</Ligne>
+            </Section>
           )}
 
           {b.money && (
-            <Card title={t('pil.collected')}>
-              <div className="col gap-3">
-                <Ligne label={t('pil.collected')} value={formatMoney(b.money.collected)} />
-                <Ligne label={t('pil.outstanding')} value={formatMoney(b.money.outstanding)} />
-                <Ligne label={t('pil.caseBalancesAmount')} value={formatMoney(b.money.caseBalances)} />
-              </div>
-            </Card>
+            <Section title={t('pil.collected')}>
+              <Ligne label={t('pil.collected')}>{formatMoney(b.money.collected)}</Ligne>
+              <Ligne label={t('pil.outstanding')}>{formatMoney(b.money.outstanding)}</Ligne>
+              <Ligne label={t('pil.caseBalancesAmount')}>{formatMoney(b.money.caseBalances)}</Ligne>
+            </Section>
           )}
         </div>
       </div>
@@ -269,72 +287,49 @@ export function Pilotage() {
   }
 
   function VueAgence({ rows: rs }: { rows: AgencyRow[] }) {
-    if (rs.length === 0) return <Card><Empty title={t('pil.empty')} /></Card>
+    if (rs.length === 0) return <Section><Vide title={t('pil.empty')} icon="building" /></Section>
     const argent = rs.some((r) => r.revenue !== null)
     return (
-      <Card title={t('pil.tabAgency')} flush>
-        <div className="tablewrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('pil.tabOffice')}</th>
-                <th className="num">{t('pil.casesOpened')}</th>
-                <th className="num">{t('pil.casesOpenNow')}</th>
-                <th className="num">{t('pil.decided')}</th>
-                <th className="num">{t('pil.acceptance')}</th>
-                <th className="num">{t('pil.avgDecision')}</th>
-                <th className="num">{t('pil.shipmentsOpenNow')}</th>
-                <th className="num">{t('pil.shipmentsDelivered')}</th>
-                <th className="num">{t('pil.clientsNew')}</th>
-                <th className="num">{t('pil.tasksOverdue')}</th>
-                {argent && <th className="num">{t('pil.collected')}</th>}
-                {argent && <th className="num">{t('pil.outstanding')}</th>}
+      <Section title={t('pil.tabAgency')} flush action={<span className="t-caption t-tertiary t-num">{rs.filter((r) => !r.isTotal).length}</span>}>
+        <Table>
+          <thead>
+            <tr>
+              <th>{t('pil.tabOffice')}</th>
+              <th className="num">{t('pil.casesOpened')}</th>
+              <th className="num col-optional">{t('pil.casesOpenNow')}</th>
+              <th className="num col-optional">{t('pil.decided')}</th>
+              <th className="num">{t('pil.acceptance')}</th>
+              <th className="num col-optional">{t('pil.avgDecision')}</th>
+              <th className="num col-optional">{t('pil.shipmentsOpenNow')}</th>
+              <th className="num col-optional">{t('pil.shipmentsDelivered')}</th>
+              <th className="num col-optional">{t('pil.clientsNew')}</th>
+              <th className="num col-optional">{t('pil.tasksOverdue')}</th>
+              {argent && <th className="num">{t('pil.collected')}</th>}
+              {argent && <th className="num col-optional">{t('pil.outstanding')}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rs.map((r) => (
+              <tr key={r.officeId ?? 'total'} className={r.isTotal ? 'md-total' : ''}>
+                <td className="t-medium">{r.isTotal ? t('pil.total') : r.officeName}</td>
+                <td className="num">{r.casesOpened}</td>
+                <td className="num col-optional">{r.casesOpenNow}</td>
+                <td className="num col-optional">{r.decided}</td>
+                <td className="num">{r.acceptance === null ? '·' : `${r.acceptance} %`}</td>
+                <td className="num col-optional">
+                  {r.avgDecisionDays === null ? '·' : t('pil.days', { n: r.avgDecisionDays })}
+                </td>
+                <td className="num col-optional">{r.shipmentsOpen}</td>
+                <td className="num col-optional">{r.shipmentsDelivered}</td>
+                <td className="num col-optional">{r.clientsNew}</td>
+                <td className="num col-optional">{r.tasksOverdue}</td>
+                {argent && <td className="num">{r.revenue === null ? '·' : formatMoney(r.revenue)}</td>}
+                {argent && <td className="num col-optional">{r.outstanding === null ? '·' : formatMoney(r.outstanding)}</td>}
               </tr>
-            </thead>
-            <tbody>
-              {rs.map((r) => (
-                <tr key={r.officeId ?? 'total'} style={{ fontWeight: r.isTotal ? 600 : undefined }}>
-                  <td className="t-small t-medium">{r.isTotal ? t('pil.total') : r.officeName}</td>
-                  <td className="num t-small">{r.casesOpened}</td>
-                  <td className="num t-small">{r.casesOpenNow}</td>
-                  <td className="num t-small">{r.decided}</td>
-                  <td className="num t-small">{r.acceptance === null ? '·' : `${r.acceptance} %`}</td>
-                  <td className="num t-small">
-                    {r.avgDecisionDays === null ? '·' : t('pil.days', { n: r.avgDecisionDays })}
-                  </td>
-                  <td className="num t-small">{r.shipmentsOpen}</td>
-                  <td className="num t-small">{r.shipmentsDelivered}</td>
-                  <td className="num t-small">{r.clientsNew}</td>
-                  <td className="num t-small">{r.tasksOverdue}</td>
-                  {argent && <td className="num t-small">{r.revenue === null ? '·' : formatMoney(r.revenue)}</td>}
-                  {argent && <td className="num t-small">{r.outstanding === null ? '·' : formatMoney(r.outstanding)}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+            ))}
+          </tbody>
+        </Table>
+      </Section>
     )
   }
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <div className="stat" style={{ padding: 0 }}>
-        <div className="stat__label">{label}</div>
-        <div className="stat__value">{value}</div>
-        {hint && <div className="stat__hint">{hint}</div>}
-      </div>
-    </Card>
-  )
-}
-
-function Ligne({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="row-between">
-      <span className="t-small t-secondary">{label}</span>
-      <span className="t-small t-num t-medium">{value}</span>
-    </div>
-  )
 }

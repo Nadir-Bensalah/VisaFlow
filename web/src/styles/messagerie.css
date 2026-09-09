@@ -1,0 +1,251 @@
+/* ------------------------------------------------------------------ */
+/* La messagerie de l'agence (préfixe mg-)                             */
+/* ------------------------------------------------------------------ */
+/* Ces classes appartiennent à pages/Messages.tsx, pages/Inbox.tsx et
+   components/Conversation.tsx. Le squelette à deux volets (pg-split) vient
+   de styles/page.css ; ici, ce qui fait qu'une liste de conversations et un
+   fil se lisent comme une messagerie, et pas comme deux listes côte à côte.
+   Tout est en propriétés logiques : l'arabe retourne l'écran sans effort. */
+
+/* La carte prend la hauteur qui reste sous l'en-tête, et c'est l'intérieur
+   qui défile : la liste d'un côté, le fil de l'autre. Sans cela, trente
+   conversations font une page de 2 400 px, et le composeur est hors d'atteinte. */
+.mg-card { overflow: clip; }
+.mg-split {
+  height: calc(100dvh - var(--topbar-h) - 214px);
+  min-height: 520px;
+}
+
+/* ------------------------------ La liste ------------------------------ */
+
+.mg-list { display: flex; flex-direction: column; min-height: 0; }
+.mg-list__tools {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: var(--sp-4); border-bottom: 1px solid var(--hairline);
+}
+.mg-list__tools .mg-search, .adm-barre .mg-search { height: 36px; }
+.mg-search input { min-width: 0; }
+.adm-barre .mg-search--toolbar { width: min(320px, 100%); }
+/* Six filtres dans 340 px : la barre se plie sur deux lignes plutôt que de
+   couper « Automatiques » au milieu. */
+.mg-list__tools .segmented { flex-wrap: wrap; overflow: visible; border-radius: 14px; }
+.mg-list__tools .segmented button { padding-inline: 11px; }
+.mg-list__rows { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.mg-list__foot {
+  padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--hairline);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Une conversation : avatar, nom et heure, référence et canal, aperçu et
+   pastille. Un bouton entier, pas une ligne avec un lien dedans. */
+.mg-row {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-3) var(--sp-4);
+  border: 0; border-bottom: 1px solid var(--hairline);
+  background: transparent; color: inherit; font: inherit;
+  text-align: start; cursor: pointer;
+  position: relative;
+  transition: background var(--dur-fast) var(--ease);
+}
+.mg-row:hover { background: var(--bg-hover); }
+.mg-row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.mg-row--active { background: var(--bg-active); }
+.mg-row--active::before {
+  content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px;
+  background: var(--blue);
+}
+.mg-row__main { display: flex; flex-direction: column; gap: 3px; flex: 1 1 0; min-width: 0; }
+.mg-row__top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.mg-row__name { font-weight: var(--w-medium); font-size: var(--size-small); flex: 1 1 0; min-width: 0; }
+.mg-row--due .mg-row__name { font-weight: var(--w-title); }
+.mg-row__when { flex: 0 0 auto; white-space: nowrap; }
+.mg-row__ref { display: flex; align-items: center; gap: 5px; }
+.mg-row__ref .t-mono { font-size: 11.5px; }
+.mg-row__bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.mg-row__preview { font-size: var(--size-small); color: var(--text-secondary); flex: 1 1 0; min-width: 0; }
+.mg-row--due .mg-row__preview { color: var(--text-primary); }
+.mg-row__you { color: var(--text-tertiary); }
+.mg-row__bottom .pill { flex: 0 0 auto; }
+
+/* -------------------------------- Le fil ------------------------------- */
+
+.mg-pane { min-height: 0; scroll-margin-top: calc(var(--topbar-h) + var(--sp-2)); }
+.mg-pane__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline);
+  background: var(--bg-elevated);
+}
+.mg-pane__who { display: flex; flex-direction: column; gap: 2px; flex: 1 1 0; min-width: 0; }
+.mg-pane__name { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.mg-pane__name a { color: inherit; font-size: var(--size-body); }
+.mg-pane__name a:hover { color: var(--blue); }
+.mg-pane__sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mg-pane__actions { display: flex; align-items: center; gap: var(--sp-1); flex: 0 0 auto; }
+.mg-pane__actions .btn--icon { color: var(--text-secondary); }
+.mg-pane__actions .btn--icon:hover { color: var(--text-primary); background: var(--bg-hover); }
+.mg-pane__open { margin-inline-start: var(--sp-2); white-space: nowrap; }
+.mg-pane__empty { flex: 1 1 0; display: grid; place-items: center; padding: var(--sp-8); }
+.mg-pane__head .mg-back { display: none; }
+/* La flèche pointe vers la liste : à gauche en LTR, à droite en RTL. */
+.mg-back__icon { transform: scaleX(-1); }
+[dir='rtl'] .mg-back__icon { transform: none; }
+
+/* Le fil et le composeur : le fil prend la place et défile, le composeur
+   reste collé en bas. */
+.mg-conv { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.mg-thread {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--sp-4) var(--sp-5);
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.035) 1px, transparent 0) 0 0 / 18px 18px,
+    var(--bg-white);
+}
+/* Dans une fiche, le fil ne prend pas tout l'écran : il garde une hauteur
+   raisonnable et défile dedans. */
+.mg-conv--compact .mg-thread { flex: 0 1 auto; max-height: 440px; min-height: 200px; }
+
+.mg-day { display: flex; flex-direction: column; gap: var(--sp-2); }
+.mg-day__label {
+  display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-1) 0 var(--sp-2);
+  font-size: var(--size-caption); font-weight: var(--w-medium); color: var(--text-tertiary);
+  letter-spacing: var(--track-caption);
+}
+.mg-day__label::before, .mg-day__label::after { content: ''; flex: 1 1 0; height: 1px; background: var(--hairline); }
+.mg-day__label span { flex: 0 0 auto; }
+
+.mg-bubble {
+  display: flex; flex-direction: column; gap: 4px;
+  max-width: min(78%, 620px);
+  padding: var(--sp-2) var(--sp-3) 6px;
+  border-radius: 16px;
+  font-size: var(--size-small);
+  line-height: var(--lh-body);
+  animation: mg-in var(--dur) var(--ease) backwards;
+}
+.mg-bubble--in { align-self: flex-start; background: var(--bg-white); border: 1px solid var(--hairline); border-start-start-radius: 6px; }
+.mg-bubble--out { align-self: flex-end; background: var(--tint-blue); border-end-end-radius: 6px; }
+.mg-bubble__body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mg-bubble__body[dir='rtl'] { text-align: right; }
+.mg-bubble__meta {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+.mg-bubble--out .mg-bubble__meta { justify-content: flex-end; }
+.mg-bubble__status { font-weight: var(--w-medium); }
+.mg-bubble__status--echec { color: var(--red); }
+.mg-bubble__meta .pill { padding-block: 0; font-size: 10.5px; }
+@keyframes mg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mg-bubble { animation: none; } }
+
+/* ------------------------------ Le composeur --------------------------- */
+
+.mg-composer {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--hairline); background: var(--bg-white);
+}
+.mg-composer__tools { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.mg-composer .mg-composer__select { width: auto; max-width: 100%; min-height: 32px; padding-block: 4px; font-size: var(--size-small); }
+.mg-composer__channels { flex: 0 0 auto; }
+.mg-composer__channels button { display: inline-flex; align-items: center; gap: 5px; padding-block: 4px; }
+.mg-composer__lang { display: inline-flex; align-items: center; gap: 5px; margin-inline-start: auto; white-space: nowrap; }
+.mg-composer .wawindow { margin: 0; }
+.mg-composer .mg-composer__textarea {
+  min-height: 44px; max-height: 180px; resize: none; overflow-y: auto;
+  font-size: var(--size-control);
+}
+.mg-composer__warn { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--orange); }
+.mg-composer__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.mg-composer__hints { display: inline-flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.mg-composer__manage { font-size: var(--size-caption); }
+.mg-kbd {
+  font-family: var(--font-text); font-size: 11.5px; color: var(--text-tertiary);
+  border: 1px solid var(--hairline); border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+}
+/* Un lien qu'on ne peut pas suivre tant que le message est vide. */
+.mg-btn--off { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* ------------------------------ Les demandes --------------------------- */
+
+.mg-inbox .adm-barre { gap: var(--sp-3); }
+.mg-who { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.mg-who__name { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mg-who .t-caption { white-space: nowrap; }
+.mg-table .mg-when { white-space: nowrap; }
+/* Un chiffre de tête qui n'est pas un chiffre (« pas encore mesurable »)
+   se lit en phrase, pas en 28 px. */
+.mg-kpi--text { display: contents; }
+.mg-kpi--text .adm-kpi__value { font-size: var(--size-lead); font-weight: var(--w-medium); color: var(--text-secondary); letter-spacing: 0; }
+.mg-who__unverified { color: var(--orange); }
+.mg-what { display: inline-flex; align-items: center; gap: 6px; }
+.mg-what__sub { max-width: 34ch; }
+.mg-status { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mg-actions { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.mg-table .adm-row--click:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+.mg-detail { display: flex; flex-direction: column; gap: var(--sp-4); }
+.mg-detail__head { display: flex; align-items: center; gap: var(--sp-4); }
+.mg-detail__lines { display: flex; flex-direction: column; }
+.mg-detail__lines a { color: var(--blue); }
+.mg-detail__note {
+  margin: 0; padding: var(--sp-3) var(--sp-4);
+  border-inline-start: 3px solid var(--hairline-strong);
+  background: var(--bg-sunken); border-radius: 0 var(--radius-field) var(--radius-field) 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+[dir='rtl'] .mg-detail__note { border-radius: var(--radius-field) 0 0 var(--radius-field); }
+.mg-detail__note p { margin: 0; font-size: var(--size-small); white-space: pre-wrap; }
+.mg-detail__note[dir='rtl'] p { text-align: right; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ------------------------------ Téléphone ------------------------------ */
+
+@media (max-width: 900px) {
+  /* La liste et le fil s'alternent (pg-split--open) ; chacun prend toute
+     la hauteur qui reste, le composeur reste visible au-dessus du clavier. */
+  .mg-split { height: calc(100dvh - var(--topbar-h) - var(--sp-8)); min-height: 520px; }
+  .mg-pane__head .mg-back { display: inline-flex; flex: 0 0 auto; }
+  /* Le tableau des demandes garde des colonnes lisibles et défile de côté
+     dans .adm-scroll, plutôt que de casser chaque nom mot par mot. */
+  .mg-table { min-width: 720px; }
+  .mg-thread { padding: var(--sp-3); }
+  .mg-bubble { max-width: 88%; }
+  .mg-composer__lang { display: none; }
+  .mg-composer { padding-inline: var(--sp-3); }
+  .mg-search--toolbar { width: 100%; }
+}
+
+@media (max-width: 640px) {
+  /* L'en-tête du fil sur 375 px : le nom d'abord. L'avatar, le téléphone et
+     le bouton Appeler cèdent la place ; le libellé « Ouvrir le dossier »
+     devient une icône. */
+  .mg-pane__head { gap: var(--sp-2); padding-inline: var(--sp-3); }
+  .mg-pane__head > .avatar { display: none; }
+  .mg-pane__sub > :not(:first-child) { display: none; }
+  .mg-pane__actions .mg-pane__call { display: none; }
+  .mg-pane__name a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .mg-pane__open { margin-inline-start: 0; padding: 0; width: 36px; height: 36px; border-radius: var(--radius-pill); }
+  .mg-pane__open > span { display: none; }
+  .mg-actions { flex-wrap: wrap; justify-content: flex-start; }
+  .mg-what__sub { max-width: 100%; }
+  /* Trois canaux dans 340 px : le texte suffit, l'icône cède la place. */
+  .mg-composer__channels button svg { display: none; }
+  .mg-composer__channels button { padding-inline: 12px; }
+
+  /* Le tableau des demandes devient une liste de cartes : une demande par
+     bloc, ses gestes dessous. Un tableau qui défile de côté sur un téléphone
+     cache justement la colonne des gestes. */
+  .mg-table { min-width: 0; }
+  .mg-table thead { display: none; }
+  .mg-table tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
+  .mg-table tbody tr:last-child { border-bottom: 0; }
+  .mg-table tbody td { display: block; padding: 0; border: 0; min-width: 0; }
+  .mg-table tbody tr:hover td { background: transparent; }
+  .mg-table tbody td:first-child { flex: 1 1 100%; }
+  .mg-table tbody td.mg-when { margin-inline-start: auto; font-size: var(--size-caption); }
+  .mg-table tbody td.actions { flex: 1 1 100%; text-align: start; }
+  .mg-table tbody td.actions .btn { visibility: visible; }
+  .mg-who .t-caption { white-space: normal; }
+}

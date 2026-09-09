@@ -170,7 +170,7 @@ export function kpis(db: Database, scope?: Pick<Database, 'cases' | 'documents' 
 
 export function clientName(db: Database, clientId: string): string {
   const c = db.clients.find((x) => x.id === clientId)
-  return c ? `${c.firstName} ${c.lastName}` : '—'
+  return c ? `${c.firstName} ${c.lastName}` : '·'
 }
 
 export function initials(name: string): string {
@@ -458,7 +458,7 @@ export function shipmentClientIds(db: Database, shipment: Shipment): string[] {
 /** Le libellé à afficher : un nom, ou le nombre de clients d'un groupage. */
 export function shipmentClientLabel(db: Database, shipment: Shipment): string {
   const ids = shipmentClientIds(db, shipment)
-  if (ids.length === 0) return '—'
+  if (ids.length === 0) return '·'
   if (ids.length === 1) return clientName(db, ids[0])
   return `${clientName(db, ids[0])} +${ids.length - 1}`
 }

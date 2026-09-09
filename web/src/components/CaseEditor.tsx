@@ -75,7 +75,7 @@ export function CaseEditor({ kase, onClose }: { kase: VisaCase; onClose: () => v
         </Field>
         <Field label={t('slots.consulate')}>
           <Select value={consulateId} onChange={(e) => setConsulateId(e.target.value)}>
-            <option value="">—</option>
+            <option value="">·</option>
             {consulates.map((c) => (
               <option key={c.id} value={c.id}>{tt(c.country)} · {c.city}</option>
             ))}

@@ -3,6 +3,7 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Field, Input, Modal, Pill, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { FileDrop } from '@/components/FileDrop'
 import { Icon } from '@/components/Icon'
 import {
@@ -43,11 +44,11 @@ export function ArrivalCard({ shipmentId }: { shipmentId: string }) {
         ? <Button size="sm" icon="plus" onClick={() => setAdding(true)}>{t('log.arrivalAdd')}</Button>
         : undefined}
     >
-      {!hasBackend && <p className="t-small t-tertiary">{t('log.offline')}</p>}
+      {!hasBackend && <Vide icon="alert" title={t('log.offline')} />}
       {notices.error && <p className="t-small t-red">{notices.error}</p>}
 
       {hasBackend && notices.data.length === 0 && !notices.busy && (
-        <p className="t-small t-tertiary">{t('log.arrivalNone')}</p>
+        <Vide icon="ship" title={t('fcargo.noArrival')} hint={t('fcargo.noArrivalHint')} />
       )}
 
       <div className="col gap-4">
@@ -63,7 +64,7 @@ export function ArrivalCard({ shipmentId }: { shipmentId: string }) {
                     {notice.reference ? ` · ${notice.reference}` : ''}
                   </span>
                   <span className="t-caption t-tertiary">
-                    {notice.arrivalLocation ?? '—'}
+                    {notice.arrivalLocation ?? '·'}
                     {notice.receivedAt ? ` · ${t('log.received')} ${formatDate(notice.receivedAt)}` : ''}
                   </span>
                 </div>
@@ -85,7 +86,7 @@ export function ArrivalCard({ shipmentId }: { shipmentId: string }) {
                 <Line label={t('log.storageStart')} value={formatDate(notice.storageStartDate ?? undefined)} />
                 <Line
                   label={t('log.freeDays')}
-                  value={notice.freeDays != null ? String(notice.freeDays) : '—'}
+                  value={notice.freeDays != null ? String(notice.freeDays) : '·'}
                 />
                 <Line
                   label={t('log.demurrageStart')}
@@ -131,7 +132,7 @@ function Line({ label, value }: { label: string; value?: string }) {
   return (
     <div className="row-between">
       <span className="t-caption t-tertiary">{label}</span>
-      <span className="t-small">{value && value !== '—' ? value : '—'}</span>
+      <span className="t-small">{value && value !== '·' ? value : '·'}</span>
     </div>
   )
 }

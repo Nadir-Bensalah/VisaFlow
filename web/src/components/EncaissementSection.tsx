@@ -124,8 +124,8 @@ export function EncaissementSection() {
                   <tr key={p.id} style={p.active ? undefined : { opacity: 0.55 }}>
                     <td className="t-small t-medium">{t(`pay2.k_${p.kind}` as 'pay2.k_stripe')}</td>
                     <td className="t-small">{p.label}</td>
-                    <td className="t-caption t-mono">{p.currencies.join(' · ') || '—'}</td>
-                    <td className="t-caption t-tertiary">{p.merchantRef ?? '—'}</td>
+                    <td className="t-caption t-mono">{p.currencies.join(' · ') || '·'}</td>
+                    <td className="t-caption t-tertiary">{p.merchantRef ?? '·'}</td>
                     <td>
                       <Pill tone={p.mode === 'live' ? 'green' : 'gray'}>
                         {t(`pay2.mode_${p.mode}` as 'pay2.mode_test')}

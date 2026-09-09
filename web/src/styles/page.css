@@ -1,0 +1,49 @@
+/* ------------------------------------------------------------------ */
+/* Les écrans de l'agence : ce qui s'ajoute à la boîte à outils         */
+/* ------------------------------------------------------------------ */
+/* Ces classes appartiennent à components/page.tsx. Le reste vient de
+   styles/admin.css (préfixe adm-), partagé avec la console. */
+
+/* L'en-tête d'une page de l'agence garde la respiration de l'espace agence
+   (le contenu est déjà dans .content avec son padding). */
+.pg-head { padding-top: 0; }
+
+/* L'état vide compact d'un module de fiche. */
+.pg-vide {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  padding: var(--sp-5) var(--sp-4);
+  color: var(--text-secondary);
+}
+.pg-vide__icon {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: var(--bg-sunken); color: var(--text-tertiary); margin-bottom: 4px;
+}
+.pg-vide__title { margin: 0; font-size: var(--size-small); font-weight: var(--w-medium); color: var(--text-primary); }
+.pg-vide__hint { margin: 0; font-size: var(--size-caption); color: var(--text-tertiary); max-width: 40ch; }
+.pg-vide__action { margin-top: var(--sp-2); }
+
+/* Une fiche : la colonne principale à onglets et le rail de droite, qui
+   reste sous les yeux quand la colonne défile. */
+.pg-fiche { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--sp-6); align-items: start; }
+.pg-fiche__rail { display: flex; flex-direction: column; gap: var(--sp-4); position: sticky; top: calc(var(--topbar-h) + var(--sp-4)); }
+@media (max-width: 1100px) {
+  .pg-fiche { grid-template-columns: minmax(0, 1fr); }
+  .pg-fiche__rail { position: static; }
+}
+
+/* Une liste de conversations à deux volets : la liste à gauche, le fil à droite. */
+.pg-split { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 0; min-height: 60vh; }
+.pg-split__list { border-inline-end: 1px solid var(--hairline); min-width: 0; }
+.pg-split__pane { min-width: 0; display: flex; flex-direction: column; }
+@media (max-width: 900px) {
+  .pg-split { grid-template-columns: minmax(0, 1fr); }
+  .pg-split__list { border-inline-end: 0; }
+  .pg-split--open .pg-split__list { display: none; }
+  .pg-split:not(.pg-split--open) .pg-split__pane { display: none; }
+}
+
+/* Les tableaux de l'agence sur téléphone : les colonnes secondaires
+   disparaissent (col-optional existe déjà), les gestes restent visibles. */
+@media (max-width: 640px) {
+  .adm-table .actions .btn { visibility: visible; }
+}

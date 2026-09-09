@@ -1,16 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import {
-  Button, Card, Combobox, Empty, Field, Input, Modal, Pill, Select, Tabs, useToast,
+  Button, Combobox, Empty, Field, Input, Modal, Pill, Segmented, Select, Tabs, useToast,
 } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Icon } from '@/components/Icon'
+import { ExportButton } from '@/components/ExportButton'
+import {
+  Erreur, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Toolbar, Vide, useChargement,
+} from '@/components/page'
+import { HAS_BACKEND } from '@/lib/supabase'
 import {
   CARRIER_KINDS, DIRECTORY_KINDS, archiveDirectoryEntry, entryLabel,
   listCountries, listDirectory, saveDirectoryEntry,
 } from '@/data/fretref'
 import type { CarrierKind, Country, DirectoryEntry, DirectoryKind } from '@/data/fretref'
+import '@/styles/modules.css'
 
 /**
  * Les répertoires de l'agence.
@@ -38,130 +44,221 @@ const CHAMPS: Record<DirectoryKind, (keyof DirectoryEntry)[]> = {
   customs_brokers: ['companyName', 'customsCode', 'contactName', 'phone', 'email', 'address'],
 }
 
+type Etat = 'actives' | 'inactives' | 'toutes'
+
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+const digits = (s?: string | null) => (s ?? '').replace(/[^0-9]/g, '')
+
 export function Directory() {
   const { db } = useStore()
   const v = useVisible()
   const { t } = useI18n()
   const toast = useToast()
   const [kind, setKind] = useState<DirectoryKind>('suppliers')
-  const [rows, setRows] = useState<DirectoryEntry[]>([])
   const [query, setQuery] = useState('')
+  const [etat, setEtat] = useState<Etat>('actives')
   const [editing, setEditing] = useState<DirectoryEntry | null>(null)
-  const [countries, setCountries] = useState<Country[]>([])
 
   const agencyId = db.agency.id
 
-  const reload = useCallback(() => {
-    listDirectory(kind, agencyId).then(setRows).catch(() => setRows([]))
-  }, [kind, agencyId])
+  const { data, loading, refreshing, error, reload } = useChargement(
+    () => listDirectory(kind, agencyId),
+    [kind, agencyId],
+  )
+  const rows = useMemo(() => data ?? [], [data])
+  // Les pays ne bloquent jamais l'écran : sans eux, le champ reste une liste vide.
+  const pays = useChargement(() => listCountries().catch(() => [] as Country[]))
+  const countries = useMemo(() => pays.data ?? [], [pays.data])
 
-  useEffect(() => { reload() }, [reload])
-  useEffect(() => { listCountries().then(setCountries).catch(() => setCountries([])) }, [])
+  const compte = useMemo(() => {
+    const actives = rows.filter((e) => e.active !== false)
+    const paysSet = new Set(rows.map((e) => e.country).filter(Boolean))
+    const avecContact = rows.filter((e) => e.phone || e.email || e.whatsapp)
+    return { actives: actives.length, inactives: rows.length - actives.length, pays: paysSet.size, contact: avecContact.length }
+  }, [rows])
 
   // La recherche se fait sur ce qui est déjà chargé : l'écran est ouvert, les
   // fiches sont là, un aller-retour serveur par lettre tapée n'apporte rien.
   const shown = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((e) =>
-      `${entryLabel(e)} ${e.contactName ?? ''} ${e.city ?? ''} ${e.country ?? ''} ${e.customsCode ?? ''} ${e.taxId ?? ''}`
-        .toLowerCase().includes(q))
-  }, [rows, query])
+    const q = norm(query.trim())
+    return rows.filter((e) => {
+      const ok = etat === 'toutes' ? true : etat === 'actives' ? e.active !== false : e.active === false
+      if (!ok) return false
+      if (!q) return true
+      return norm(`${entryLabel(e)} ${e.contactName ?? ''} ${e.city ?? ''} ${e.country ?? ''} ${e.customsCode ?? ''} ${e.taxId ?? ''} ${e.phone ?? ''} ${e.email ?? ''}`).includes(q)
+    })
+  }, [rows, query, etat])
 
   const writable = v.can('shipment:write')
 
-  return (
-    <>
-      <PageHead
-        title={t('ref.title')}
-        subtitle={t('ref.subtitle')}
-        action={writable ? (
+  const colonnesExport = [
+    { key: 'name', label: kind === 'carriers' ? t('ref.name') : t('ref.companyName'), value: (e: DirectoryEntry) => entryLabel(e) },
+    { key: 'kind', label: t('ref.carrierKind'), value: (e: DirectoryEntry) => (e.kind ? t(`ref.k.${e.kind}` as 'ref.k.compagnie_maritime') : '') },
+    { key: 'contact', label: t('ref.contactName'), value: (e: DirectoryEntry) => e.contactName },
+    { key: 'country', label: t('ref.country'), value: (e: DirectoryEntry) => e.country },
+    { key: 'city', label: t('ref.city'), value: (e: DirectoryEntry) => e.city },
+    { key: 'address', label: t('ref.address'), value: (e: DirectoryEntry) => e.address },
+    { key: 'phone', label: t('ref.phone'), value: (e: DirectoryEntry) => e.phone },
+    { key: 'whatsapp', label: t('ref.whatsapp'), value: (e: DirectoryEntry) => e.whatsapp },
+    { key: 'email', label: t('ref.email'), value: (e: DirectoryEntry) => e.email },
+    { key: 'taxId', label: t('ref.taxId'), value: (e: DirectoryEntry) => e.taxId },
+    { key: 'customs', label: t('ref.customsCode'), value: (e: DirectoryEntry) => e.customsCode },
+    { key: 'active', label: t('ref.active'), value: (e: DirectoryEntry) => (e.active !== false ? t('misc.yes') : t('misc.no')) },
+  ]
+
+  const libelleOnglet = (k: DirectoryKind) => t(`ref.${k === 'customs_brokers' ? 'brokers' : k}` as 'ref.suppliers')
+
+  const head = (
+    <PageHeader
+      kicker={t('mq.kickerCargo')}
+      title={t('ref.title')}
+      subtitle={t('mq.directorySub')}
+      refreshing={refreshing && !loading}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <ExportButton rows={shown} columns={colonnesExport} base={`repertoire-${kind}`} scope="repertoires" disabled={shown.length === 0} />
+        <Button icon="refresh" onClick={() => void reload()} disabled={refreshing}>{t('mq.refresh')}</Button>
+        {writable && (
           <Button variant="primary" icon="plus" onClick={() => setEditing({ active: true })}>
             {t('ref.newEntry')}
           </Button>
-        ) : undefined}
-      />
-
-      <Tabs
-        value={kind}
-        idPrefix="directory"
-        onChange={(k) => { setKind(k); setQuery('') }}
-        options={DIRECTORY_KINDS.map((k) => ({
-          value: k,
-          label: t(`ref.${k === 'customs_brokers' ? 'brokers' : k}` as 'ref.suppliers'),
-        }))}
-      />
-
-      <Card flush>
-        <div className="row" style={{ padding: 'var(--sp-4) var(--sp-6)', borderBottom: '1px solid var(--hairline)' }}>
-          <Input
-            aria-label={t('ref.search')}
-            placeholder={t('ref.search')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ maxWidth: 280 }}
-          />
-        </div>
-
-        {shown.length === 0 ? (
-          <Empty
-            title={t('ref.none')}
-            hint={t('ref.noneHint')}
-            scene="equipe"
-            action={writable ? (
-              <Button variant="primary" icon="plus" onClick={() => setEditing({ active: true })}>
-                {t('ref.newEntry')}
-              </Button>
-            ) : undefined}
-          />
-        ) : (
-          <div className="tablewrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{kind === 'carriers' ? t('ref.name') : t('ref.companyName')}</th>
-                  <th className="col-optional">{t('ref.contactName')}</th>
-                  <th>{t('ref.country')}</th>
-                  <th className="col-optional">{t('ref.phone')}</th>
-                  <th className="col-optional">{t('ref.email')}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <span className="col">
-                        <span className="t-medium">{entryLabel(e)}</span>
-                        {kind === 'carriers' && e.kind && (
-                          <span className="t-caption t-tertiary">
-                            {t(`ref.k.${e.kind}` as 'ref.k.compagnie_maritime')}
-                          </span>
-                        )}
-                        {kind === 'customs_brokers' && e.customsCode && (
-                          <span className="t-caption t-tertiary t-mono">{e.customsCode}</span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="t-small col-optional">{e.contactName ?? '·'}</td>
-                    <td className="t-small t-mono">{e.country ?? '·'}</td>
-                    <td className="t-small t-mono col-optional">{e.phone ?? '·'}</td>
-                    <td className="t-small col-optional">{e.email ?? '·'}</td>
-                    <td className="num">
-                      <span className="row gap-2" style={{ justifyContent: 'flex-end' }}>
-                        {e.active === false && <Pill tone="gray">{t('ref.inactive')}</Pill>}
-                        {writable && (
-                          <Button size="sm" icon="edit" onClick={() => setEditing(e)}>{t('crud.edit')}</Button>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
-      </Card>
+      </> : undefined}
+    />
+  )
+
+  if (!HAS_BACKEND) {
+    return (
+      <>
+        {head}
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="cargo" /></Section>
+      </>
+    )
+  }
+
+  return (
+    <>
+      {head}
+
+      <div className="md-tabs">
+        <Tabs
+          value={kind}
+          idPrefix="directory"
+          onChange={(k) => { setKind(k); setQuery('') }}
+          options={DIRECTORY_KINDS.map((k) => ({ value: k, label: libelleOnglet(k) }))}
+        />
+      </div>
+
+      {error && <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />}
+
+      {loading && !data ? (
+        <>
+          <Squelette type="kpis" n={4} />
+          <Section flush><Squelette type="table" n={6} /></Section>
+        </>
+      ) : (
+        <>
+          <KpiGrid>
+            <Kpi label={t('mq.dirActive')} value={compte.actives} icon="clients" tone="blue" hint={libelleOnglet(kind)} />
+            <Kpi label={t('mq.dirInactive')} value={compte.inactives} icon="lock" hint={t('mq.dirInactiveHint')} />
+            <Kpi label={t('mq.dirCountries')} value={compte.pays} icon="portal" hint={t('mq.dirCountriesHint')} />
+            <Kpi label={t('mq.dirWithContact')} value={compte.contact} icon="phone"
+                 tone={rows.length > 0 && compte.contact < rows.length ? 'orange' : undefined}
+                 hint={t('mq.dirWithContactHint', { n: rows.length })} />
+          </KpiGrid>
+
+          {rows.length === 0 ? (
+            <Section>
+              <Empty
+                title={t('ref.none')}
+                hint={t('ref.noneHint')}
+                scene="equipe"
+                action={writable ? (
+                  <Button variant="primary" icon="plus" onClick={() => setEditing({ active: true })}>
+                    {t('ref.newEntry')}
+                  </Button>
+                ) : undefined}
+              />
+            </Section>
+          ) : (
+            <Section flush>
+              <Toolbar right={<><span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: shown.length, total: rows.length })}</span><Input
+                  className="md-search"
+                  aria-label={t('ref.search')}
+                  placeholder={t('ref.search')}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                /></>}>
+                <Segmented<Etat>
+                  value={etat}
+                  onChange={setEtat}
+                  label={t('ref.active')}
+                  options={[
+                    { value: 'actives', label: `${t('ref.active')} · ${compte.actives}` },
+                    { value: 'inactives', label: `${t('ref.inactive')} · ${compte.inactives}` },
+                    { value: 'toutes', label: `${t('mq.all')} · ${rows.length}` },
+                  ]}
+                />
+              </Toolbar>
+
+              {shown.length === 0 ? (
+                <Vide title={t('mq.nothingInFilter')} hint={t('mq.nothingInFilterHint')} icon="search" />
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{kind === 'carriers' ? t('ref.name') : t('ref.companyName')}</th>
+                      <th className="col-optional">{t('ref.contactName')}</th>
+                      <th>{t('ref.country')}</th>
+                      <th className="col-optional">{t('ref.phone')}</th>
+                      <th className="col-optional">{t('ref.email')}</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((e) => {
+                      const wa = digits(e.whatsapp ?? e.phone)
+                      return (
+                        <tr key={e.id} className={`adm-row--click ${e.active === false ? 'adm-row--off' : ''}`} onClick={() => writable && setEditing(e)}>
+                          <td>
+                            <div className="adm-cell-main">
+                              <span className="row gap-2">
+                                {entryLabel(e)}
+                                {e.active === false && <Pill tone="gray">{t('ref.inactive')}</Pill>}
+                              </span>
+                              {kind === 'carriers' && e.kind && (
+                                <span className="t-caption">{t(`ref.k.${e.kind}` as 'ref.k.compagnie_maritime')}</span>
+                              )}
+                              {kind === 'customs_brokers' && e.customsCode && (
+                                <span className="t-caption t-mono">{e.customsCode}</span>
+                              )}
+                              {e.city && kind !== 'carriers' && kind !== 'customs_brokers' && (
+                                <span className="t-caption">{e.city}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="col-optional">{e.contactName ?? <span className="t-tertiary">·</span>}</td>
+                          <td className="t-mono">{e.country ?? <span className="t-tertiary">·</span>}</td>
+                          <td className="t-mono col-optional">{e.phone ?? <span className="t-tertiary">·</span>}</td>
+                          <td className="col-optional">{e.email ?? <span className="t-tertiary">·</span>}</td>
+                          <td className="actions" onClick={(ev) => ev.stopPropagation()}>
+                            {e.phone && <a className="btn btn--secondary btn--sm" href={`tel:${e.phone.replace(/\s/g, '')}`} title={t('crm.call')} aria-label={t('crm.call')}><Icon name="phone" size={14} /></a>}
+                            {wa && <a className="btn btn--secondary btn--sm" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" title={t('crm.whatsappOpen')} aria-label={t('crm.whatsappOpen')}><Icon name="whatsapp" size={14} /></a>}
+                            {e.email && <a className="btn btn--secondary btn--sm" href={`mailto:${e.email}`} title={t('ref.email')} aria-label={t('ref.email')}><Icon name="mail" size={14} /></a>}
+                            {writable && (
+                              <Button size="sm" icon="edit" onClick={() => setEditing(e)}>{t('crud.edit')}</Button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </Table>
+              )}
+            </Section>
+          )}
+        </>
+      )}
 
       {editing && (
         <EntryEditor
@@ -170,7 +267,7 @@ export function Directory() {
           countries={countries}
           value={editing}
           onClose={() => setEditing(null)}
-          onSaved={(message) => { setEditing(null); toast(message); reload() }}
+          onSaved={(message) => { setEditing(null); toast(message); void reload() }}
         />
       )}
     </>

@@ -1,0 +1,83 @@
+/* ------------------------------------------------------------------ */
+/* La fiche d'une cargaison (préfixe fc-)                              */
+/* ------------------------------------------------------------------ */
+/* Importée par pages/ShipmentDetail.tsx. La grille à deux colonnes et le
+   rail collant viennent de styles/page.css (pg-fiche) ; ici, seulement ce
+   que la fiche ajoute : le fil d'Ariane, la barre d'onglets, la frise des
+   étapes, les trois tuiles de stationnement et le rail resserré. */
+
+/* Le fil d'Ariane : un retour vers la liste, sans en faire un titre. */
+.fc-crumb {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--size-small); color: var(--text-secondary);
+  margin-bottom: var(--sp-3);
+}
+.fc-crumb svg { transform: rotate(180deg); }
+[dir='rtl'] .fc-crumb svg { transform: none; }
+
+/* Le sous-titre de l'en-tête porte une pastille : elle s'aligne sur le texte. */
+.fc-sub { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+
+/* La barre d'onglets : une carte basse, les onglets défilent sur téléphone
+   sans jamais faire déborder la page. */
+.fc-tabs {
+  background: var(--bg-white); border: 1px solid var(--hairline);
+  border-radius: var(--radius-card); margin-bottom: var(--sp-4);
+  overflow: hidden;
+}
+.fc-tabs .tabs { border-bottom: 0; }
+.fc-tabs .tab { padding: var(--sp-4) 0; }
+
+/* Le panneau d'un onglet : une colonne de cartes, sans le double cadre. */
+.fc-panel { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.fc-panel > .card { margin: 0; }
+
+/* La frise des étapes : dix segments qui se remplissent, et qui passent à la
+   ligne sur un petit écran au lieu de déborder. */
+.fc-steps { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-2); list-style: none; margin: 0; padding: 0; }
+.fc-step { flex: 1 1 110px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fc-step__bar { height: 4px; border-radius: 2px; background: var(--hairline); }
+.fc-step--done .fc-step__bar { background: var(--green); }
+.fc-step--current .fc-step__bar { background: var(--blue); box-shadow: 0 0 0 3px var(--tint-blue); }
+.fc-step__label { font-size: var(--size-caption); color: var(--text-tertiary); line-height: 1.3; }
+.fc-step--done .fc-step__label { color: var(--text-secondary); }
+.fc-step--current .fc-step__label { color: var(--text-primary); font-weight: var(--w-medium); }
+.fc-step__meta { font-size: 11.5px; color: var(--text-tertiary); line-height: 1.3; }
+
+/* Les trois tuiles de stationnement : trois colonnes tenues, une seule sur
+   téléphone ; la grille des chiffres de tête n'a pas de marge basse ici. */
+.fc-kpis .adm-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 0; }
+.fc-kpis .adm-kpi__value { font-size: 24px; }
+.fc-kpis__foot { margin-top: var(--sp-3); font-size: var(--size-caption); color: var(--text-tertiary); }
+@media (max-width: 560px) {
+  .fc-kpis .adm-kpis { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Le rail : trois cartes courtes, lignes serrées, chiffres tabulaires. */
+.fc-rail .card__head { padding-bottom: var(--sp-3); }
+.fc-rail .card__body { padding: var(--sp-2) var(--sp-5) var(--sp-5); }
+.fc-rail .adm-ligne { padding: 8px 0; }
+.fc-rail .adm-ligne__label { color: var(--text-secondary); }
+.fc-rail__cta { margin-top: var(--sp-4); }
+.fc-rail__client { display: flex; align-items: center; gap: var(--sp-3); padding-top: var(--sp-3); }
+.fc-rail__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-4); }
+.fc-rail__actions .btn { flex: 1 1 auto; justify-content: center; }
+.fc-rail__link { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--sp-3); font-size: var(--size-small); }
+
+/* La liste des pièces attendues : le dépôt de fichier passe sous le libellé
+   sur téléphone, le bouton reste visible. */
+.fc-docs .list__row { align-items: flex-start; }
+@media (max-width: 640px) {
+  .fc-docs .list__row { flex-wrap: wrap; }
+  /* Le libellé et son dépôt prennent toute la ligne ; la pastille et le
+     bouton passent dessous au lieu d'écraser le texte. */
+  .fc-docs .list__row > .col.grow { flex: 1 1 100%; }
+}
+
+/* Sur téléphone : les gestes de l'en-tête passent en pleine largeur, et le
+   rail suit la colonne principale (page.css l'a déjà rendu statique). */
+@media (max-width: 640px) {
+  .fc-head .adm-page__actions { width: 100%; }
+  .fc-head .adm-page__actions .btn { flex: 1 1 calc(50% - var(--sp-2)); justify-content: center; }
+  .fc-rail .card__body { padding: var(--sp-2) var(--sp-4) var(--sp-4); }
+}

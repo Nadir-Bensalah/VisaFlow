@@ -5,14 +5,18 @@ import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { clientName } from '@/lib/derive'
 import type { Tone } from '@/lib/derive'
-import { Button, Card, Combobox, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Button, Combobox, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
+import { ExportButton } from '@/components/ExportButton'
+import {
+  Erreur, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Toolbar, Vide, useChargement,
+} from '@/components/page'
 import { LineForm } from '@/pages/Quotes'
 import {
   addInvoiceLine, archiveInvoiceLine, collectOnInvoice, createInvoice,
   loadInvoiceLines, loadInvoices, loadServices, setInvoiceStatus,
 } from '@/data/commerce'
 import type { DocLine, Invoice, InvoiceStatus, Service } from '@/data/commerce'
+import '@/styles/modules.css'
 
 /**
  * Les factures.
@@ -34,6 +38,7 @@ const TONE: Record<InvoiceStatus, Tone> = {
 const METHODS = ['especes', 'virement', 'carte', 'cheque'] as const
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 const daysLate = (due: string | null): number => {
   if (!due) return 0
@@ -41,152 +46,212 @@ const daysLate = (due: string | null): number => {
   return Math.max(0, Math.floor(ms / 86_400_000))
 }
 
+type Vue = 'du' | 'retard' | 'reglees' | 'tous'
+
 export function Invoices() {
   const { db } = useStore()
   const v = useVisible()
   const { t, formatMoney, formatDate } = useI18n()
+  const toast = useToast()
 
-  const [rows, setRows] = useState<Invoice[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<'du' | 'reglees' | 'tous'>('du')
+  const [view, setView] = useState<Vue>('du')
+  const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
-    if (!HAS_BACKEND) return
-    try {
-      const [f, s] = await Promise.all([loadInvoices(), loadServices()])
-      setRows(f)
-      setServices(s.filter((x) => x.active))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }, [])
+  const canWrite = v.can('payment:write')
 
-  useEffect(() => { void reload() }, [reload])
-
-  const shown = useMemo(() => rows.filter((f) =>
-    view === 'tous' ? true
-      : view === 'du' ? f.balanceDue > 0 && f.status !== 'annulee'
-        : f.status === 'reglee',
-  ), [rows, view])
+  const { data, loading, refreshing, error, reload } = useChargement(async () => {
+    if (!HAS_BACKEND) return { rows: [] as Invoice[], services: [] as Service[] }
+    const [rows, s] = await Promise.all([loadInvoices(), loadServices()])
+    return { rows, services: s.filter((x) => x.active) }
+  })
+  const rows = useMemo(() => data?.rows ?? [], [data])
+  const services = useMemo(() => data?.services ?? [], [data])
 
   // Les compteurs se lisent sur ce que l'écran a chargé, sans recalcul métier :
   // ce sont des sommes de colonnes déjà arrêtées par le serveur.
-  const totals = useMemo(() => {
-    const live = rows.filter((f) => f.status !== 'annulee')
-    return {
-      due: live.reduce((s, f) => s + f.balanceDue, 0),
-      collected: live.reduce((s, f) => s + f.paidAmount, 0),
-      late: live.filter((f) => f.status === 'en_retard').length,
+  const compte = useMemo(() => {
+    const c = { du: 0, duN: 0, encaisse: 0, retard: 0, retardMontant: 0, brouillons: 0, reglees: 0 }
+    for (const f of rows) {
+      if (f.status === 'annulee') continue
+      if (f.balanceDue > 0) { c.du += f.balanceDue; c.duN++ }
+      c.encaisse += f.paidAmount
+      if (f.status === 'en_retard') { c.retard++; c.retardMontant += f.balanceDue }
+      if (f.status === 'brouillon') c.brouillons++
+      if (f.status === 'reglee') c.reglees++
     }
+    return c
   }, [rows])
 
+  const nom = useCallback((id: string | null) => (id ? clientName(db, id) : ''), [db])
+
+  const shown = useMemo(() => {
+    const n = norm(q.trim())
+    return rows.filter((f) => {
+      const ok = view === 'tous' ? true
+        : view === 'du' ? f.balanceDue > 0 && f.status !== 'annulee'
+          : view === 'retard' ? f.status === 'en_retard'
+            : f.status === 'reglee'
+      if (!ok) return false
+      if (!n) return true
+      return norm(`${f.number} ${nom(f.clientId)}`).includes(n)
+    })
+  }, [rows, view, q, nom])
+
   const open = rows.find((f) => f.id === openId) ?? null
+
+  const guardRow = async (job: () => Promise<void>) => {
+    try { await job(); await reload() } catch (e) { toast((e as Error).message) }
+  }
+
+  const colonnesExport = [
+    { key: 'number', label: t('com.quoteNumber'), value: (f: Invoice) => f.number },
+    { key: 'client', label: t('com.client'), value: (f: Invoice) => nom(f.clientId) },
+    { key: 'status', label: t('com.status'), value: (f: Invoice) => t(`com.invStatus${cap(f.status)}` as 'com.invStatusEmise') },
+    { key: 'issue', label: t('com.issueDate'), value: (f: Invoice) => f.issueDate },
+    { key: 'due', label: t('com.dueDate'), value: (f: Invoice) => f.dueDate },
+    { key: 'total', label: t('com.total'), value: (f: Invoice) => f.total },
+    { key: 'paid', label: t('com.paidAmount'), value: (f: Invoice) => f.paidAmount },
+    { key: 'balance', label: t('com.balanceDue'), value: (f: Invoice) => f.balanceDue },
+    { key: 'currency', label: t('com.currency'), value: (f: Invoice) => f.currency },
+  ]
+
+  const head = (
+    <PageHeader
+      kicker={t('mq.kickerMoney')}
+      title={t('com.invoices')}
+      subtitle={t('mq.invoicesSub')}
+      refreshing={refreshing && !loading}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <ExportButton rows={shown} columns={colonnesExport} base="factures" scope="factures" disabled={shown.length === 0} />
+        <Button icon="refresh" onClick={() => void reload()} disabled={refreshing}>{t('mq.refresh')}</Button>
+        {canWrite && <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newInvoice')}</Button>}
+      </> : undefined}
+    />
+  )
 
   if (!HAS_BACKEND) {
     return (
       <>
-        <PageHead title={t('com.invoices')} subtitle={t('com.invoicesSub')} />
-        <Card><Empty title={t('com.offline')} hint={t('com.offlineHint')} scene="alerte" /></Card>
+        {head}
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="vide" /></Section>
       </>
     )
   }
 
   return (
     <>
-      <PageHead
-        title={t('com.invoices')}
-        subtitle={t('com.invoicesSub')}
-        action={v.can('payment:write')
-          ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newInvoice')}</Button>
-          : undefined}
-      />
+      {head}
 
-      {error && <Card><p className="t-small t-orange">{t('com.loadError', { msg: error })}</p></Card>}
+      {error && <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />}
 
-      <div className="grid grid--3" style={{ marginBottom: 'var(--sp-5)' }}>
-        <Card><div className="stat" style={{ padding: 0 }}>
-          <div className="stat__label">{t('com.balanceDue')}</div>
-          <div className="stat__value" style={{ color: totals.due > 0 ? 'var(--orange)' : undefined }}>
-            {formatMoney(totals.due)}
-          </div>
-        </div></Card>
-        <Card><div className="stat" style={{ padding: 0 }}>
-          <div className="stat__label">{t('com.paidAmount')}</div>
-          <div className="stat__value">{formatMoney(totals.collected)}</div>
-        </div></Card>
-        <Card><div className="stat" style={{ padding: 0 }}>
-          <div className="stat__label">{t('com.invStatusEn_retard')}</div>
-          <div className="stat__value" style={{ color: totals.late > 0 ? 'var(--red)' : undefined }}>{totals.late}</div>
-        </div></Card>
-      </div>
+      {loading && !data ? (
+        <>
+          <Squelette type="kpis" n={4} />
+          <Section flush><Squelette type="table" n={6} /></Section>
+        </>
+      ) : (
+        <>
+          <KpiGrid>
+            <Kpi label={t('mq.invUnpaid')} value={formatMoney(compte.du)} icon="payments"
+                 tone={compte.du > 0 ? 'orange' : undefined}
+                 hint={t('mq.invUnpaidHint', { n: compte.duN })} />
+            <Kpi label={t('com.invStatusEn_retard')} value={compte.retard} icon="alert"
+                 tone={compte.retard > 0 ? 'red' : undefined}
+                 hint={compte.retard > 0 ? t('mq.forAmount', { amount: formatMoney(compte.retardMontant) }) : t('mq.invNoLate')} />
+            <Kpi label={t('mq.invCollected')} value={formatMoney(compte.encaisse)} icon="check" tone="green"
+                 hint={t('mq.invCollectedHint', { n: compte.reglees })} />
+            <Kpi label={t('com.invStatusBrouillon')} value={compte.brouillons} icon="edit"
+                 hint={t('mq.invDraftHint')} />
+          </KpiGrid>
 
-      <Card flush>
-        <div className="row" style={{ padding: 'var(--sp-4) var(--sp-6)', borderBottom: '1px solid var(--hairline)' }}>
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'du', label: t('com.balanceDue') },
-              { value: 'reglees', label: t('com.invStatusReglee') },
-              { value: 'tous', label: t('com.all') },
-            ]}
-          />
-        </div>
+          {rows.length === 0 ? (
+            <Section>
+              <Empty
+                title={t('com.noInvoices')}
+                hint={t('com.noInvoicesHint')}
+                scene="vide"
+                action={canWrite ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newInvoice')}</Button> : undefined}
+              />
+            </Section>
+          ) : (
+            <Section flush>
+              <Toolbar right={<><span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: shown.length, total: rows.length })}</span><Input className="md-search" value={q} onChange={(e) => setQ(e.target.value)}
+                       placeholder={t('mq.quotesSearch')} aria-label={t('mq.search')} /></>}>
+                <Segmented<Vue>
+                  value={view}
+                  onChange={setView}
+                  label={t('com.status')}
+                  options={[
+                    { value: 'du', label: `${t('com.balanceDue')} · ${compte.duN}` },
+                    { value: 'retard', label: `${t('com.invStatusEn_retard')} · ${compte.retard}` },
+                    { value: 'reglees', label: `${t('com.invStatusReglee')} · ${compte.reglees}` },
+                    { value: 'tous', label: `${t('com.all')} · ${rows.length}` },
+                  ]}
+                />
+              </Toolbar>
 
-        {shown.length === 0 ? (
-          <Empty
-            title={t('com.noInvoices')}
-            hint={t('com.noInvoicesHint')}
-            action={v.can('payment:write')
-              ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newInvoice')}</Button>
-              : undefined}
-          />
-        ) : (
-          <div className="tablewrap">
-            <table className="table table--clickable">
-              <thead>
-                <tr>
-                  <th>{t('com.quoteNumber')}</th>
-                  <th>{t('com.client')}</th>
-                  <th>{t('com.status')}</th>
-                  <th>{t('com.dueDate')}</th>
-                  <th className="num">{t('com.total')}</th>
-                  <th className="num">{t('com.paidAmount')}</th>
-                  <th className="num">{t('com.balanceDue')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((f) => (
-                  <tr key={f.id} onClick={() => setOpenId(f.id)}>
-                    <td className="t-mono t-small t-medium">{f.number}</td>
-                    <td className="t-small">{f.clientId ? clientName(db, f.clientId) : '...'}</td>
-                    <td>
-                      <Pill tone={TONE[f.status]} dot>
-                        {t(`com.invStatus${cap(f.status)}` as 'com.invStatusEmise')}
-                      </Pill>
-                    </td>
-                    <td className="t-caption t-tertiary">
-                      {f.dueDate ? formatDate(f.dueDate) : '...'}
-                      {f.status === 'en_retard' && (
-                        <> <span className="t-red">{t('com.overdueBy', { n: daysLate(f.dueDate) })}</span></>
-                      )}
-                    </td>
-                    <td className="num t-small">{formatMoney(f.total, f.currency)}</td>
-                    <td className="num t-small t-tertiary">{formatMoney(f.paidAmount, f.currency)}</td>
-                    <td className="num t-medium" style={{ color: f.balanceDue > 0 ? 'var(--orange)' : undefined }}>
-                      {formatMoney(f.balanceDue, f.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+              {shown.length === 0 ? (
+                <Vide
+                  title={view === 'retard' && compte.retard === 0 ? t('mq.invNoLate') : t('mq.nothingInFilter')}
+                  hint={t('mq.nothingInFilterHint')}
+                  icon={view === 'retard' ? 'check' : 'search'}
+                />
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{t('com.quoteNumber')}</th>
+                      <th>{t('com.client')}</th>
+                      <th>{t('com.status')}</th>
+                      <th className="col-optional">{t('com.dueDate')}</th>
+                      <th className="num col-optional">{t('com.total')}</th>
+                      <th className="num col-optional">{t('com.paidAmount')}</th>
+                      <th className="num">{t('com.balanceDue')}</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((f) => (
+                      <tr key={f.id} className="adm-row--click" onClick={() => setOpenId(f.id)}>
+                        <td className="t-mono t-medium">{f.number}</td>
+                        <td>{f.clientId ? nom(f.clientId) : <span className="t-tertiary">{t('com.none')}</span>}</td>
+                        <td>
+                          <Pill tone={TONE[f.status]} dot>
+                            {t(`com.invStatus${cap(f.status)}` as 'com.invStatusEmise')}
+                          </Pill>
+                        </td>
+                        <td className="col-optional">
+                          <div className="adm-cell-main">
+                            <span className="t-tertiary" style={{ fontWeight: 'normal' }}>{f.dueDate ? formatDate(f.dueDate) : '·'}</span>
+                            {f.status === 'en_retard' && <span className="t-caption t-red">{t('com.overdueBy', { n: daysLate(f.dueDate) })}</span>}
+                          </div>
+                        </td>
+                        <td className="num col-optional">{formatMoney(f.total, f.currency)}</td>
+                        <td className="num col-optional t-tertiary">{formatMoney(f.paidAmount, f.currency)}</td>
+                        <td className="num t-medium" style={{ color: f.balanceDue > 0 ? 'var(--orange)' : undefined }}>
+                          {formatMoney(f.balanceDue, f.currency)}
+                        </td>
+                        <td className="actions" onClick={(e) => e.stopPropagation()}>
+                          {canWrite && f.status === 'brouillon' && (
+                            <Button size="sm" icon="check" onClick={() => void guardRow(async () => { await setInvoiceStatus(f.id, 'emise') })}>{t('com.issue')}</Button>
+                          )}
+                          {canWrite && f.balanceDue > 0 && f.status !== 'brouillon' && f.status !== 'annulee' && (
+                            <Button size="sm" icon="payments" onClick={() => setOpenId(f.id)}>{t('com.collect')}</Button>
+                          )}
+                          <Button size="sm" onClick={() => setOpenId(f.id)}>{t('mq.open')}</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </Section>
+          )}
+        </>
+      )}
 
       {creating && (
         <InvoiceCreator
@@ -359,7 +424,7 @@ function InvoiceDetail({ invoice, services, onClose, onChanged }: {
                   <th>{t('com.description')}</th>
                   <th className="num">{t('com.quantity')}</th>
                   <th className="num">{t('com.unitPrice')}</th>
-                  <th className="num">{t('com.taxRate')}</th>
+                  <th className="num col-optional">{t('com.taxRate')}</th>
                   <th className="num">{t('com.lineTotal')}</th>
                   {editable && <th />}
                 </tr>
@@ -372,7 +437,7 @@ function InvoiceDetail({ invoice, services, onClose, onChanged }: {
                     </td>
                     <td className="num t-small">{l.quantity}</td>
                     <td className="num t-small">{formatMoney(l.unitPrice, invoice.currency)}</td>
-                    <td className="num t-small t-tertiary">{l.taxRate}</td>
+                    <td className="num t-small t-tertiary col-optional">{l.taxRate}</td>
                     <td className="num t-medium">{formatMoney(l.lineTotal, invoice.currency)}</td>
                     {editable && (
                       <td style={{ textAlign: 'end' }}>

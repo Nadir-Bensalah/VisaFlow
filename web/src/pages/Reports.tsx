@@ -1,20 +1,32 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
-import { Card, Empty, Pill, Segmented } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Pill, Segmented } from '@/components/ui'
+import { ExportButton } from '@/components/ExportButton'
+import { Barres, Kpi, KpiGrid, PageHeader, Section, Table, Vide } from '@/components/page'
 import { kpis, refusalReasons, refusalStats } from '@/lib/derive'
+import '@/styles/modules.css'
+
+/* Les rapports de l'agence, calculés sur les données déjà chargées.
+ *
+ * Tout ce qui est ici se lit dans le magasin local : aucun aller-retour, aucun
+ * chiffre inventé. Le taux de refus est une propriété du poste, pas du pays :
+ * 15,4 % chez la France et 46,3 % chez la Tchéquie sur le même terrain la
+ * même année. Une moyenne nationale affichée ici mentirait à l'agence. Ce
+ * tableau est la seule statistique qu'elle ne trouvera nulle part ailleurs. */
+
+type Axe = 'consulate' | 'visaType' | 'status'
 
 export function Reports() {
   const { db } = useStore()
   const v = useVisible()
   const { t, tt, formatMoney, formatNumber } = useI18n()
   const k = kpis(db, v)
-  const [axis, setAxis] = useState<'consulate' | 'visaType' | 'status'>('consulate')
+  const [axis, setAxis] = useState<Axe>('consulate')
 
-  // Volume des six derniers mois, calcule sur les dates d'ouverture reelles.
-  const months = Array.from({ length: 6 }, (_, i) => {
+  // Volume des six derniers mois, calculé sur les dates d'ouverture réelles.
+  const months = useMemo(() => Array.from({ length: 6 }, (_, i) => {
     const date = new Date()
     date.setDate(1)
     date.setMonth(date.getMonth() - (5 - i))
@@ -24,32 +36,28 @@ export function Reports() {
       label: date.toLocaleDateString(undefined, { month: 'short' }),
       count: v.cases.filter((c) => c.openedAt.slice(0, 7) === key).length,
     }
-  })
-  const maxMonth = Math.max(...months.map((m) => m.count), 1)
+  }), [v.cases])
 
-  const byCountry = db.visaTypes.map((type) => ({
+  const byCountry = useMemo(() => db.visaTypes.map((type) => ({
     label: `${tt(type.country)} · ${tt(type.label)}`,
     count: v.cases.filter((c) => c.visaTypeId === type.id).length,
     revenue: v.cases.filter((c) => c.visaTypeId === type.id).reduce((sum, c) => sum + c.amountPaid, 0),
-  })).sort((a, b) => b.count - a.count)
+  })).filter((x) => x.count > 0).sort((a, b) => b.count - a.count), [db.visaTypes, v.cases, tt])
 
-  const byAgent = db.users.map((u) => {
+  const byAgent = useMemo(() => db.users.map((u) => {
     const cases = v.cases.filter((c) => c.assigneeId === u.id)
     const decided = cases.filter((c) => c.status === 'accepte' || c.status === 'refuse')
     return {
       name: u.name,
       open: cases.filter((c) => c.status === 'ouvert').length,
       total: cases.length,
-      rate: decided.length ? Math.round((decided.filter((c) => c.status === 'accepte').length / decided.length) * 100) : 0,
+      rate: decided.length ? Math.round((decided.filter((c) => c.status === 'accepte').length / decided.length) * 100) : null,
     }
-  }).filter((a) => a.total > 0).sort((a, b) => b.total - a.total)
+  }).filter((a) => a.total > 0).sort((a, b) => b.total - a.total), [db.users, v.cases])
 
   const revenue = v.payments.filter((p) => p.state === 'regle').reduce((sum, p) => sum + p.amount, 0)
+  const canMoney = v.can('finance:global')
 
-  /* Le taux de refus est une propriété du poste, pas du pays : 15,4 % chez la
-     France et 46,3 % chez la Tchéquie sur le même terrain la même année. Une
-     moyenne nationale affichée ici mentirait à l'agence. Ce tableau est la
-     seule statistique qu'elle ne trouvera nulle part ailleurs. */
   const rows = refusalStats(v.cases, axis, db.clients)
   const reasons = refusalReasons(v.cases)
 
@@ -65,71 +73,79 @@ export function Reports() {
     return t(`pro.${row.key}` as 'pro.salarie')
   }
 
+  type Ligne = (typeof rows)[number]
+  const officiel = (row: Ligne) => (row.consulateId ? db.consulates.find((c) => c.id === row.consulateId)?.refRefusalRate : undefined)
+  const colonnesExport = [
+    { key: 'label', label: t('refstats.subtitle'), value: (r: Ligne) => rowLabel(r) },
+    { key: 'decided', label: t('refstats.decided'), value: (r: Ligne) => r.decided },
+    { key: 'refused', label: t('refstats.refused'), value: (r: Ligne) => r.refused },
+    { key: 'rate', label: t('refstats.rate'), value: (r: Ligne) => r.rate },
+    { key: 'official', label: t('refstats.official'), value: (r: Ligne) => officiel(r) },
+  ]
+
   return (
     <>
-      <PageHead title={t('reports.title')} subtitle={t('reports.subtitle')} />
+      <PageHeader
+        kicker={t('mq.kickerPilotage')}
+        title={t('reports.title')}
+        subtitle={t('mq.reportsSub')}
+        actions={<ExportButton rows={rows} columns={colonnesExport} base="refus" scope="rapports" disabled={rows.length === 0} />}
+      />
 
-      <div className="grid grid--4" style={{ marginBottom: 'var(--sp-5)' }}>
-        <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.acceptance')}</div><div className="stat__value">{k.acceptance}%</div></div></Card>
-        <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.delay')}</div><div className="stat__value">{formatNumber(k.avgDays)}</div><div className="stat__hint">{t('reports.days', { n: k.avgDays })}</div></div></Card>
-        {v.can('finance:global') && (
-          <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('reports.revenue')}</div><div className="stat__value">{formatMoney(revenue)}</div></div></Card>
-        )}
-        <Card><div className="stat" style={{ padding: 0 }}><div className="stat__label">{t('dash.open')}</div><div className="stat__value">{formatNumber(k.open)}</div></div></Card>
-      </div>
+      <KpiGrid>
+        <Kpi label={t('reports.acceptance')} value={`${k.acceptance} %`} icon="check" tone="green" hint={t('mq.reportsAcceptanceHint')} />
+        <Kpi label={t('reports.delay')} value={t('reports.days', { n: k.avgDays })} icon="clock" hint={t('stats.measured')} />
+        {canMoney && <Kpi label={t('reports.revenue')} value={formatMoney(revenue)} icon="payments" hint={t('mq.reportsRevenueHint')} />}
+        <Kpi label={t('dash.open')} value={formatNumber(k.open)} icon="cases" tone="blue"
+             spark={months.map((m) => m.count)} hint={t('mq.reportsOpenHint', { n: months[months.length - 1]?.count ?? 0 })} />
+      </KpiGrid>
 
       <div className="grid grid--2">
-        <Card title={t('reports.volume')}>
-          <div className="bar">
-            {months.map((m) => (
-              <div key={m.key} className="col grow gap-2" style={{ alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                <span className="t-caption t-tertiary t-num">{m.count}</span>
-                <div className="bar__col" style={{ height: `${(m.count / maxMonth) * 100}%`, width: '100%' }} />
-                <span className="t-caption t-tertiary">{m.label}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <Section title={t('reports.volume')}>
+          {months.every((m) => m.count === 0)
+            ? <Vide title={t('refstats.none')} icon="reports" />
+            : <Barres points={months.map((m) => m.count)} labels={months.map((m) => m.label)} format={formatNumber} />}
+        </Section>
 
-        <Card title={t('reports.byAgent')} flush>
-          <div className="tablewrap">
-            <table className="table">
-              <thead><tr><th>{t('misc.agent')}</th><th className="num">{t('dash.open')}</th><th className="num">{t('cases.title')}</th><th className="num">{t('reports.acceptance')}</th></tr></thead>
+        <Section title={t('reports.byAgent')} flush>
+          {byAgent.length === 0 ? <Vide title={t('refstats.none')} icon="clients" /> : (
+            <Table>
+              <thead><tr><th>{t('misc.agent')}</th><th className="num col-optional">{t('dash.open')}</th><th className="num">{t('cases.title')}</th><th className="num">{t('reports.acceptance')}</th></tr></thead>
               <tbody>
                 {byAgent.map((a) => (
                   <tr key={a.name}>
-                    <td className="t-small t-medium">{a.name}</td>
-                    <td className="num t-small">{a.open}</td>
-                    <td className="num t-small">{a.total}</td>
-                    <td className="num t-small">{a.rate}%</td>
+                    <td className="t-medium">{a.name}</td>
+                    <td className="num col-optional">{a.open}</td>
+                    <td className="num">{a.total}</td>
+                    <td className="num">{a.rate === null ? <span className="t-tertiary">·</span> : `${a.rate} %`}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </Card>
+            </Table>
+          )}
+        </Section>
 
-        <Card title={t('reports.byCountry')} flush className="grid__wide">
-          <div className="tablewrap">
-            <table className="table">
-              <thead><tr><th>{t('cases.visa')}</th><th className="num">{t('cases.title')}</th>{v.can('finance:global') && <th className="num">{t('reports.revenue')}</th>}</tr></thead>
+        <Section title={t('reports.byCountry')} flush className="grid__wide">
+          {byCountry.length === 0 ? <Vide title={t('refstats.none')} icon="passport" /> : (
+            <Table>
+              <thead><tr><th>{t('cases.visa')}</th><th className="num">{t('cases.title')}</th>{canMoney && <th className="num col-optional">{t('reports.revenue')}</th>}</tr></thead>
               <tbody>
                 {byCountry.map((c) => (
                   <tr key={c.label}>
-                    <td className="t-small">{c.label}</td>
-                    <td className="num t-small">{c.count}</td>
-                    {v.can('finance:global') && <td className="num t-small">{formatMoney(c.revenue)}</td>}
+                    <td>{c.label}</td>
+                    <td className="num">{c.count}</td>
+                    {canMoney && <td className="num col-optional">{formatMoney(c.revenue)}</td>}
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </Card>
+            </Table>
+          )}
+        </Section>
 
-        <Card
+        <Section
           title={t('refstats.title')}
           action={
-            <Segmented
+            <Segmented<Axe>
               value={axis}
               onChange={setAxis}
               label={t('refstats.title')}
@@ -144,65 +160,62 @@ export function Reports() {
           className="grid__wide"
         >
           {rows.length === 0 ? (
-            <div style={{ padding: 'var(--sp-5)' }}><Empty title={t('refstats.none')} /></div>
+            <Vide title={t('refstats.none')} hint={t('mq.reportsRefusalNoneHint')} icon="reports" />
           ) : (
-            <div className="tablewrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>{t('refstats.subtitle')}</th>
-                    <th className="num">{t('refstats.decided')}</th>
-                    <th className="num">{t('refstats.refused')}</th>
-                    <th className="num">{t('refstats.rate')}</th>
-                    {axis === 'consulate' && <th className="num">{t('refstats.official')}</th>}
-                    {axis === 'consulate' && <th className="num">{t('refstats.gap')}</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const consulate = row.consulateId ? db.consulates.find((c) => c.id === row.consulateId) : undefined
-                    const official = consulate?.refRefusalRate
-                    // L'écart est le vrai signal : faire mieux que le poste,
-                    // c'est ce que l'agence vend.
-                    const gap = official !== undefined ? Math.round((row.rate - official) * 10) / 10 : undefined
-                    return (
-                      <tr key={row.key}>
-                        <td className="t-small t-medium">{rowLabel(row)}</td>
-                        <td className="num t-small">{row.decided}</td>
-                        <td className="num t-small">{row.refused}</td>
-                        <td className="num t-small t-medium">{row.rate}%</td>
-                        {axis === 'consulate' && (
-                          <td className="num t-small t-tertiary">
-                            {official !== undefined ? `${official}%` : '—'}
-                          </td>
-                        )}
-                        {axis === 'consulate' && (
-                          <td className="num t-small">
-                            {gap === undefined ? '—' : (
-                              <Pill tone={gap <= 0 ? 'green' : 'red'}>{gap > 0 ? `+${gap}` : gap}</Pill>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <thead>
+                <tr>
+                  <th>{t('refstats.subtitle')}</th>
+                  <th className="num">{t('refstats.decided')}</th>
+                  <th className="num col-optional">{t('refstats.refused')}</th>
+                  <th className="num">{t('refstats.rate')}</th>
+                  {axis === 'consulate' && <th className="num col-optional">{t('refstats.official')}</th>}
+                  {axis === 'consulate' && <th className="num">{t('refstats.gap')}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const official = officiel(row)
+                  // L'écart est le vrai signal : faire mieux que le poste,
+                  // c'est ce que l'agence vend.
+                  const gap = official !== undefined ? Math.round((row.rate - official) * 10) / 10 : undefined
+                  return (
+                    <tr key={row.key}>
+                      <td className="t-medium">{rowLabel(row)}</td>
+                      <td className="num">{row.decided}</td>
+                      <td className="num col-optional">{row.refused}</td>
+                      <td className="num t-medium">{row.rate} %</td>
+                      {axis === 'consulate' && (
+                        <td className="num col-optional t-tertiary">
+                          {official !== undefined ? `${official} %` : '·'}
+                        </td>
+                      )}
+                      {axis === 'consulate' && (
+                        <td className="num">
+                          {gap === undefined ? <span className="t-tertiary">·</span> : (
+                            <Pill tone={gap <= 0 ? 'green' : 'red'}>{gap > 0 ? `+${gap}` : gap}</Pill>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </Table>
           )}
           {axis === 'consulate' && rows.length > 0 && (
-            <p className="t-caption t-tertiary" style={{ padding: 'var(--sp-4) var(--sp-5)' }}>{t('refstats.hint')}</p>
+            <p className="t-caption t-tertiary md-note">{t('refstats.hint')}</p>
           )}
-        </Card>
+        </Section>
 
         {reasons.length > 0 && (
-          <Card title={t('refstats.reasons')} className="grid__wide">
+          <Section title={t('refstats.reasons')} className="grid__wide">
             <div className="col gap-3">
               {reasons.map((r) => (
                 <div key={r.code} className="col gap-2">
                   <div className="row-between">
                     <span className="t-small">{t(`refusal.${r.code}` as 'refusal.autre')}</span>
-                    <span className="t-small t-num t-medium">{r.n} · {r.pct}%</span>
+                    <span className="t-small t-num t-medium">{r.n} · {r.pct} %</span>
                   </div>
                   <div className="progress">
                     <div className="progress__bar" style={{ width: `${Math.max(r.pct, 2)}%` }} />
@@ -210,7 +223,7 @@ export function Reports() {
                 </div>
               ))}
             </div>
-          </Card>
+          </Section>
         )}
       </div>
     </>

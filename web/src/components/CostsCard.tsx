@@ -3,6 +3,7 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Field, Input, Modal, Pill, Select, Switch, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import {
   addCost, costSummary, hasBackend, listCosts, shipmentPnl, useRemote,
   type CostSummary, type ShipmentCost, type ShipmentPnl,
@@ -45,11 +46,11 @@ export function CostsCard({ shipmentId }: { shipmentId: string }) {
         ? <Button size="sm" icon="plus" onClick={() => setAdding(true)}>{t('log.costAdd')}</Button>
         : undefined}
     >
-      {!hasBackend && <p className="t-small t-tertiary">{t('log.offline')}</p>}
+      {!hasBackend && <Vide icon="alert" title={t('log.offline')} />}
       {costs.error && <p className="t-small t-red">{costs.error}</p>}
 
       {hasBackend && costs.data.length === 0 && !costs.busy && (
-        <p className="t-small t-tertiary">{t('log.costsNone')}</p>
+        <Vide icon="payments" title={t('fcargo.noCosts')} hint={t('fcargo.noCostsHint')} />
       )}
 
       {costs.data.length > 0 && (
@@ -77,7 +78,7 @@ export function CostsCard({ shipmentId }: { shipmentId: string }) {
                       </Pill>
                     </span>
                   </td>
-                  <td className="t-small">{c.supplierName ?? '—'}</td>
+                  <td className="t-small">{c.supplierName ?? '·'}</td>
                   <td className="t-small t-tertiary">{formatDate(c.incurredOn ?? undefined)}</td>
                   <td className="num t-small">
                     {c.amount} {c.currency}

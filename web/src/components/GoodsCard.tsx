@@ -3,8 +3,9 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import {
-  Button, Card, Combobox, Empty, Field, Input, Modal, Segmented, Select, useToast,
+  Button, Card, Combobox, Field, Input, Modal, Segmented, Select, useToast,
 } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import {
   PACKAGE_TYPES, archiveCargoLine, listGoods, listHsChapters, listPackages,
@@ -82,9 +83,7 @@ export function GoodsCard({ shipmentId }: { shipmentId: string }) {
       >
         {tab === 'goods' ? (
           goods.length === 0 ? (
-            <div style={{ padding: 'var(--sp-6)' }}>
-              <Empty title={t('ref.noGoods')} hint={t('ref.chapterHint')} scene="aucune" />
-            </div>
+            <Vide icon="box" title={t('fcargo.noGoods')} hint={t('ref.chapterHint')} />
           ) : (
             <div className="tablewrap">
               <table className="table">
@@ -132,9 +131,7 @@ export function GoodsCard({ shipmentId }: { shipmentId: string }) {
             </div>
           )
         ) : packs.length === 0 ? (
-          <div style={{ padding: 'var(--sp-6)' }}>
-            <Empty title={t('ref.noPackage')} hint={t('ref.computedHint')} scene="aucune" />
-          </div>
+          <Vide icon="box" title={t('fcargo.noPackage')} hint={t('ref.computedHint')} />
         ) : (
           <div className="tablewrap">
             <table className="table">

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useI18n } from '@/i18n'
-import { Card, Empty, Pill } from '@/components/ui'
+import { Empty, Pill } from '@/components/ui'
 import { Icon, type IconName } from '@/components/Icon'
+import { Erreur, Section, Squelette, Vide, useChargement } from '@/components/page'
 import { loadOverdue, type OverdueItem, type OverdueKind } from '@/data/pilotage'
+import '@/styles/modules.css'
 
 /* Tout ce qui a dépassé sa date, au même endroit.
  *
@@ -32,37 +33,24 @@ const LIBELLE: Record<OverdueKind, 'pil.kindDossier'> = {
 
 export function OverdueCard({ officeId, limit = 12 }: { officeId: string | null; limit?: number }) {
   const { t, formatDate } = useI18n()
-  const [items, setItems] = useState<OverdueItem[]>([])
-  const [loading, setLoading] = useState(HAS_BACKEND)
-  const [error, setError] = useState<string | null>(null)
-
-  const charger = useCallback(async () => {
-    if (!HAS_BACKEND) { setLoading(false); return }
-    setLoading(true)
-    try {
-      setItems(await loadOverdue(officeId))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [officeId])
-
-  useEffect(() => { void charger() }, [charger])
+  const { data, loading, error, reload } = useChargement(
+    () => (HAS_BACKEND ? loadOverdue(officeId) : Promise.resolve([] as OverdueItem[])),
+    [officeId],
+  )
+  const items = data ?? []
 
   if (!HAS_BACKEND) {
-    return <Card title={t('pil.overdueTitle')}><Empty title={t('pil.offline')} hint={t('pil.offlineHint')} /></Card>
+    return <Section title={t('pil.overdueTitle')}><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="termine" /></Section>
   }
-  if (loading) return <Card title={t('pil.overdueTitle')}><Empty title={t('pil.loading')} /></Card>
   if (error) {
-    return <Card title={t('pil.overdueTitle')}><Empty title={t('pil.loadError', { msg: error })} /></Card>
+    return <Section title={t('pil.overdueTitle')}><Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} /></Section>
   }
+  if (loading && !data) return <Section title={t('pil.overdueTitle')} flush><Squelette type="lignes" n={4} /></Section>
   if (items.length === 0) {
     return (
-      <Card title={t('pil.overdueTitle')}>
-        <Empty title={t('pil.overdueNone')} scene="termine" />
-      </Card>
+      <Section title={t('pil.overdueTitle')}>
+        <Vide title={t('pil.overdueNone')} hint={t('pil.overdueHint')} icon="check" />
+      </Section>
     )
   }
 
@@ -70,14 +58,12 @@ export function OverdueCard({ officeId, limit = 12 }: { officeId: string | null;
   const tries = [...items].sort((a, b) => b.daysLate - a.daysLate)
 
   return (
-    <Card
+    <Section
       title={t('pil.overdueTitle')}
-      action={<span className="t-caption t-tertiary">{items.length}</span>}
+      action={<Pill tone="red">{items.length}</Pill>}
       flush
     >
-      <p className="t-caption t-tertiary" style={{ padding: 'var(--sp-3) var(--sp-5) 0' }}>
-        {t('pil.overdueHint')}
-      </p>
+      <p className="t-caption t-tertiary md-note">{t('pil.overdueHint')}</p>
       <div className="list">
         {tries.slice(0, limit).map((it) => (
           <Link key={`${it.kind}-${it.id}`} to={it.link} className="list__row">
@@ -98,6 +84,9 @@ export function OverdueCard({ officeId, limit = 12 }: { officeId: string | null;
           </Link>
         ))}
       </div>
-    </Card>
+      {items.length > limit && (
+        <p className="t-caption t-tertiary md-note">{t('mq.overdueMore', { n: items.length - limit })}</p>
+      )}
+    </Section>
   )
 }

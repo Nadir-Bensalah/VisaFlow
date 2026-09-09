@@ -1,0 +1,70 @@
+/* ------------------------------------------------------------------ */
+/* Les modules serveur de l'agence : ce qui s'ajoute à la boîte à outils */
+/* ------------------------------------------------------------------ */
+/* Préfixe md-. Le dessin des tuiles, tableaux, barres et états vides
+   vient de styles/admin.css (adm-) et styles/page.css (pg-) : ici, rien
+   que les pièces propres à ces quatorze écrans. */
+
+/* Les champs d'une barre d'outils : un input prend 100 % par défaut, ce
+   qui casserait la ligne. On le borne, et il reprend toute la largeur sur
+   téléphone. */
+.md-search { width: 260px; max-width: 100%; }
+.md-select { width: auto; min-width: 140px; max-width: 220px; }
+.md-date { width: auto; max-width: 160px; }
+
+/* Les onglets de section d'une page (répertoires, pilotage) : posés sous
+   l'en-tête, sans le rebord de la carte. */
+.md-tabs { margin-bottom: var(--sp-5); }
+.md-tabs .tabs { padding: 0; }
+
+/* Le tableau à colonnes des affaires, à l'intérieur d'une carte à ras bord. */
+.md-kanban { padding: var(--sp-4); }
+.md-kanban__meta { display: flex; justify-content: space-between; gap: var(--sp-2); padding: 0 var(--sp-1) var(--sp-2); }
+.md-kanban__empty {
+  padding: var(--sp-4) var(--sp-2); text-align: center;
+  border: 1px dashed var(--hairline); border-radius: 10px;
+}
+
+/* La ligne du total d'un tableau consolidé : elle vient du serveur, elle se
+   distingue sans qu'on la relise. */
+.adm-table tr.md-total td { font-weight: 600; background: var(--bg-sunken); border-top: 2px solid var(--hairline-strong); }
+
+/* Une note sous un tableau ou un graphique, dans une carte à ras bord. */
+.md-note { margin: 0; padding: var(--sp-3) var(--sp-4); }
+.card__body:not(.card__body--flush) > .md-note { padding-inline: 0; }
+
+/* Un graphique SVG déborde plutôt qu'il ne s'écrase. */
+.md-svg { overflow-x: auto; }
+
+/* Une bulle du fil de support. Le camp se lit à la couleur. */
+.md-bulle {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--sp-3) var(--sp-4); border-radius: 10px;
+}
+.md-bulle--nous { background: var(--bg-sunken); }
+.md-bulle--eux { background: var(--tint-blue); }
+.md-bulle__texte { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Les gestes d'une ligne : un bouton-icône (lien tel:, WhatsApp, courriel)
+   garde la même hauteur que les boutons du kit. */
+.adm-table .actions { display: table-cell; }
+.adm-table .actions > * { vertical-align: middle; }
+.adm-table .actions > * + * { margin-inline-start: 4px; }
+.adm-table .actions a.btn { visibility: hidden; }
+.adm-table tr:hover .actions a.btn, .adm-table tr:focus-within .actions a.btn { visibility: visible; }
+
+/* Téléphone : la barre d'outils empile, les champs prennent la largeur,
+   les gestes restent visibles et se replient sur deux lignes si besoin. */
+@media (max-width: 640px) {
+  .md-search, .md-select, .md-date { width: 100%; max-width: none; }
+  .adm-barre__left, .adm-barre__right { width: 100%; }
+  .adm-barre__left > .segmented { max-width: 100%; }
+  .adm-table .actions { white-space: normal; }
+  .adm-table .actions a.btn { visibility: visible; }
+  .md-kanban { padding: var(--sp-3); }
+  .adm-page__actions > .segmented { max-width: 100%; }
+}
+
+/* Le compteur de lignes vit dans la barre, à côté de la recherche : une carte
+   sans titre n'a pas d'en-tête à lui offrir. */
+.adm-barre__right > .t-num { white-space: nowrap; }

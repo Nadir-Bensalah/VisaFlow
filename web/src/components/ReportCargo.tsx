@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useI18n } from '@/i18n'
-import { Card, Empty, Pill } from '@/components/ui'
+import { Empty, Pill } from '@/components/ui'
+import { Erreur, Kpi, KpiGrid, Ligne, Section, Squelette, Table, Vide, useChargement } from '@/components/page'
 import { largeurPct, maxDe } from '@/lib/graphes'
 import { loadCargoReport, type CargoReport } from '@/data/pilotage'
+import '@/styles/modules.css'
 
 /* Le rapport fret de la section 128.
  *
@@ -26,43 +27,17 @@ const SENS_LABEL: Record<string, 'pil.import'> = {
   indetermine: 'pil.undetermined' as 'pil.import',
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <div className="stat" style={{ padding: 0 }}>
-        <div className="stat__label">{label}</div>
-        <div className="stat__value">{value}</div>
-        {hint && <div className="stat__hint">{hint}</div>}
-      </div>
-    </Card>
-  )
-}
-
 export function ReportCargo({ officeId, from, to }: { officeId: string | null; from: string; to: string }) {
   const { t, formatMoney, formatNumber } = useI18n()
-  const [rep, setRep] = useState<CargoReport | null>(null)
-  const [loading, setLoading] = useState(HAS_BACKEND)
-  const [error, setError] = useState<string | null>(null)
+  const { data: rep, loading, error, reload } = useChargement(
+    () => (HAS_BACKEND ? loadCargoReport(officeId, from, to) : Promise.resolve(null as CargoReport | null)),
+    [officeId, from, to],
+  )
 
-  const charger = useCallback(async () => {
-    if (!HAS_BACKEND) { setLoading(false); return }
-    setLoading(true)
-    try {
-      setRep(await loadCargoReport(officeId, from, to))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [officeId, from, to])
-
-  useEffect(() => { void charger() }, [charger])
-
-  if (!HAS_BACKEND) return <Card><Empty title={t('pil.offline')} hint={t('pil.offlineHint')} /></Card>
-  if (loading) return <Card><Empty title={t('pil.loading')} /></Card>
-  if (error) return <Card><Empty title={t('pil.loadError', { msg: error })} /></Card>
-  if (!rep) return <Card><Empty title={t('pil.empty')} /></Card>
+  if (!HAS_BACKEND) return <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="cargo" /></Section>
+  if (error) return <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />
+  if (loading && !rep) return <><Squelette type="kpis" n={4} /><Squelette type="cartes" n={4} /></>
+  if (!rep) return <Section><Vide title={t('pil.empty')} icon="ship" /></Section>
 
   const jours = (n: number | null) => (n === null ? t('pil.noValue') : t('pil.days', { n }))
   const nb = (n: number | null) => (n === null ? '·' : formatNumber(Math.round(n)))
@@ -75,17 +50,18 @@ export function ReportCargo({ officeId, from, to }: { officeId: string | null; f
 
   return (
     <div className="stack">
-      <div className="grid grid--4">
-        <Stat label={t('pil.shipments')} value={formatNumber(rep.shipments)} />
-        <Stat label={t('pil.transitDays')} value={jours(rep.transitDays)} />
-        <Stat label={t('pil.customsDays')} value={jours(rep.customsDays)} />
-        <Stat label={t('pil.lateNow')} value={formatNumber(rep.lateNow)}
-              hint={rep.blocked > 0 ? `${rep.blocked} ${t('pil.blocked').toLowerCase()}` : undefined} />
-      </div>
+      <KpiGrid>
+        <Kpi label={t('pil.shipments')} value={formatNumber(rep.shipments)} icon="ship" tone="blue" />
+        <Kpi label={t('pil.transitDays')} value={jours(rep.transitDays)} icon="plane" />
+        <Kpi label={t('pil.customsDays')} value={jours(rep.customsDays)} icon="shield" />
+        <Kpi label={t('pil.lateNow')} value={formatNumber(rep.lateNow)} icon="alert"
+             tone={rep.lateNow > 0 ? 'red' : undefined}
+             hint={rep.blocked > 0 ? `${rep.blocked} ${t('pil.blocked').toLowerCase()}` : undefined} />
+      </KpiGrid>
 
       <div className="grid grid--2">
-        <Card title={t('pil.direction')}>
-          {sens.length === 0 ? <Empty title={t('pil.empty')} /> : (
+        <Section title={t('pil.direction')}>
+          {sens.length === 0 ? <Vide title={t('pil.empty')} icon="arrow" /> : (
             <div className="col gap-3">
               {sens.map(([k, n]) => (
                 <div key={k} className="col gap-2">
@@ -100,67 +76,32 @@ export function ReportCargo({ officeId, from, to }: { officeId: string | null; f
               ))}
             </div>
           )}
-        </Card>
+        </Section>
 
-        <Card title={t('pil.mode')}>
-          {modes.length === 0 ? <Empty title={t('pil.empty')} /> : (
-            <div className="col gap-3">
-              {modes.map(([k, n]) => (
-                <div key={k} className="row-between">
-                  <span className="t-small">{MODE_LABEL[k] ? t(MODE_LABEL[k]) : k}</span>
-                  <span className="t-small t-num t-medium">{n}</span>
-                </div>
-              ))}
-            </div>
+        <Section title={t('pil.mode')}>
+          {modes.length === 0 ? <Vide title={t('pil.empty')} icon="box" /> : (
+            <>{modes.map(([k, n]) => <Ligne key={k} label={MODE_LABEL[k] ? t(MODE_LABEL[k]) : k}>{n}</Ligne>)}</>
           )}
-        </Card>
+        </Section>
 
         {/* Les volumes. Une case vide veut dire « non renseigné dans les
             cargaisons de la période », pas « zéro tonne transportée ». */}
-        <Card title={t('pil.volumeCbm')}>
-          <div className="col gap-3">
-            <div className="row-between">
-              <span className="t-small">{t('pil.tonnage')}</span>
-              <span className="t-small t-num t-medium">{nb(rep.weightKg)} kg</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.volumeCbm')}</span>
-              <span className="t-small t-num t-medium">{nb(rep.volumeCbm)} m³</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.packages')}</span>
-              <span className="t-small t-num t-medium">{nb(rep.packages)}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.containers')}</span>
-              <span className="t-small t-num t-medium">{nb(rep.containers)}</span>
-            </div>
-          </div>
-        </Card>
+        <Section title={t('pil.volumeCbm')}>
+          <Ligne label={t('pil.tonnage')}>{nb(rep.weightKg)} kg</Ligne>
+          <Ligne label={t('pil.volumeCbm')}>{nb(rep.volumeCbm)} m³</Ligne>
+          <Ligne label={t('pil.packages')}>{nb(rep.packages)}</Ligne>
+          <Ligne label={t('pil.containers')}>{nb(rep.containers)}</Ligne>
+        </Section>
 
-        <Card title={t('pil.delays')}>
-          <div className="col gap-3">
-            <div className="row-between">
-              <span className="t-small">{t('pil.transitDays')}</span>
-              <span className="t-small t-num t-medium">{jours(rep.transitDays)}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.customsDays')}</span>
-              <span className="t-small t-num t-medium">{jours(rep.customsDays)}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.deliveryDays')}</span>
-              <span className="t-small t-num t-medium">{jours(rep.deliveryDays)}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.lateDelivered')}</span>
-              <span className="t-small t-num t-medium">{rep.lateDelivered}</span>
-            </div>
-          </div>
-        </Card>
+        <Section title={t('pil.delays')}>
+          <Ligne label={t('pil.transitDays')}>{jours(rep.transitDays)}</Ligne>
+          <Ligne label={t('pil.customsDays')}>{jours(rep.customsDays)}</Ligne>
+          <Ligne label={t('pil.deliveryDays')}>{jours(rep.deliveryDays)}</Ligne>
+          <Ligne label={t('pil.lateDelivered')}>{rep.lateDelivered}</Ligne>
+        </Section>
 
         {rep.byCarrier.length > 0 && (
-          <Card title={t('pil.byCarrier')}>
+          <Section title={t('pil.byCarrier')}>
             <div className="col gap-3">
               {rep.byCarrier.slice(0, 8).map((c) => (
                 <div key={c.carrier} className="col gap-2">
@@ -174,85 +115,61 @@ export function ReportCargo({ officeId, from, to }: { officeId: string | null; f
                 </div>
               ))}
             </div>
-          </Card>
+          </Section>
         )}
 
         {rep.byCountry.length > 0 && (
-          <Card title={t('pil.byRoute')} flush>
-            <div className="tablewrap">
-              <table className="table">
-                <thead>
-                  <tr><th>{t('pil.from')}</th><th>{t('pil.to')}</th><th className="num">{t('pil.count')}</th></tr>
-                </thead>
-                <tbody>
-                  {rep.byCountry.slice(0, 10).map((c, i) => (
-                    <tr key={i}>
-                      <td className="t-small">{c.from ?? '·'}</td>
-                      <td className="t-small">{c.to ?? '·'}</td>
-                      <td className="num t-small t-medium">{c.n}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <Section title={t('pil.byRoute')} flush>
+            <Table>
+              <thead>
+                <tr><th>{t('pil.from')}</th><th>{t('pil.to')}</th><th className="num">{t('pil.count')}</th></tr>
+              </thead>
+              <tbody>
+                {rep.byCountry.slice(0, 10).map((c, i) => (
+                  <tr key={i}>
+                    <td>{c.from ?? '·'}</td>
+                    <td>{c.to ?? '·'}</td>
+                    <td className="num t-medium">{c.n}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Section>
         )}
 
         {/* Les surestaries viennent de shipment_counters, pas d'un calcul
             refait ici : un compteur écrit deux fois donne deux résultats. */}
-        <Card title={t('pil.demurrage')}>
-          <div className="col gap-3">
-            <div className="row-between">
-              <span className="t-small">{t('pil.demurrageShipments')}</span>
-              <span className="t-small t-num t-medium">{rep.demurrage.shipments}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.demurrageDays')}</span>
-              <span className="t-small t-num t-medium">{nb(rep.demurrage.overdueDays)}</span>
-            </div>
-            <div className="row-between">
-              <span className="t-small">{t('pil.demurrageAmount')}</span>
-              <span className="t-small t-num t-medium">
-                {rep.demurrage.amount === null
-                  ? t('pil.hiddenMoney')
-                  : formatMoney(rep.demurrage.amount, rep.demurrage.currency ?? undefined)}
-              </span>
-            </div>
-            {rep.demurrage.withoutTariff > 0 && (
-              <div className="row-between">
-                <span className="t-small t-tertiary">{t('pil.demurrageNoTariff')}</span>
-                <Pill tone="orange">{rep.demurrage.withoutTariff}</Pill>
-              </div>
-            )}
-          </div>
-        </Card>
+        <Section title={t('pil.demurrage')}>
+          <Ligne label={t('pil.demurrageShipments')}>{rep.demurrage.shipments}</Ligne>
+          <Ligne label={t('pil.demurrageDays')}>{nb(rep.demurrage.overdueDays)}</Ligne>
+          <Ligne label={t('pil.demurrageAmount')}>
+            {rep.demurrage.amount === null
+              ? t('pil.hiddenMoney')
+              : formatMoney(rep.demurrage.amount, rep.demurrage.currency ?? undefined)}
+          </Ligne>
+          {rep.demurrage.withoutTariff > 0 && (
+            <Ligne label={t('pil.demurrageNoTariff')}><Pill tone="orange">{rep.demurrage.withoutTariff}</Pill></Ligne>
+          )}
+        </Section>
 
-        <Card title={t('pil.margin')} className="grid__wide">
+        <Section title={t('pil.margin')} className="grid__wide">
           {rep.revenue === null ? (
-            <Empty title={t('pil.hiddenMoney')} />
+            <Vide title={t('pil.hiddenMoney')} icon="lock" />
           ) : (
             <>
-              <div className="grid grid--3" style={{ marginBottom: 'var(--sp-4)' }}>
-                <Stat label={t('pil.revenue')} value={formatMoney(rep.revenue)} />
-                <Stat label={t('pil.costs')}
-                      value={rep.costs === null ? '·' : formatMoney(rep.costs.total)} />
-                <Stat label={t('pil.margin')}
-                      value={rep.margin === null ? '·' : formatMoney(rep.margin)}
-                      hint={rep.marginReason ? t('pil.noMargin') : undefined} />
-              </div>
+              <KpiGrid>
+                <Kpi label={t('pil.revenue')} value={formatMoney(rep.revenue)} icon="payments" tone="green" />
+                <Kpi label={t('pil.costs')} value={rep.costs === null ? '·' : formatMoney(rep.costs.total)} icon="download" />
+                <Kpi label={t('pil.margin')} value={rep.margin === null ? '·' : formatMoney(rep.margin)} icon="reports"
+                     tone={rep.margin !== null && rep.margin < 0 ? 'red' : undefined}
+                     hint={rep.marginReason ? t('pil.noMargin') : undefined} />
+              </KpiGrid>
               {couts.length > 0 && (
-                <div className="col gap-2">
-                  {couts.map(([k, v]) => (
-                    <div key={k} className="row-between">
-                      <span className="t-small t-secondary">{k}</span>
-                      <span className="t-small t-num">{formatMoney(v)}</span>
-                    </div>
-                  ))}
-                </div>
+                <>{couts.map(([k, v]) => <Ligne key={k} label={k}>{formatMoney(v)}</Ligne>)}</>
               )}
             </>
           )}
-        </Card>
+        </Section>
       </div>
     </div>
   )

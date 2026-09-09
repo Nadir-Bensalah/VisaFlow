@@ -139,7 +139,7 @@ export function ComplianceSection() {
             <div className="grid grid--2">
               <Field label={t('conf.category')} hint={t('conf.categoryHint')}>
                 <Select value={draft.licenseCategory} onChange={(e) => set('licenseCategory', e.target.value as 'A' | 'B' | '')}>
-                  <option value="">—</option>
+                  <option value="">·</option>
                   <option value="A">A</option>
                   <option value="B">B</option>
                 </Select>

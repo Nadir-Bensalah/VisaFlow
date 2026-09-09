@@ -1,0 +1,167 @@
+/* ------------------------------------------------------------------ */
+/* La fiche d'un dossier de visa (préfixe fd-)                          */
+/* ------------------------------------------------------------------ */
+/* Chargée par pages/CaseDetail.tsx. La grille à deux colonnes vient de
+   styles/page.css (.pg-fiche) ; ici, ce qui n'existe que sur cette fiche :
+   le fil d'Ariane, les onglets à modules, le rail, le parcours en deux
+   colonnes, les petits blocs de l'aperçu. Aucune couleur brute : tokens. */
+
+/* Le fil d'Ariane : un retour, pas une deuxième navigation. */
+.fd-crumb {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--size-small); color: var(--text-secondary);
+}
+.fd-crumb svg { transform: rotate(180deg); }
+[dir='rtl'] .fd-crumb svg { transform: none; }
+
+/* La colonne principale */
+.fd-main { min-width: 0; }
+.fd-panel { padding: var(--sp-6); }
+
+/* Un onglet fait de modules : chaque module garde sa carte, mais posée à
+   plat dans l'onglet. Douze cadres imbriqués feraient une boîte de boîtes. */
+.fd-modules { display: flex; flex-direction: column; }
+.fd-modules > .card { border: 0; border-radius: 0; box-shadow: none; }
+.fd-modules > .card + .card { border-top: 1px solid var(--hairline); }
+/* Les états vides des modules partagés se resserrent : dans une fiche, une
+   illustration de 116 px par module fait une colonne de dessins. */
+.fd-modules .empty { padding: var(--sp-5) var(--sp-4); }
+.fd-modules .empty__art { display: none; }
+.fd-modules .empty .t-title { font-size: var(--size-small); font-weight: var(--w-medium); }
+
+/* Le rail : ce qu'on regarde à chaque instant */
+.fd-rail__stage {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding-bottom: var(--sp-3); border-bottom: 1px solid var(--hairline);
+}
+.fd-rail__progress { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) 0; border-bottom: 1px solid var(--hairline); }
+.fd-rail__progress-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); font-size: var(--size-small); }
+
+/* La prochaine action, fondue dans la carte d'aperçu : le geste à faire est
+   le premier bouton qu'on voit sans défiler. */
+.fd-next { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--hairline); }
+.fd-next__title {
+  font-size: var(--size-caption); font-weight: var(--w-medium);
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-tertiary);
+}
+.fd-next__docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.fd-next__doc { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-size: var(--size-small); min-width: 0; }
+.fd-next__doc > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* La carte client */
+.fd-client { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); min-width: 0; }
+.fd-client__id { display: flex; flex-direction: column; min-width: 0; }
+.fd-client__name { font-weight: var(--w-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fd-client__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-4); }
+
+/* Les notes internes, repliées par défaut : on les ouvre quand on écrit. */
+.fd-notes { background: var(--bg-white); border: 1px solid var(--hairline); border-radius: var(--radius-card); }
+.fd-notes__sum {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  font-size: var(--size-lead); font-weight: var(--w-title); letter-spacing: var(--track-tight);
+}
+.fd-notes__sum::-webkit-details-marker { display: none; }
+.fd-notes__sum:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: var(--radius-card); }
+.fd-notes__sum > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.fd-notes__sum svg { color: var(--text-tertiary); transition: transform var(--dur) var(--ease); }
+.fd-notes[open] .fd-notes__sum svg { transform: rotate(90deg); }
+.fd-notes__body { padding: 0 var(--sp-6) var(--sp-6); }
+@media (prefers-reduced-motion: reduce) { .fd-notes__sum svg { transition: none; } }
+
+/* Les étapes du métier, en ligne : neuf mots au lieu de neuf lignes. */
+.fd-etapes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) 0; list-style: none; margin: 0; padding: 0; }
+.fd-etape {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--size-caption); color: var(--text-tertiary); white-space: nowrap;
+  padding: 2px 0;
+}
+.fd-etape + .fd-etape::before { content: ''; width: 12px; height: 1px; background: var(--hairline-strong); margin-inline: var(--sp-2); }
+.fd-etape__dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--hairline-strong); flex: none; }
+.fd-etape--fait { color: var(--text-secondary); }
+.fd-etape--fait .fd-etape__dot { background: var(--green); border-color: var(--green); }
+.fd-etape--encours { color: var(--blue); font-weight: var(--w-medium); }
+.fd-etape--encours .fd-etape__dot { border-color: var(--blue); box-shadow: 0 0 0 3px var(--tint-blue); }
+
+/* Le parcours du dossier : dix-huit jalons lus en deux colonnes, l'œil
+   descend la première puis la seconde. */
+.fd-parc { display: flex; flex-direction: column; gap: var(--sp-3); }
+.fd-parc__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.fd-parc__title { margin: 0; font-size: var(--size-body); font-weight: var(--w-title); letter-spacing: var(--track-body); }
+.fd-parc__grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--fd-rows, 9), auto); grid-auto-flow: column;
+  column-gap: var(--sp-8);
+}
+.fd-parc__hint { margin: 0; }
+.fd-jalon {
+  display: grid; grid-template-columns: 18px 16px minmax(0, 1fr) auto 18px;
+  align-items: center; gap: var(--sp-2);
+  padding: 6px var(--sp-2); margin-inline: calc(-1 * var(--sp-2));
+  border-radius: var(--radius-field);
+  font-size: var(--size-small); min-width: 0;
+  border-top: 1px solid transparent;
+}
+/* Le filet entre deux jalons s'efface autour d'un jalon teinté : un trait
+   qui coupe une teinte fait un cadre de plus. */
+.fd-jalon + .fd-jalon { border-top-color: var(--hairline); }
+.fd-jalon--encours { background: var(--tint-blue); }
+.fd-jalon--bloque { background: var(--tint-red); }
+.fd-jalon--encours, .fd-jalon--bloque,
+.fd-jalon--encours + .fd-jalon, .fd-jalon--bloque + .fd-jalon { border-top-color: transparent; }
+.fd-jalon--sansobjet { opacity: 0.45; }
+.fd-jalon__icon { color: var(--text-tertiary); }
+/* Le libellé ne se tronque jamais : c'est lui qu'on cherche des yeux. Le
+   détail, lui, s'abrège et se lit entier au survol. */
+.fd-jalon__label { font-weight: var(--w-medium); min-width: 0; line-height: 1.25; }
+.fd-jalon--afaire .fd-jalon__label, .fd-jalon--sansobjet .fd-jalon__label { font-weight: var(--w-body); color: var(--text-secondary); }
+.fd-jalon__detail {
+  font-size: var(--size-caption); color: var(--text-tertiary); text-align: end;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16ch;
+}
+.fd-jalon--bloque .fd-jalon__detail { color: var(--red); }
+.fd-jalon__go { display: inline-flex; justify-content: center; align-items: center; color: var(--text-tertiary); }
+.fd-jalon__go:hover { color: var(--blue); }
+[dir='rtl'] .fd-jalon__go svg { transform: scaleX(-1); }
+@media (max-width: 900px) {
+  .fd-parc__grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
+}
+
+/* Les faits de l'aperçu : visa, échéance, consulat, file, biométrie. */
+.fd-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--sp-4) var(--sp-6); }
+.fd-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fd-fact__label { font-size: var(--size-caption); color: var(--text-tertiary); }
+.fd-fact__value { font-weight: var(--w-medium); }
+.fd-fact__hint { font-size: var(--size-small); color: var(--text-secondary); }
+.fd-fact--ok .fd-fact__value { color: var(--green); }
+.fd-fact--ko .fd-fact__value { color: var(--orange); }
+
+/* Un bloc secondaire de l'aperçu : la garde du passeport, le refus. */
+.fd-bloc { background: var(--bg-sunken); border-radius: var(--radius-card-sm); padding: var(--sp-4); }
+.fd-bloc--rouge { background: var(--tint-red); color: var(--red); }
+.fd-bloc__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.fd-bloc__title { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--size-caption); color: var(--text-tertiary); }
+.fd-rouge { color: var(--red); }
+
+/* Les listes des onglets : une ligne par pièce, rendez-vous, paiement. */
+.fd-liste { display: flex; flex-direction: column; }
+.fd-ligne { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3) 0; border-bottom: 1px solid var(--hairline); }
+.fd-ligne:last-of-type { border-bottom: 0; }
+.fd-ligne__main { display: flex; flex-direction: column; flex: 1 1 200px; min-width: 0; }
+.fd-ligne__side { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.fd-liste__foot { padding-top: var(--sp-4); }
+
+/* Le fil des messages */
+.fd-bulle { max-width: 78%; padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-card-sm); background: var(--bg-hover); }
+.fd-bulle--sortant { align-self: flex-end; background: var(--tint-blue); }
+.fd-bulle__meta { display: inline-flex; align-items: center; gap: var(--sp-2); margin-top: 4px; }
+.fd-composer { display: flex; flex-direction: column; gap: var(--sp-3); border-top: 1px solid var(--hairline); padding-top: var(--sp-5); }
+
+/* Téléphone : rien ne dépasse, les gestes passent sous le titre. */
+@media (max-width: 640px) {
+  .fd-panel { padding: var(--sp-4); }
+  .fd-bulle { max-width: 92%; }
+  .fd-jalon__detail { max-width: 14ch; }
+  .fd-next .btn, .fd-client__actions .btn { min-width: 0; }
+}

@@ -26,8 +26,13 @@ import { reglages } from './modules/reglages'
 import { travail } from './modules/travail'
 import { facturation } from './modules/facturation'
 import { ouverture } from './modules/ouverture'
+import { fiche } from './modules/fiche'
+import { fichecargo } from './modules/fichecargo'
+import { messagerie } from './modules/messagerie'
+import { modulesq } from './modules/modulesq'
+import { listes } from './modules/listes'
 
-const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, parcours, support, documents, integrite, cargo2, pilotage, voyage, traduction, equipe, reglages, travail, facturation, ouverture]
+const BLOCKS = [commerce, crm, cargoref, logistique, saas, securite, notifs, parcours, support, documents, integrite, cargo2, pilotage, voyage, traduction, equipe, reglages, travail, facturation, ouverture, fiche, fichecargo, messagerie, modulesq, listes]
 
 type Lang = 'fr' | 'en' | 'ar' | 'zh'
 
@@ -54,6 +59,11 @@ export type ModuleDict =
   & typeof travail.fr
   & typeof facturation.fr
   & typeof ouverture.fr
+  & typeof fiche.fr
+  & typeof fichecargo.fr
+  & typeof messagerie.fr
+  & typeof modulesq.fr
+  & typeof listes.fr
 
 export const MODULES: Record<Lang, Record<string, unknown>> = {
   fr: merge('fr'), en: merge('en'), ar: merge('ar'), zh: merge('zh'),

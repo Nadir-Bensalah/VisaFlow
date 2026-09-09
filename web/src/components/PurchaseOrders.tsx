@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Button, Card, Combobox, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Combobox, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import {
   addPurchaseItem, addSupplierMovement, loadPurchaseItems, loadPurchaseOrders,
@@ -119,7 +120,7 @@ export function PurchaseOrders({ shipmentId }: { shipmentId?: string }) {
   if (!HAS_BACKEND) {
     return (
       <Card title={t('cg2.purchases')}>
-        <Empty title={t('cg2.offline')} hint={t('cg2.offlineHint')} scene="alerte" />
+        <Vide icon="alert" title={t('cg2.offline')} />
       </Card>
     )
   }
@@ -136,7 +137,7 @@ export function PurchaseOrders({ shipmentId }: { shipmentId?: string }) {
       {error && <p className="t-small t-orange">{t('cg2.loadError', { msg: error })}</p>}
 
       {rows.length === 0 ? (
-        <Empty title={t('cg2.noPurchases')} hint={t('cg2.noPurchasesHint')} scene="vide" />
+        <Vide icon="box" title={t('cg2.noPurchases')} hint={t('cg2.noPurchasesHint')} />
       ) : (
         <div className="col gap-3">
           {rows.map((r) => (
@@ -148,7 +149,7 @@ export function PurchaseOrders({ shipmentId }: { shipmentId?: string }) {
                   style={{ background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'start' }}
                   onClick={() => setOpenId(openId === r.id ? null : r.id)}
                 >
-                  <span className="t-mono">{r.poNumber ?? '—'}</span> · {supplierName(r.supplierId)}
+                  <span className="t-mono">{r.poNumber ?? '·'}</span> · {supplierName(r.supplierId)}
                 </button>
                 <div className="row gap-2">
                   <Pill tone={TONE[r.status]}>{t(`cg2.poStatus_${r.status}` as 'cg2.poStatus_envoye')}</Pill>
@@ -181,8 +182,8 @@ export function PurchaseOrders({ shipmentId }: { shipmentId?: string }) {
                         <tbody>
                           {items.map((it) => (
                             <tr key={it.id}>
-                              <td className="t-small">{it.description ?? '—'}</td>
-                              <td className="t-caption t-mono t-tertiary">{it.hsCode ?? '—'}</td>
+                              <td className="t-small">{it.description ?? '·'}</td>
+                              <td className="t-caption t-mono t-tertiary">{it.hsCode ?? '·'}</td>
                               <td className="num t-small">{formatNumber(it.quantity)} {it.unit ?? ''}</td>
                               <td className="num t-small">{formatNumber(it.unitPrice)}</td>
                               <td className="num t-small">{formatNumber(it.total)}</td>

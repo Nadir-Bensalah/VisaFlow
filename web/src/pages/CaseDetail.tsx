@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
+import { HAS_BACKEND } from '@/lib/supabase'
+import { loadCaseTranslations } from '@/data/traduction'
 import { AuditTrail } from '@/components/AuditTrail'
 import { PrintButton } from '@/components/PrintButton'
 import { HistoryCard } from '@/components/HistoryCard'
@@ -13,14 +16,33 @@ import { CustomFields } from '@/components/CustomFields'
 import { TrackingLinks } from '@/components/TrackingLinks'
 import { useI18n } from '@/i18n'
 import { Avatar, Button, Card, Empty, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from '@/components/ui'
+import { Ligne, PageHeader, Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
-import { Ago, Countdown, DocPill, PageHead, StagePill, StatusPill } from '@/components/bits'
+import { Ago, Countdown, DocPill, StagePill, StatusPill } from '@/components/bits'
 import { CaseEditor } from '@/components/CaseEditor'
 import { FileDrop } from '@/components/FileDrop'
-import { biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank, refusalRisk, waWindowLeft, waWindowOpen } from '@/lib/derive'
-import type { AppointmentKind, Channel, DocState, PaymentMethod, RefusalCode } from '@/data/types'
+import { STAGES, biometricsValid, biometricsValidUntil, blockingDocs, caseBalance, daysSince, progress, queueRank, refusalRisk, waWindowLeft, waWindowOpen } from '@/lib/derive'
+import type { AppointmentKind, CaseDocument, Channel, DocState, PaymentMethod, RefusalCode, VisaCase } from '@/data/types'
+import '@/styles/fiche-dossier.css'
 
-type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'historique'
+/**
+ * LA FICHE D'UN DOSSIER DE VISA.
+ *
+ * Deux colonnes tenues. À gauche, la colonne principale à onglets : l'aperçu
+ * (le parcours, puis le visa, le créneau, le passeport), les pièces, les
+ * messages, les rendez-vous, les paiements, les prestations (traductions,
+ * voyage, marge), le suivi (liens, champs de l'agence) et l'historique. À
+ * droite, un rail qui reste sous les yeux et ne porte que ce qu'on regarde à
+ * chaque instant : l'étape et le geste à faire, le client, les notes.
+ *
+ * Avant ce découpage, la colonne de droite empilait quatorze cartes et la
+ * fiche faisait 5 600 px de haut. Rien n'a disparu : chaque module a changé
+ * d'onglet, et l'onglet vit dans l'adresse (`?onglet=`) pour que le lien se
+ * partage et que le retour marche.
+ */
+
+type Tab = 'apercu' | 'pieces' | 'messages' | 'rdv' | 'paiements' | 'prestations' | 'suivi' | 'historique'
+const TABS: Tab[] = ['apercu', 'pieces', 'messages', 'rdv', 'paiements', 'prestations', 'suivi', 'historique']
 
 export function CaseDetail() {
   const { id = '' } = useParams()
@@ -29,11 +51,25 @@ export function CaseDetail() {
   const { t, tt, formatDate, formatMoney } = useI18n()
   const toast = useToast()
   // L'onglet vit dans l'adresse : le lien se partage et le retour marche.
+  // Un onglet inconnu dans l'adresse retombe sur l'aperçu, sans erreur.
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('onglet') as Tab | null) ?? 'apercu'
+  const brut = params.get('onglet')
+  const tab: Tab = TABS.includes(brut as Tab) ? (brut as Tab) : 'apercu'
   const setTab = (value: Tab) => setParams(value === 'apercu' ? {} : { onglet: value }, { replace: true })
   const [deciding, setDeciding] = useState(false)
   const [editing, setEditing] = useState(false)
+
+  // Le compteur de l'onglet Prestations : le nombre de traductions du dossier,
+  // que seul le serveur connaît. Sans serveur, ou sans traduction, pas de chiffre.
+  const [tradCount, setTradCount] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (!HAS_BACKEND) return
+    let vivant = true
+    loadCaseTranslations(id)
+      .then((s) => { if (vivant && s && s.total > 0) setTradCount(s.total) })
+      .catch(() => { /* module absent : l'onglet reste sans compteur */ })
+    return () => { vivant = false }
+  }, [id])
 
   // Hors perimetre, le dossier n'existe pas. On ne confirme meme pas sa reference.
   const kase = v.cases.find((c) => c.id === id)
@@ -50,6 +86,10 @@ export function CaseDetail() {
   const events = db.events.filter((e) => e.caseId === kase.id)
   const p = progress(db, kase.id)
   const blocking = blockingDocs(db, kase.id)
+  const notes = kase.notes ?? []
+  const canWrite = v.can('case:write')
+  const canDecide = kase.status === 'ouvert' && ['decision', 'consulat', 'depot'].includes(kase.stage)
+  const canAdvance = kase.status === 'ouvert' && kase.stage !== 'clos' && canWrite
 
   // Le lien porte l'agence et la langue du client : sans elles, il ouvre la
   // mauvaise agence et s'affiche dans la mauvaise langue.
@@ -64,188 +104,257 @@ export function CaseDetail() {
     }
   }
 
+  const advance = () => { actions.advance(kase.id); toast(t('caseDetail.advance')) }
+  const requestDocs = () => { const n = actions.requestMissingDocs(kase.id); toast(n ? t('msg.sent') : t('docs.none')) }
+
+  // Un compteur ne s'affiche que s'il a quelque chose à compter : « Rendez-vous 0 »
+  // est un reproche, pas une information.
+  const nb = (n: number) => (n > 0 ? n : undefined)
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: 'apercu', label: t('caseDetail.overview') },
-    { value: 'pieces', label: t('caseDetail.documents'), count: docs.length },
-    { value: 'messages', label: t('caseDetail.messages'), count: messages.length },
-    { value: 'rdv', label: t('caseDetail.appointments'), count: appts.length },
-    { value: 'paiements', label: t('caseDetail.payments'), count: payments.length },
+    { value: 'pieces', label: t('caseDetail.documents'), count: nb(docs.length) },
+    { value: 'messages', label: t('caseDetail.messages'), count: nb(messages.length) },
+    { value: 'rdv', label: t('caseDetail.appointments'), count: nb(appts.length) },
+    { value: 'paiements', label: t('caseDetail.payments'), count: nb(payments.length) },
+    { value: 'prestations', label: t('fiche.tabServices'), count: tradCount },
+    { value: 'suivi', label: t('fiche.tabTracking') },
     { value: 'historique', label: t('caseDetail.history') },
   ]
 
+  const stageLabel = kase.status === 'ouvert' ? t(`stage.${kase.stage}` as 'stage.nouveau') : t(`status.${kase.status}` as 'status.ouvert')
+  const phone = client.phone.replace(/[^0-9]/g, '')
+
   return (
     <>
-      <Link to="/dossiers" className="row gap-2 t-small" style={{ marginBottom: 'var(--sp-4)' }}>
-        <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} />
+      <Link to="/dossiers" className="fd-crumb">
+        <Icon name="chevron" size={14} />
         {t('cases.title')}
       </Link>
 
-      <PageHead
+      <PageHeader
+        kicker={`${kase.reference} · ${tt(visa.label)}`}
         title={`${client.firstName} ${client.lastName}`}
-        subtitle={`${kase.reference} · ${tt(visa.country)} ${tt(visa.label)}`}
-        action={
-          <div className="row gap-2">
+        subtitle={
+          <>
+            {tt(visa.country)} · {stageLabel}
+            {kase.travelDate && <> · {t('fiche.departure')} <Countdown iso={kase.travelDate} /></>}
+          </>
+        }
+        actions={
+          <>
             <PrintButton kind="fiche_dossier" entityId={kase.id} />
-            {v.can('case:write') && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
+            {canWrite && <Button icon="edit" onClick={() => setEditing(true)}>{t('crud.edit')}</Button>}
             <Button icon="copy" onClick={copyPortal}>{t('caseDetail.portalLink')}</Button>
-            {kase.status === 'ouvert' && ['decision', 'consulat', 'depot'].includes(kase.stage) && (
-              <Button icon="check" onClick={() => setDeciding(true)}>{t('status.accepte')} / {t('status.refuse')}</Button>
-            )}
-            {kase.status === 'ouvert' && kase.stage !== 'clos' && v.can('case:write') && (
-              <Button variant="primary" icon="arrow" onClick={() => { actions.advance(kase.id); toast(t('caseDetail.advance')) }}>
-                {t('caseDetail.advance')}
-              </Button>
-            )}
-          </div>
+            {canDecide && <Button icon="check" onClick={() => setDeciding(true)}>{t('fiche.decide')}</Button>}
+            {canAdvance && <Button variant="primary" icon="arrow" onClick={advance}>{t('caseDetail.advance')}</Button>}
+          </>
         }
       />
 
       {deciding && <Decision caseId={kase.id} onClose={() => setDeciding(false)} />}
       {editing && <CaseEditor kase={kase} onClose={() => setEditing(false)} />}
 
-      <div className="grid grid--main">
-        <div className="stack">
+      <div className="pg-fiche">
+        <div className="fd-main">
           <Card flush>
-            <Tabs value={tab} options={tabs} onChange={setTab} />
-            <div style={{ padding: 'var(--sp-6)' }}>
-              {tab === 'apercu' && <Overview kase={kase} />}
-              {tab === 'pieces' && <DocsTab caseId={kase.id} />}
-              {tab === 'messages' && <MessagesTab caseId={kase.id} />}
-              {tab === 'rdv' && <ApptsTab caseId={kase.id} />}
-              {tab === 'paiements' && <PaymentsTab caseId={kase.id} />}
-              {tab === 'historique' && (
-                events.length === 0 ? <Empty title={t('msg.none')} /> : (
-                  <ul className="timeline">
-                    {events.map((e) => (
-                      <li key={e.id} className="timeline__item">
-                        <span className={`timeline__dot ${e.automated ? '' : 'timeline__dot--done'}`} />
-                        <div className="col gap-1">
-                          <span className="t-small">{tt(e.detail)}</span>
-                          <span className="t-caption t-tertiary">
-                            <Ago iso={e.at} />
-                            {e.actorId && ` · ${db.users.find((u) => u.id === e.actorId)?.name ?? ''}`}
-                            {e.automated && ` · ${t('msg.automated')}`}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )
-              )}
-            </div>
+            <Tabs value={tab} options={tabs} onChange={setTab} idPrefix="fd" />
+            {tab === 'apercu' && <div className="fd-panel"><Overview kase={kase} /></div>}
+            {tab === 'pieces' && <div className="fd-panel"><DocsTab caseId={kase.id} /></div>}
+            {tab === 'messages' && <div className="fd-panel"><MessagesTab caseId={kase.id} /></div>}
+            {tab === 'rdv' && <div className="fd-panel"><ApptsTab caseId={kase.id} /></div>}
+            {tab === 'paiements' && <div className="fd-panel"><PaymentsTab caseId={kase.id} /></div>}
+            {tab === 'prestations' && (
+              <div className="fd-modules">
+                <TranslationCard caseId={kase.id} />
+                <TravelPanel caseId={kase.id} clientId={kase.clientId} officeId={kase.officeId} />
+                <CaseMarginCard caseId={kase.id} />
+              </div>
+            )}
+            {tab === 'suivi' && (
+              <div className="fd-modules">
+                <TrackingLinks kind="VISA_CASE" entityId={kase.id} />
+                <CustomFields entityKind="VISA_CASE" entityId={kase.id} />
+              </div>
+            )}
+            {tab === 'historique' && (
+              <div className="fd-modules">
+                <Card title={t('fiche.feed')}>
+                  {events.length === 0 ? <Vide icon="clock" title={t('fiche.noEvents')} /> : (
+                    <ul className="timeline">
+                      {events.map((e) => (
+                        <li key={e.id} className="timeline__item">
+                          <span className={`timeline__dot ${e.automated ? '' : 'timeline__dot--done'}`} />
+                          <div className="col gap-1">
+                            <span className="t-small">{tt(e.detail)}</span>
+                            <span className="t-caption t-tertiary">
+                              <Ago iso={e.at} />
+                              {e.actorId && ` · ${db.users.find((u) => u.id === e.actorId)?.name ?? ''}`}
+                              {e.automated && ` · ${t('msg.automated')}`}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+                <HistoryCard entityKind="VISA_CASE" entityId={kase.id} />
+                <AuditTrail entityType="cases" entityId={kase.id} />
+              </div>
+            )}
           </Card>
         </div>
 
-        <div className="stack">
+        <aside className="pg-fiche__rail">
+          {/* L'aperçu et la prochaine action ne font qu'une carte : l'étape,
+              l'avancement, les faits du dossier, puis le geste à faire. */}
           <Card title={t('caseDetail.overview')}>
-            <div className="col gap-4">
-              <div className="row-between">
-                <span className="t-small t-secondary">{t('cases.stage')}</span>
-                {kase.status === 'ouvert' ? <StagePill stage={kase.stage} /> : <StatusPill status={kase.status} />}
-              </div>
-              <div className="col gap-2">
-                <div className="row-between">
-                  <span className="t-small t-secondary">{t('cases.progress')}</span>
-                  <span className="t-small t-num">{t('caseDetail.completion', { done: p.done, total: p.total })}</span>
-                </div>
-                <Progress pct={p.pct} tone={p.pct === 100 ? 'green' : p.pct < 40 ? 'orange' : undefined} />
-              </div>
-              <hr className="divider" style={{ margin: 0 }} />
-              <Row label={t('caseDetail.assignedTo')} value={agent?.name} />
-              <Row label={t('caseDetail.office')} value={office?.name} />
-              <Row label={t('caseDetail.openedOn')} value={formatDate(kase.openedAt)} />
-              <Row label={t('caseDetail.travelOn')} value={<Countdown iso={kase.travelDate} />} />
-              <Row label={t('caseDetail.source')} value={t(`source.${kase.source}` as 'source.comptoir')} />
-              {kase.consulateRef && <Row label={t('caseDetail.consulateRef')} value={<span className="t-mono">{kase.consulateRef}</span>} />}
-              {v.can('payment:write') && (
-                <Row label={t('cases.balance')} value={caseBalance(kase) > 0 ? formatMoney(caseBalance(kase)) : t('payment.regle')} />
-              )}
+            <div className="fd-rail__stage">
+              <span className="t-small t-secondary">{t('cases.stage')}</span>
+              {kase.status === 'ouvert' ? <StagePill stage={kase.stage} /> : <StatusPill status={kase.status} />}
             </div>
+            <div className="fd-rail__progress">
+              <div className="fd-rail__progress-row">
+                <span className="t-secondary">{t('cases.progress')}</span>
+                <span className="t-num">{t('caseDetail.completion', { done: p.done, total: p.total })}</span>
+              </div>
+              <Progress pct={p.pct} label={t('cases.progress')} tone={p.pct === 100 ? 'green' : p.pct < 40 ? 'orange' : undefined} />
+            </div>
+            <Ligne label={t('caseDetail.assignedTo')}>{agent?.name ?? '·'}</Ligne>
+            <Ligne label={t('caseDetail.office')}>{office?.name ?? '·'}</Ligne>
+            <Ligne label={t('caseDetail.openedOn')}>{formatDate(kase.openedAt)}</Ligne>
+            <Ligne label={t('caseDetail.travelOn')}><Countdown iso={kase.travelDate} /></Ligne>
+            <Ligne label={t('caseDetail.source')}>{t(`source.${kase.source}` as 'source.comptoir')}</Ligne>
+            {kase.consulateRef && <Ligne label={t('caseDetail.consulateRef')} mono>{kase.consulateRef}</Ligne>}
+            {v.can('payment:write') && (
+              <Ligne label={t('cases.balance')}>{caseBalance(kase) > 0 ? formatMoney(caseBalance(kase)) : t('payment.regle')}</Ligne>
+            )}
+            <NextAction
+              kase={kase}
+              blocking={blocking}
+              canWrite={canWrite}
+              canDecide={canDecide}
+              canAdvance={canAdvance}
+              onRequestDocs={requestDocs}
+              onDecide={() => setDeciding(true)}
+              onAdvance={advance}
+            />
           </Card>
 
           <Card title={t('cases.client')} action={<Link to={`/clients/${client.id}`} className="t-small">{t('action.open')}</Link>}>
-            <div className="row gap-3" style={{ marginBottom: 'var(--sp-4)' }}>
+            <div className="fd-client">
               <Avatar name={`${client.firstName} ${client.lastName}`} size="lg" />
-              <div className="col">
-                <span className="t-medium">{client.firstName} {client.lastName}</span>
+              <div className="fd-client__id">
+                <span className="fd-client__name">{client.firstName} {client.lastName}</span>
                 {client.nativeName && <span className="t-small t-tertiary">{client.nativeName}</span>}
                 <span className="t-caption t-tertiary">{client.nationality}</span>
               </div>
             </div>
-            <div className="col gap-3">
-              <Row label={t('clients.contact')} value={<span className="t-mono t-small">{client.phone}</span>} />
-              <Row label={t('clients.passport')} value={<span className="t-mono t-small">{client.passportNumber}</span>} />
-              <Row label={t('clients.expiry')} value={formatDate(client.passportExpiry)} />
-              <Row label={t('misc.language')} value={client.locale.toUpperCase()} />
-            </div>
-            <div className="row gap-2" style={{ marginTop: 'var(--sp-5)' }}>
-              <a className="btn btn--secondary btn--sm" href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
+            <Ligne label={t('clients.contact')} mono>{client.phone}</Ligne>
+            <Ligne label={t('clients.passport')} mono>{client.passportNumber ?? '·'}</Ligne>
+            <Ligne label={t('clients.expiry')}>{formatDate(client.passportExpiry)}</Ligne>
+            <Ligne label={t('misc.language')}>{client.locale.toUpperCase()}</Ligne>
+            <div className="fd-client__actions">
+              <a className="btn btn--secondary btn--sm" href={`https://wa.me/${(client.whatsapp ?? client.phone).replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
                 <Icon name="whatsapp" size={16} /> WhatsApp
               </a>
-              <a className="btn btn--secondary btn--sm" href={`tel:${client.phone.replace(/\s/g, '')}`}>
+              <a className="btn btn--secondary btn--sm" href={`tel:${phone}`}>
                 <Icon name="phone" size={16} /> {t('action.call')}
               </a>
             </div>
           </Card>
 
-          {blocking.length > 0 && (
-            <Card title={t('caseDetail.nextStep')}>
-              <div className="col gap-3">
-                {blocking.slice(0, 4).map((d) => (
-                  <div key={d.id} className="row-between">
-                    <span className="t-small t-truncate">{tt(d.label)}</span>
-                    <DocPill state={d.state} />
-                  </div>
-                ))}
-                <Button
-                  variant="primary"
-                  block
-                  icon="messages"
-                  onClick={() => { const n = actions.requestMissingDocs(kase.id); toast(n ? t('msg.sent') : t('docs.none')) }}
-                >
-                  {t('docs.requestAll')}
-                </Button>
-              </div>
-            </Card>
-          )}
-
-          <Card title={t('caseDetail.notes')}>
-            <NoteBox caseId={kase.id} />
-          </Card>
-
-          <CaseJourney kase={kase} />
-          <TranslationCard caseId={kase.id} />
-          <TravelPanel caseId={kase.id} clientId={kase.clientId} officeId={kase.officeId} />
-          <CaseMarginCard caseId={kase.id} />
-          <CustomFields entityKind="VISA_CASE" entityId={kase.id} />
-          <HistoryCard entityKind="VISA_CASE" entityId={kase.id} />
-          <TrackingLinks kind="VISA_CASE" entityId={kase.id} />
-          <AuditTrail entityType="cases" entityId={kase.id} />
-        </div>
+          {/* Les notes se replient : on les ouvre pour écrire, elles ne
+              poussent pas le reste du rail hors de l'écran. */}
+          <details className="fd-notes">
+            <summary className="fd-notes__sum">
+              <span>{t('caseDetail.notes')}{notes.length > 0 && <Pill tone="gray">{notes.length}</Pill>}</span>
+              <Icon name="chevron" size={16} />
+            </summary>
+            <div className="fd-notes__body">
+              <NoteBox caseId={kase.id} />
+            </div>
+          </details>
+        </aside>
       </div>
-
     </>
   )
 }
 
-function Row({ label, value }: { label: string; value?: React.ReactNode }) {
+/* -------------------------- Prochaine action -------------------------- */
+
+/* Le geste à faire, un seul, en bouton primaire. Dans l'ordre : les pièces qui
+   bloquent, la décision à noter, l'étape à passer. Un dossier fermé n'a rien
+   à faire, et le dit. */
+function NextAction({ kase, blocking, canWrite, canDecide, canAdvance, onRequestDocs, onDecide, onAdvance }: {
+  kase: VisaCase
+  blocking: CaseDocument[]
+  canWrite: boolean
+  canDecide: boolean
+  canAdvance: boolean
+  onRequestDocs: () => void
+  onDecide: () => void
+  onAdvance: () => void
+}) {
+  const { db } = useStore()
+  const { t, tt } = useI18n()
+  if (kase.status !== 'ouvert') return null
+
+  let corps: ReactNode
+  if (blocking.length > 0) {
+    corps = (
+      <>
+        <span className="t-small t-secondary">
+          {blocking.length === 1 ? t('fiche.blockingOne') : t('fiche.blockingMany', { n: blocking.length })}
+        </span>
+        <ul className="fd-next__docs">
+          {blocking.slice(0, 3).map((d) => (
+            <li key={d.id} className="fd-next__doc">
+              <span>{tt(d.label)}</span>
+              <DocPill state={d.state} />
+            </li>
+          ))}
+          {blocking.length > 3 && <li className="t-caption t-tertiary">{t('fiche.moreDocs', { n: blocking.length - 3 })}</li>}
+        </ul>
+        {canWrite && <Button variant="primary" block icon="messages" onClick={onRequestDocs}>{t('docs.requestAll')}</Button>}
+      </>
+    )
+  } else if (canDecide) {
+    corps = (
+      <>
+        <span className="t-small t-secondary">{t('fiche.decideHint')}</span>
+        <Button variant="primary" block icon="check" onClick={onDecide}>{t('fiche.decide')}</Button>
+      </>
+    )
+  } else if (canAdvance) {
+    const stages = db.visaTypes.find((x) => x.id === kase.visaTypeId)?.stages ?? STAGES
+    const suivante = stages[stages.indexOf(kase.stage) + 1]
+    corps = (
+      <>
+        {suivante && <span className="t-small t-secondary">{t('fiche.nextStage', { stage: t(`stage.${suivante}` as 'stage.nouveau') })}</span>}
+        <Button variant="primary" block icon="arrow" onClick={onAdvance}>{t('caseDetail.advance')}</Button>
+      </>
+    )
+  } else {
+    corps = <span className="t-small t-tertiary">{t('fiche.nothingToDo')}</span>
+  }
+
   return (
-    <div className="row-between">
-      <span className="t-small t-secondary">{label}</span>
-      <span className="t-small" style={{ textAlign: 'end' }}>{value ?? '—'}</span>
+    <div className="fd-next">
+      <span className="fd-next__title">{t('caseDetail.nextStep')}</span>
+      {corps}
     </div>
   )
 }
 
 /* ------------------------------ Apercu ------------------------------- */
 
-function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
+function Overview({ kase }: { kase: VisaCase }) {
   const { db, actions } = useStore()
   const v = useVisible()
   const { t, tt, formatDate, formatMoney } = useI18n()
   const toast = useToast()
   const visa = db.visaTypes.find((v) => v.id === kase.visaTypeId)!
-  const stages = visa.stages
+  const stages = visa?.stages ?? STAGES
   const consulate = db.consulates.find((c) => c.id === kase.consulateId)
   const client = db.clients.find((c) => c.id === kase.clientId)
   // Le rang dans la file, c'est ce que le client verra dans son portail.
@@ -258,37 +367,83 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
 
   return (
     <>
-    <div className="stack">
-      <ul className="timeline">
+    <div className="col gap-6">
+      <CaseJourney kase={kase} />
+
+      {/* Les étapes du métier, en une ligne : c'est le fil du pipeline, pas
+          le récit du parcours. Neuf mots suffisent. */}
+      <ol className="fd-etapes" aria-label={t('fiche.stages')}>
         {stages.map((s, i) => (
-          <li key={s} className="timeline__item">
-            <span className={`timeline__dot ${i < currentIndex ? 'timeline__dot--done' : i === currentIndex ? 'timeline__dot--current' : ''}`}>
-              {i < currentIndex && <Icon name="check" size={10} className="t-white" />}
-            </span>
-            <div className="col gap-1">
-              <span className={i === currentIndex ? 't-medium' : 't-secondary'} style={{ fontSize: 14 }}>
-                {t(`stage.${s}` as 'stage.nouveau')}
-              </span>
-              {i === currentIndex && (
-                <span className="t-caption t-tertiary">
-                  {t('caseDetail.daysOpen', { n: daysSince(kase.openedAt) })}
-                </span>
-              )}
-            </div>
+          <li
+            key={s}
+            className={`fd-etape ${i < currentIndex ? 'fd-etape--fait' : i === currentIndex ? 'fd-etape--encours' : ''}`}
+            aria-current={i === currentIndex ? 'step' : undefined}
+            title={i === currentIndex ? t('caseDetail.daysOpen', { n: daysSince(kase.openedAt) }) : undefined}
+          >
+            <span className="fd-etape__dot" />
+            {t(`stage.${s}` as 'stage.nouveau')}
           </li>
         ))}
-      </ul>
+      </ol>
 
-      <div className="grid grid--2">
-        <div className="col gap-2">
-          <span className="t-caption t-tertiary">{t('cases.visa')}</span>
-          <span className="t-medium">{tt(visa.country)} · {tt(visa.label)}</span>
-          <span className="t-small t-secondary">{t('reports.days', { n: visa.processingDays })}</span>
+      <div className="fd-facts">
+        <div className="fd-fact">
+          <span className="fd-fact__label">{t('cases.visa')}</span>
+          <span className="fd-fact__value">{tt(visa.country)} · {tt(visa.label)}</span>
+          <span className="fd-fact__hint">{t('reports.days', { n: visa.processingDays })}</span>
         </div>
-        <div className="col gap-2">
-          <span className="t-caption t-tertiary">{t('caseDetail.dueOn')}</span>
-          <span className="t-medium">{formatDate(kase.dueAt)}</span>
+        <div className="fd-fact">
+          <span className="fd-fact__label">{t('caseDetail.dueOn')}</span>
+          <span className="fd-fact__value">{formatDate(kase.dueAt)}</span>
+          <span className="fd-fact__hint">{t('caseDetail.daysOpen', { n: daysSince(kase.openedAt) })}</span>
         </div>
+        {kase.status === 'ouvert' && consulate && (
+          <div className="fd-fact">
+            <span className="fd-fact__label">{t('slots.consulate')}</span>
+            <span className="fd-fact__value">{tt(consulate.country)} · {consulate.city}</span>
+            <span className="fd-fact__hint">{t(`centre.${consulate.centre}` as 'centre.tls_tunis')}</span>
+          </div>
+        )}
+        {/* Le créneau : le rang dans la file, et la biométrie qui dispense ou
+            non du déplacement. C'est ce qui manque partout ailleurs. */}
+        {kase.status === 'ouvert' && (consulate || place.rank > 0) && (
+          <div className="fd-fact">
+            <span className="fd-fact__label">{t('slots.inQueue')}</span>
+            {place.rank > 0 ? (
+              <>
+                <span className="fd-fact__value">{t('slots.rank', { rank: place.rank, total: place.total })}</span>
+                <span className="fd-fact__hint">{t('slots.since', { n: daysSince(place.entry!.joinedAt) })}</span>
+              </>
+            ) : (
+              <>
+                <span className="fd-fact__value t-tertiary">{t('fiche.notQueued')}</span>
+                {consulate && (
+                  <button
+                    type="button"
+                    className="linkish t-small"
+                    style={{ alignSelf: 'start' }}
+                    onClick={() => { actions.joinQueue({ caseId: kase.id, consulateId: consulate.id }); toast(t('slots.joined')) }}
+                  >
+                    {t('slots.join')}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        {kase.status === 'ouvert' && client?.biometricsAt && (
+          <div className={`fd-fact ${bioOk ? 'fd-fact--ok' : 'fd-fact--ko'}`}>
+            <span className="fd-fact__label">{t('bio.label')}</span>
+            <span className="fd-fact__value">{bioOk ? t('bio.valid', { date: formatDate(bioUntil) }) : t('bio.expired')}</span>
+            <span className="fd-fact__hint">{t('bio.hint')}</span>
+          </div>
+        )}
+        {kase.status === 'ouvert' && kase.track && (
+          <div className="fd-fact">
+            <span className="fd-fact__label">{t('track.label')}</span>
+            <span className="fd-fact__value">{t(`track.${kase.track}` as 'track.primo')}</span>
+          </div>
+        )}
       </div>
 
       {/* Le risque de refus, estimé sur les dossiers déjà décidés de l'agence,
@@ -304,7 +459,7 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
             <div className="col gap-1">
               <span className="t-caption t-tertiary">{t('caseDetail.refusalRisk')}</span>
               <div className="row gap-2" style={{ alignItems: 'baseline' }}>
-                <span className="t-medium" style={{ fontSize: 20 }}>{Math.round(risk.rate * 100)}%</span>
+                <span className="t-medium" style={{ fontSize: 'var(--size-h4)' }}>{Math.round(risk.rate * 100)}%</span>
                 <Pill tone={tone}>{t(`risk.${risk.band}` as 'risk.faible')}</Pill>
               </div>
               <span className="t-caption t-tertiary">
@@ -317,57 +472,6 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
         )
       })()}
 
-      {/* Le créneau : le poste, le rang dans la file, et la biométrie qui
-          dispense ou non du déplacement. C'est ce qui manque partout ailleurs. */}
-      {kase.status === 'ouvert' && (consulate || client?.biometricsAt || place.rank > 0) && (
-        <div className="grid grid--2">
-          {consulate && (
-            <div className="col gap-2">
-              <span className="t-caption t-tertiary">{t('slots.consulate')}</span>
-              <span className="t-medium">{tt(consulate.country)} · {consulate.city}</span>
-              <span className="t-small t-secondary">{t(`centre.${consulate.centre}` as 'centre.tls_tunis')}</span>
-            </div>
-          )}
-          <div className="col gap-2">
-            <span className="t-caption t-tertiary">{t('slots.inQueue')}</span>
-            {place.rank > 0 ? (
-              <>
-                <span className="t-medium">{t('slots.rank', { rank: place.rank, total: place.total })}</span>
-                <span className="t-small t-secondary">{t('slots.since', { n: daysSince(place.entry!.joinedAt) })}</span>
-              </>
-            ) : (
-              <>
-                <span className="t-medium t-tertiary">—</span>
-                {consulate && (
-                  <button
-                    type="button"
-                    className="linkish t-small"
-                    onClick={() => { actions.joinQueue({ caseId: kase.id, consulateId: consulate.id }); toast(t('slots.joined')) }}
-                  >
-                    {t('slots.join')}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-          {client?.biometricsAt && (
-            <div className="col gap-2">
-              <span className="t-caption t-tertiary">{t('bio.label')}</span>
-              <span className="t-medium" style={{ color: bioOk ? 'var(--green)' : 'var(--orange)' }}>
-                {bioOk ? t('bio.valid', { date: formatDate(bioUntil) }) : t('bio.expired')}
-              </span>
-              <span className="t-small t-secondary">{t('bio.hint')}</span>
-            </div>
-          )}
-          {kase.track && (
-            <div className="col gap-2">
-              <span className="t-caption t-tertiary">{t('track.label')}</span>
-              <span className="t-medium">{t(`track.${kase.track}` as 'track.primo')}</span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Le registre du passeport. C'est le risque juridique numéro un de
           l'agence : un passeport perdu coûte vingt fois sa délivrance. La
           restitution est bloquée tant que le solde n'est pas réglé. */}
@@ -377,9 +481,9 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
         const due = caseBalance(kase)
         const canForce = v.can('finance:global')
         return (
-          <div className="card" style={{ boxShadow: 'none', background: 'var(--bg-sunken)', padding: 'var(--sp-4)' }}>
-            <div className="row-between" style={{ marginBottom: held ? 'var(--sp-3)' : 0 }}>
-              <span className="t-caption t-tertiary row gap-2"><Icon name="passport" size={15} /> {t('custody.title')}</span>
+          <div className="fd-bloc">
+            <div className="fd-bloc__head" style={{ marginBottom: held ? 'var(--sp-3)' : 0 }}>
+              <span className="fd-bloc__title"><Icon name="passport" size={15} /> {t('custody.title')}</span>
               {!held && v.can('case:write') && (
                 <button type="button" className="linkish t-small" onClick={() => setReceiving(true)}>{t('custody.receive')}</button>
               )}
@@ -394,19 +498,19 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
                 {v.can('case:write') && (
                   due > 0 ? (
                     <div className="col gap-2" style={{ marginTop: 'var(--sp-2)' }}>
-                      <span className="t-caption" style={{ color: 'var(--red)' }}>{t('custody.blocked', { amount: formatMoney(due) })}</span>
+                      <span className="t-caption fd-rouge">{t('custody.blocked', { amount: formatMoney(due) })}</span>
                       {canForce && (
-                        <button type="button" className="linkish t-small" style={{ color: 'var(--red)' }}
+                        <button type="button" className="linkish t-small fd-rouge"
                           onClick={() => { if (window.confirm(t('custody.forceConfirm', { amount: formatMoney(due) }))) { actions.releasePassport(held.id, true); toast(t('custody.returned')) } }}>
                           {t('custody.force')}
                         </button>
                       )}
                     </div>
                   ) : (
-                    <button type="button" className="btn btn--secondary btn--sm" style={{ marginTop: 'var(--sp-2)', alignSelf: 'start' }}
+                    <Button size="sm" style={{ marginTop: 'var(--sp-2)', alignSelf: 'start' }}
                       onClick={() => { actions.releasePassport(held.id); toast(t('custody.returned')) }}>
                       {t('custody.return')}
-                    </button>
+                    </Button>
                   )
                 )}
               </div>
@@ -418,18 +522,14 @@ function Overview({ kase }: { kase: import('@/data/types').VisaCase }) {
       })()}
 
       {(kase.refusalCode || kase.refusalReason) && (
-        <div className="card" style={{ boxShadow: 'none', background: 'var(--tint-red)', padding: 'var(--sp-4)' }}>
+        <div className="fd-bloc fd-bloc--rouge">
           <div className="col gap-1">
             {kase.refusalCode && (
-              <span className="t-medium t-small" style={{ color: 'var(--red)' }}>
-                {t(`refusal.${kase.refusalCode}` as 'refusal.autre')}
-              </span>
+              <span className="t-medium t-small">{t(`refusal.${kase.refusalCode}` as 'refusal.autre')}</span>
             )}
-            {kase.refusalReason && <span className="t-small" style={{ color: 'var(--red)' }}>{kase.refusalReason}</span>}
+            {kase.refusalReason && <span className="t-small">{kase.refusalReason}</span>}
             {kase.appealDueAt && (
-              <span className="t-caption" style={{ color: 'var(--red)' }}>
-                {t('refusal.appealDue', { date: formatDate(kase.appealDueAt) })}
-              </span>
+              <span className="t-caption">{t('refusal.appealDue', { date: formatDate(kase.appealDueAt) })}</span>
             )}
           </div>
         </div>
@@ -474,11 +574,13 @@ function DocsTab({ caseId }: { caseId: string }) {
     toast(state === 'validee' ? t('docs.validated') : t('action.save'))
   }
 
+  if (docs.length === 0) return <Vide icon="documents" title={t('fiche.noDocs')} />
+
   return (
-    <div className="col gap-3">
+    <div className="fd-liste">
       {docs.map((d) => (
-        <div key={d.id} className="row-between wrap gap-3" style={{ padding: 'var(--sp-3) 0', borderBottom: '1px solid var(--hairline)' }}>
-          <div className="col grow" style={{ minWidth: 0 }}>
+        <div key={d.id} className="fd-ligne">
+          <div className="fd-ligne__main">
             <span className="row gap-2">
               <span className="t-medium t-small">{tt(d.label)}</span>
               {!d.required && <span className="t-caption t-tertiary">{t('misc.optional')}</span>}
@@ -492,7 +594,7 @@ function DocsTab({ caseId }: { caseId: string }) {
               {d.uploadedAt && !d.uploadedBy && ` · ${t('file.byClient')}`}
             </span>
             {d.rejectionReason && d.state === 'refusee' && (
-              <span className="t-caption" style={{ color: 'var(--red)' }}>{d.rejectionReason}</span>
+              <span className="t-caption fd-rouge">{d.rejectionReason}</span>
             )}
             {/* Le dépôt réel. Sans lui, le logiciel restait un cahier de suivi
                 et la pièce vivait dans un fil WhatsApp. */}
@@ -507,8 +609,8 @@ function DocsTab({ caseId }: { caseId: string }) {
               />
             </div>
           </div>
-          <DocPill state={d.state} />
-          <div className="row gap-1">
+          <div className="fd-ligne__side">
+            <DocPill state={d.state} />
             {['manquante', 'demandee'].includes(d.state) && (
               <>
                 {d.state === 'manquante' && (
@@ -602,7 +704,7 @@ function MessagesTab({ caseId }: { caseId: string }) {
   return (
     <div className="col gap-5">
       {messages.length === 0 ? (
-        <Empty title={t('msg.none')} />
+        <Vide icon="messages" title={t('msg.none')} />
       ) : (
         <div className="col gap-3">
           {messages.map((m) => {
@@ -614,17 +716,11 @@ function MessagesTab({ caseId }: { caseId: string }) {
               key={m.id}
               dir={rtl ? 'rtl' : 'ltr'}
               lang={m.locale}
-              style={{
-                alignSelf: m.direction === 'sortant' ? 'flex-end' : 'flex-start',
-                maxWidth: '78%',
-                background: m.direction === 'sortant' ? 'var(--tint-blue)' : 'var(--bg-hover)',
-                borderRadius: 'var(--radius-card-sm)',
-                padding: 'var(--sp-3) var(--sp-4)',
-                textAlign: rtl ? 'right' : 'left',
-              }}
+              className={`fd-bulle ${m.direction === 'sortant' ? 'fd-bulle--sortant' : ''}`}
+              style={{ textAlign: rtl ? 'right' : 'left' } as CSSProperties}
             >
               <p className="t-small" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</p>
-              <span className="t-caption t-tertiary row gap-2" style={{ marginTop: 4 }}>
+              <span className="t-caption t-tertiary fd-bulle__meta">
                 <Icon name={m.channel === 'whatsapp' ? 'whatsapp' : m.channel === 'email' ? 'mail' : 'portal'} size={12} />
                 <Ago iso={m.at} />
                 {m.automated && <Pill tone="violet">{t('msg.automated')}</Pill>}
@@ -634,7 +730,7 @@ function MessagesTab({ caseId }: { caseId: string }) {
         </div>
       )}
 
-      <div className="col gap-3" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 'var(--sp-5)' }}>
+      <div className="fd-composer">
         <div className="row gap-3 wrap">
           <Select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={{ width: 'auto' }}>
             <option value="">{t('msg.noTemplate')}</option>
@@ -707,12 +803,14 @@ function ApptsTab({ caseId }: { caseId: string }) {
   const [at, setAt] = useState('')
   const kase = db.cases.find((c) => c.id === caseId)!
 
+  const nouveau = <Button icon="plus" onClick={() => setOpen(true)}>{t('appts.newAppt')}</Button>
+
   return (
-    <div className="col gap-4">
-      {appts.length === 0 && <Empty title={t('appts.none')} />}
+    <div className="fd-liste">
+      {appts.length === 0 && <Vide icon="appointments" title={t('appts.none')} action={nouveau} />}
       {appts.map((a) => (
-        <div key={a.id} className="row-between" style={{ paddingBottom: 'var(--sp-3)', borderBottom: '1px solid var(--hairline)' }}>
-          <div className="col">
+        <div key={a.id} className="fd-ligne">
+          <div className="fd-ligne__main">
             <span className="t-medium t-small">{t(`appt.${a.kind}` as 'appt.agence')}</span>
             <span className="t-caption t-tertiary">{a.location}</span>
           </div>
@@ -727,7 +825,7 @@ function ApptsTab({ caseId }: { caseId: string }) {
         </div>
       ))}
 
-      <Button icon="plus" onClick={() => setOpen(true)}>{t('appts.newAppt')}</Button>
+      {appts.length > 0 && <div className="fd-liste__foot">{nouveau}</div>}
 
       {open && (
         <Modal
@@ -784,10 +882,11 @@ function PaymentsTab({ caseId }: { caseId: string }) {
   const paymentAmount = db.payments.find((p) => p.id === cashing)?.amount
 
   return (
-    <div className="col gap-3">
+    <div className="fd-liste">
+      {payments.length === 0 && <Vide icon="payments" title={t('fiche.noPayments')} />}
       {payments.map((p) => (
-        <div key={p.id} className="row-between" style={{ paddingBottom: 'var(--sp-3)', borderBottom: '1px solid var(--hairline)' }}>
-          <div className="col">
+        <div key={p.id} className="fd-ligne">
+          <div className="fd-ligne__main">
             <span className="t-small t-medium">{tt(p.label)}</span>
             <span className="t-caption t-tertiary">
               {p.state === 'regle'
@@ -795,7 +894,7 @@ function PaymentsTab({ caseId }: { caseId: string }) {
                 : `${t('caseDetail.dueOn')} ${formatDate(p.dueAt)}`}
             </span>
           </div>
-          <div className="row gap-3">
+          <div className="fd-ligne__side">
             <span className="t-medium t-num">{formatMoney(p.amount)}</span>
             {p.state === 'regle' ? (
               <Pill tone="green" dot>{t('payment.regle')}</Pill>
@@ -807,7 +906,7 @@ function PaymentsTab({ caseId }: { caseId: string }) {
           </div>
         </div>
       ))}
-      <p className="t-caption t-tertiary">{t('pay.subtitle')}</p>
+      <p className="t-caption t-tertiary fd-liste__foot">{t('pay.subtitle')}</p>
 
       {cashing && (
         <Modal
@@ -837,7 +936,7 @@ function PaymentsTab({ caseId }: { caseId: string }) {
                 dinars coûte 20 % d'amende, minimum 2000 dinars (art. 83 ter du
                 CDPF). Mieux vaut fractionner ou passer par un autre moyen. */}
             {method === 'especes' && (paymentAmount ?? 0) >= 5000 && (
-              <div className="wawindow" style={{ background: 'var(--tint-red)', color: 'var(--red)' }}>
+              <div className="wawindow fd-bloc--rouge">
                 <Icon name="alert" size={15} />
                 <span className="t-caption grow">{t('pay.cashWarning')}</span>
               </div>
@@ -866,7 +965,7 @@ function Decision({ caseId, onClose }: { caseId: string; onClose: () => void }) 
 
   return (
     <Modal
-      title={t('caseDetail.overview')}
+      title={t('fiche.decide')}
       onClose={onClose}
       footer={
         <>

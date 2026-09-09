@@ -5,13 +5,17 @@ import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { clientName } from '@/lib/derive'
 import type { Tone } from '@/lib/derive'
-import { Button, Card, Combobox, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
-import { PageHead } from '@/components/bits'
+import { Button, Combobox, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast } from '@/components/ui'
+import { ExportButton } from '@/components/ExportButton'
+import {
+  Erreur, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Toolbar, Vide, useChargement,
+} from '@/components/page'
 import {
   addQuoteLine, archiveQuoteLine, createQuote, loadQuoteLines, loadQuotes, loadServices,
   quoteToInvoice, setQuoteDiscount, setQuoteStatus,
 } from '@/data/commerce'
 import type { DocLine, Quote, QuoteKind, QuoteStatus, Service } from '@/data/commerce'
+import '@/styles/modules.css'
 
 /**
  * Les devis.
@@ -19,6 +23,8 @@ import type { DocLine, Quote, QuoteKind, QuoteStatus, Service } from '@/data/com
  * Ce que l'écran ne fait JAMAIS : additionner. Le sous-total, la TVA et le
  * total viennent du serveur à chaque relecture. Un navigateur qui recalcule
  * finit toujours par afficher un chiffre que la facture imprimée dément.
+ * Les chiffres de tête sont des sommes de colonnes déjà arrêtées par le
+ * serveur, jamais un recalcul de ligne.
  *
  * Cet écran lit le serveur en direct, pas le magasin global : celui-ci charge
  * déjà trente-trois tables à l'ouverture de session, et tout le monde les
@@ -30,6 +36,10 @@ const TONE: Record<QuoteStatus, Tone> = {
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+type Vue = 'ouverts' | 'clos' | 'tous'
 
 export function Quotes() {
   const { db } = useStore()
@@ -37,106 +47,195 @@ export function Quotes() {
   const { t, formatMoney, formatDate } = useI18n()
   const toast = useToast()
 
-  const [rows, setRows] = useState<Quote[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<'ouverts' | 'clos' | 'tous'>('ouverts')
+  const [view, setView] = useState<Vue>('ouverts')
+  const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
-    if (!HAS_BACKEND) return
-    try {
-      const [q, s] = await Promise.all([loadQuotes(), loadServices()])
-      setRows(q)
-      setServices(s.filter((x) => x.active))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
+  const canWrite = v.can('payment:write')
+
+  const { data, loading, refreshing, error, reload } = useChargement(async () => {
+    if (!HAS_BACKEND) return { rows: [] as Quote[], services: [] as Service[] }
+    const [rows, s] = await Promise.all([loadQuotes(), loadServices()])
+    return { rows, services: s.filter((x) => x.active) }
+  })
+  const rows = useMemo(() => data?.rows ?? [], [data])
+  const services = useMemo(() => data?.services ?? [], [data])
+
+  /* ---------------------------- Compteurs ---------------------------- */
+
+  const compte = useMemo(() => {
+    const c = { attente: 0, attenteMontant: 0, brouillons: 0, acceptes: 0, acceptesMontant: 0, decides: 0 }
+    for (const x of rows) {
+      if (x.status === 'envoye') { c.attente++; c.attenteMontant += x.total }
+      if (x.status === 'brouillon') c.brouillons++
+      if (x.status === 'accepte') { c.acceptes++; c.acceptesMontant += x.total }
+      if (x.status === 'accepte' || x.status === 'refuse') c.decides++
     }
-  }, [])
+    return c
+  }, [rows])
+  const taux = compte.decides > 0 ? Math.round((compte.acceptes / compte.decides) * 100) : null
 
-  useEffect(() => { void reload() }, [reload])
+  /* ----------------------------- Filtrage ---------------------------- */
 
-  const shown = useMemo(() => rows.filter((q) =>
-    view === 'tous' ? true
-      : view === 'ouverts' ? q.status === 'brouillon' || q.status === 'envoye'
-        : q.status !== 'brouillon' && q.status !== 'envoye',
-  ), [rows, view])
+  const nom = useCallback((id: string | null) => (id ? clientName(db, id) : ''), [db])
 
-  const open = rows.find((q) => q.id === openId) ?? null
+  const shown = useMemo(() => {
+    const n = norm(q.trim())
+    return rows.filter((x) => {
+      const ok = view === 'tous' ? true
+        : view === 'ouverts' ? x.status === 'brouillon' || x.status === 'envoye'
+          : x.status !== 'brouillon' && x.status !== 'envoye'
+      if (!ok) return false
+      if (!n) return true
+      return norm(`${x.number} ${nom(x.clientId)}`).includes(n)
+    })
+  }, [rows, view, q, nom])
+
+  const open = rows.find((x) => x.id === openId) ?? null
+
+  const guardRow = async (job: () => Promise<void>) => {
+    try { await job(); await reload() } catch (e) { toast((e as Error).message) }
+  }
+
+  const colonnesExport = [
+    { key: 'number', label: t('com.quoteNumber'), value: (x: Quote) => x.number },
+    { key: 'client', label: t('com.client'), value: (x: Quote) => nom(x.clientId) },
+    { key: 'kind', label: t('com.kind'), value: (x: Quote) => t(`com.kind${cap(x.kind)}` as 'com.kindVisa') },
+    { key: 'status', label: t('com.status'), value: (x: Quote) => t(`com.status${cap(x.status)}` as 'com.statusBrouillon') },
+    { key: 'validUntil', label: t('com.validUntil'), value: (x: Quote) => x.validUntil },
+    { key: 'subtotal', label: t('com.subtotal'), value: (x: Quote) => x.subtotal },
+    { key: 'tax', label: t('com.taxTotal'), value: (x: Quote) => x.taxTotal },
+    { key: 'total', label: t('com.total'), value: (x: Quote) => x.total },
+    { key: 'currency', label: t('com.currency'), value: (x: Quote) => x.currency },
+    { key: 'created', label: t('crm.createdOn'), value: (x: Quote) => x.createdAt.slice(0, 10) },
+  ]
+
+  const head = (
+    <PageHeader
+      kicker={t('mq.kickerCommercial')}
+      title={t('com.quotes')}
+      subtitle={t('mq.quotesSub')}
+      refreshing={refreshing && !loading}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <ExportButton rows={shown} columns={colonnesExport} base="devis" scope="devis" disabled={shown.length === 0} />
+        <Button icon="refresh" onClick={() => void reload()} disabled={refreshing}>{t('mq.refresh')}</Button>
+        {canWrite && <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newQuote')}</Button>}
+      </> : undefined}
+    />
+  )
 
   if (!HAS_BACKEND) {
     return (
       <>
-        <PageHead title={t('com.quotes')} subtitle={t('com.quotesSub')} />
-        <Card><Empty title={t('com.offline')} hint={t('com.offlineHint')} scene="alerte" /></Card>
+        {head}
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="vide" /></Section>
       </>
     )
   }
 
   return (
     <>
-      <PageHead
-        title={t('com.quotes')}
-        subtitle={t('com.quotesSub')}
-        action={v.can('payment:write')
-          ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newQuote')}</Button>
-          : undefined}
-      />
+      {head}
 
-      {error && <Card><p className="t-small t-orange">{t('com.loadError', { msg: error })}</p></Card>}
+      {error && <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />}
 
-      <Card flush>
-        <div className="row" style={{ padding: 'var(--sp-4) var(--sp-6)', borderBottom: '1px solid var(--hairline)' }}>
-          <Segmented
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'ouverts', label: t('com.inProgress') },
-              { value: 'clos', label: t('com.decided') },
-              { value: 'tous', label: t('com.all') },
-            ]}
-          />
-        </div>
+      {loading && !data ? (
+        <>
+          <Squelette type="kpis" n={4} />
+          <Section flush><Squelette type="table" n={6} /></Section>
+        </>
+      ) : (
+        <>
+          <KpiGrid>
+            <Kpi label={t('mq.quotesPending')} value={compte.attente} icon="mail" tone="blue"
+                 hint={t('mq.forAmount', { amount: formatMoney(compte.attenteMontant) })} />
+            <Kpi label={t('com.statusBrouillon')} value={compte.brouillons} icon="edit"
+                 hint={t('mq.quotesDraftHint')} />
+            <Kpi label={t('mq.quotesAccepted')} value={compte.acceptes} icon="check" tone="green"
+                 hint={t('mq.forAmount', { amount: formatMoney(compte.acceptesMontant) })} />
+            <Kpi label={t('mq.quotesRate')} value={taux === null ? '·' : `${taux} %`} icon="reports"
+                 hint={taux === null ? t('mq.notEnough') : t('mq.quotesRateHint', { n: compte.decides })} />
+          </KpiGrid>
 
-        {shown.length === 0 ? (
-          <Empty
-            title={t('com.noQuotes')}
-            hint={t('com.noQuotesHint')}
-            action={v.can('payment:write')
-              ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newQuote')}</Button>
-              : undefined}
-          />
-        ) : (
-          <div className="tablewrap">
-            <table className="table table--clickable">
-              <thead>
-                <tr>
-                  <th>{t('com.quoteNumber')}</th>
-                  <th>{t('com.client')}</th>
-                  <th>{t('com.kind')}</th>
-                  <th>{t('com.status')}</th>
-                  <th>{t('com.validUntil')}</th>
-                  <th className="num">{t('com.total')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((q) => (
-                  <tr key={q.id} onClick={() => setOpenId(q.id)}>
-                    <td className="t-mono t-small t-medium">{q.number}</td>
-                    <td className="t-small">{q.clientId ? clientName(db, q.clientId) : '...'}</td>
-                    <td className="t-small t-secondary">{t(`com.kind${cap(q.kind)}` as 'com.kindVisa')}</td>
-                    <td><Pill tone={TONE[q.status]} dot>{t(`com.status${cap(q.status)}` as 'com.statusBrouillon')}</Pill></td>
-                    <td className="t-caption t-tertiary">{q.validUntil ? formatDate(q.validUntil) : '...'}</td>
-                    <td className="num t-medium">{formatMoney(q.total, q.currency)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+          {rows.length === 0 ? (
+            <Section>
+              <Empty
+                title={t('com.noQuotes')}
+                hint={t('com.noQuotesHint')}
+                scene="vide"
+                action={canWrite ? <Button variant="primary" icon="plus" onClick={() => setCreating(true)}>{t('com.newQuote')}</Button> : undefined}
+              />
+            </Section>
+          ) : (
+            <Section flush>
+              <Toolbar right={<><span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: shown.length, total: rows.length })}</span><Input className="md-search" value={q} onChange={(e) => setQ(e.target.value)}
+                       placeholder={t('mq.quotesSearch')} aria-label={t('mq.search')} /></>}>
+                <Segmented<Vue>
+                  value={view}
+                  onChange={setView}
+                  label={t('com.status')}
+                  options={[
+                    { value: 'ouverts', label: `${t('com.inProgress')} · ${compte.attente + compte.brouillons}` },
+                    { value: 'clos', label: `${t('com.decided')} · ${rows.length - compte.attente - compte.brouillons}` },
+                    { value: 'tous', label: `${t('com.all')} · ${rows.length}` },
+                  ]}
+                />
+              </Toolbar>
+
+              {shown.length === 0 ? (
+                <Vide title={t('mq.nothingInFilter')} hint={t('mq.nothingInFilterHint')} icon="search" />
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{t('com.quoteNumber')}</th>
+                      <th>{t('com.client')}</th>
+                      <th className="col-optional">{t('com.kind')}</th>
+                      <th>{t('com.status')}</th>
+                      <th className="col-optional">{t('com.validUntil')}</th>
+                      <th className="num">{t('com.total')}</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((x) => {
+                      const expire = x.validUntil && x.status === 'envoye' && new Date(x.validUntil) < new Date()
+                      return (
+                        <tr key={x.id} className="adm-row--click" onClick={() => setOpenId(x.id)}>
+                          <td className="t-mono t-medium">{x.number}</td>
+                          <td>{x.clientId ? nom(x.clientId) : <span className="t-tertiary">{t('com.none')}</span>}</td>
+                          <td className="col-optional t-secondary">{t(`com.kind${cap(x.kind)}` as 'com.kindVisa')}</td>
+                          <td><Pill tone={TONE[x.status]} dot>{t(`com.status${cap(x.status)}` as 'com.statusBrouillon')}</Pill></td>
+                          <td className="col-optional">
+                            {x.validUntil
+                              ? <span className={expire ? 't-orange' : 't-tertiary'}>{formatDate(x.validUntil)}</span>
+                              : <span className="t-tertiary">·</span>}
+                          </td>
+                          <td className="num t-medium">{formatMoney(x.total, x.currency)}</td>
+                          <td className="actions" onClick={(e) => e.stopPropagation()}>
+                            {canWrite && x.status === 'brouillon' && (
+                              <Button size="sm" onClick={() => setOpenId(x.id)}>{t('crud.edit')}</Button>
+                            )}
+                            {canWrite && x.status === 'envoye' && (
+                              <Button size="sm" icon="check" onClick={() => void guardRow(async () => { await setQuoteStatus(x.id, 'accepte') })}>{t('com.accept')}</Button>
+                            )}
+                            {canWrite && x.status === 'accepte' && (
+                              <Button size="sm" icon="payments" onClick={() => setOpenId(x.id)}>{t('com.convert')}</Button>
+                            )}
+                            <Button size="sm" onClick={() => setOpenId(x.id)}>{t('mq.open')}</Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </Table>
+              )}
+            </Section>
+          )}
+        </>
+      )}
 
       {creating && (
         <QuoteCreator
@@ -157,8 +256,6 @@ export function Quotes() {
     </>
   )
 }
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /* ------------------------------ Création ----------------------------- */
 
@@ -328,8 +425,8 @@ function QuoteDetail({ quote, services, onClose, onChanged, onConverted }: {
                   <th>{t('com.description')}</th>
                   <th className="num">{t('com.quantity')}</th>
                   <th className="num">{t('com.unitPrice')}</th>
-                  <th className="num">{t('com.taxRate')}</th>
-                  <th className="num">{t('com.lineDiscount')}</th>
+                  <th className="num col-optional">{t('com.taxRate')}</th>
+                  <th className="num col-optional">{t('com.lineDiscount')}</th>
                   <th className="num">{t('com.lineTotal')}</th>
                   {editable && <th />}
                 </tr>
@@ -342,8 +439,8 @@ function QuoteDetail({ quote, services, onClose, onChanged, onConverted }: {
                     </td>
                     <td className="num t-small">{l.quantity}</td>
                     <td className="num t-small">{formatMoney(l.unitPrice, quote.currency)}</td>
-                    <td className="num t-small t-tertiary">{l.taxRate}</td>
-                    <td className="num t-small t-tertiary">{l.discount ? formatMoney(l.discount, quote.currency) : '...'}</td>
+                    <td className="num t-small t-tertiary col-optional">{l.taxRate}</td>
+                    <td className="num t-small t-tertiary col-optional">{l.discount ? formatMoney(l.discount, quote.currency) : '·'}</td>
                     <td className="num t-medium">{formatMoney(l.lineTotal, quote.currency)}</td>
                     {editable && (
                       <td style={{ textAlign: 'end' }}>

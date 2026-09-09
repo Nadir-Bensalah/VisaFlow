@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import {
   addReeferReading, loadDangerousClasses, loadDangerousDetails, loadReeferReadings,
@@ -107,7 +108,7 @@ export function DangerousGoodsCard({ shipmentId }: { shipmentId: string }) {
   if (!HAS_BACKEND) {
     return (
       <Card title={t('cg2.dangerous')}>
-        <Empty title={t('cg2.offline')} hint={t('cg2.offlineHint')} scene="alerte" />
+        <Vide icon="alert" title={t('cg2.offline')} />
       </Card>
     )
   }
@@ -126,7 +127,7 @@ export function DangerousGoodsCard({ shipmentId }: { shipmentId: string }) {
       {error && <p className="t-small t-orange">{t('cg2.loadError', { msg: error })}</p>}
 
       {details.length === 0 ? (
-        <Empty title={t('cg2.noDangerous')} hint={t('cg2.noDangerousHint')} scene="vide" />
+        <Vide icon="alert" title={t('cg2.noDangerous')} hint={t('cg2.noDangerousHint')} />
       ) : (
         <div className="col gap-3">
           {details.map((d) => (

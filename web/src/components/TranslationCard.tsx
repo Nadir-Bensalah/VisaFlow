@@ -3,7 +3,8 @@ import { useStore } from '@/data/store'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
-import { Button, Card, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Pill, Select, Textarea, useToast } from '@/components/ui'
+import { Vide } from '@/components/page'
 import { Icon } from '@/components/Icon'
 import { FileDrop } from '@/components/FileDrop'
 import {
@@ -98,8 +99,10 @@ export function TranslationCard({ caseId }: { caseId: string }) {
 
   if (!HAS_BACKEND) {
     return (
+      // Dans une fiche, l'état « non branché » tient en une ligne : le grand
+      // dessin d'alerte est pour une page entière.
       <Card title={t('trad.cardTitle')}>
-        <Empty title={t('trad.offline')} hint={t('trad.offlineHint')} scene="alerte" />
+        <Vide icon="language" title={t('trad.offline')} />
       </Card>
     )
   }
@@ -155,7 +158,12 @@ export function TranslationCard({ caseId }: { caseId: string }) {
         )}
 
         {!summary || summary.pieces.length === 0 ? (
-          <Empty title={t('trad.noPieces')} hint={t('trad.noPiecesHint')} scene="vide" />
+          <Vide
+            icon="language"
+            title={t('trad.noPieces')}
+            hint={t('trad.noPiecesHint')}
+            action={canWrite ? <Button size="sm" icon="plus" onClick={() => setEntrusting('libre')}>{t('trad.entrust')}</Button> : undefined}
+          />
         ) : (
           <div className="tablewrap">
             <table className="table">

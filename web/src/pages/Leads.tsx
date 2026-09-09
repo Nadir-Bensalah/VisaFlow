@@ -1,21 +1,26 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import {
-  LEAD_EVENT_KINDS, LEAD_SERVICES, LEAD_SOURCES, LEAD_STATUSES,
+  LEAD_EVENT_KINDS, LEAD_OPEN_STATUSES, LEAD_SERVICES, LEAD_SOURCES, LEAD_STATUSES,
   addLeadEvent, archiveLead, convertLead, createLead, listLeadEvents, listLeads,
   loadPipeline, setLeadStatus, updateLead,
   type Lead, type LeadDraft, type LeadEvent, type LeadEventKind,
   type LeadService, type LeadSource, type LeadStatus, type PipelineReport,
 } from '@/data/crm'
 import {
-  Button, Card, Empty, Field, Input, Modal, Pill, Select, Textarea, useToast,
+  Button, Empty, Field, Input, Modal, Pill, Segmented, Select, Textarea, useToast,
 } from '@/components/ui'
-import { Ago, PageHead } from '@/components/bits'
+import { Ago } from '@/components/bits'
 import { Icon } from '@/components/Icon'
+import { ExportButton } from '@/components/ExportButton'
+import {
+  Erreur, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Toolbar, Vide, useChargement,
+} from '@/components/page'
 import type { Tone } from '@/lib/derive'
+import '@/styles/modules.css'
 
 /* Le pipeline commercial.
  *
@@ -23,6 +28,9 @@ import type { Tone } from '@/lib/derive'
  * plus que tout le reste sur cet écran : appeler et WhatsApp. C'est par là que
  * passe la relance en Tunisie, et un CRM qui oblige à recopier un numéro dans
  * le téléphone ne sert à personne.
+ *
+ * Le tableau à colonnes reste la vue de travail. La liste est là pour chercher,
+ * trier d'un coup d'œil et exporter : les deux lisent les mêmes lignes.
  *
  * L'écran lit le serveur directement. Sans backend, il le dit et n'affiche
  * rien : un tableau de bord commercial peuplé de démonstration finit toujours
@@ -52,37 +60,34 @@ function daysSince(iso?: string | null): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000))
 }
 
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+type Vue = 'colonnes' | 'liste'
+
 export function Leads() {
   const v = useVisible()
   const { t, formatMoney, formatDate } = useI18n()
   const toast = useToast()
 
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [report, setReport] = useState<PipelineReport | null>(null)
-  const [loading, setLoading] = useState(HAS_BACKEND)
-  const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState<string | null>(null)
   const [over, setOver] = useState<LeadStatus | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Lead | 'nouveau' | null>(null)
+  const [vue, setVue] = useState<Vue>('colonnes')
+  const [q, setQ] = useState('')
+  const [service, setService] = useState<LeadService | ''>('')
 
   const canWrite = v.can('client:write')
 
-  const reload = useCallback(async () => {
-    if (!HAS_BACKEND) { setLoading(false); return }
-    try {
-      const [rows, pipe] = await Promise.all([listLeads(), loadPipeline(null)])
-      setLeads(rows)
-      setReport(pipe)
-      setError(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { void reload() }, [reload])
+  // Les affaires et le rapport de pipeline ensemble : le rapport porte les
+  // montants par étape déjà sommés par le serveur.
+  const { data, loading, refreshing, error, reload } = useChargement(async () => {
+    if (!HAS_BACKEND) return { leads: [] as Lead[], report: null as PipelineReport | null }
+    const [leads, report] = await Promise.all([listLeads(), loadPipeline(null)])
+    return { leads, report }
+  })
+  const leads = useMemo(() => data?.leads ?? [], [data])
+  const report = data?.report ?? null
 
   const move = async (id: string, status: LeadStatus) => {
     const lead = leads.find((l) => l.id === id)
@@ -98,15 +103,57 @@ export function Leads() {
     }
   }
 
+  /* ---------------------------- Compteurs ---------------------------- */
+
+  const compte = useMemo(() => {
+    const now = Date.now()
+    const ouvertes = leads.filter((l) => LEAD_OPEN_STATUSES.includes(l.status))
+    const enRetard = ouvertes.filter((l) => l.nextActionAt && new Date(l.nextActionAt).getTime() < now)
+    const annee = new Date().getFullYear()
+    const gagnees = leads.filter((l) => l.status === 'gagne' && new Date(l.convertedAt ?? l.statusSince).getFullYear() === annee)
+    const valeur = ouvertes.reduce((s, l) => s + Number(l.estimatedValue ?? 0), 0)
+    return { ouvertes: ouvertes.length, enRetard: enRetard.length, gagnees: gagnees.length, valeur }
+  }, [leads])
+
+  /* ----------------------------- Filtrage ---------------------------- */
+
+  const montres = useMemo(() => {
+    const n = norm(q.trim())
+    return leads.filter((l) => {
+      if (service && l.serviceInterest !== service) return false
+      if (!n) return true
+      return norm(`${leadName(l)} ${l.companyName ?? ''} ${l.phone ?? ''} ${l.email ?? ''}`).includes(n)
+    })
+  }, [leads, q, service])
+
   const open = leads.find((l) => l.id === openId) ?? null
 
+  const colonnesExport = [
+    { key: 'name', label: t('crm.lastName'), value: (l: Lead) => leadName(l) },
+    { key: 'company', label: t('crm.company'), value: (l: Lead) => l.companyName },
+    { key: 'status', label: t('crm.status'), value: (l: Lead) => t(`crm.st_${l.status}` as 'crm.st_nouveau') },
+    { key: 'service', label: t('crm.service'), value: (l: Lead) => t(`crm.sv_${l.serviceInterest}` as 'crm.sv_visa') },
+    { key: 'source', label: t('crm.source'), value: (l: Lead) => t(`crm.so_${l.source}` as 'crm.so_autre') },
+    { key: 'value', label: t('crm.value'), value: (l: Lead) => l.estimatedValue },
+    { key: 'currency', label: t('crm.currency'), value: (l: Lead) => l.currency },
+    { key: 'phone', label: t('crm.phone'), value: (l: Lead) => l.phone },
+    { key: 'email', label: t('crm.email'), value: (l: Lead) => l.email },
+    { key: 'next', label: t('crm.nextAction'), value: (l: Lead) => l.nextActionAt?.slice(0, 10) },
+    { key: 'created', label: t('crm.createdOn'), value: (l: Lead) => l.createdAt.slice(0, 10) },
+  ]
+
   const head = (
-    <PageHead
+    <PageHeader
+      kicker={t('mq.kickerCommercial')}
       title={t('crm.title')}
-      subtitle={t('crm.subtitle')}
-      action={canWrite && HAS_BACKEND
-        ? <Button icon="plus" variant="primary" onClick={() => setEditing('nouveau')}>{t('crm.newLead')}</Button>
-        : undefined}
+      subtitle={t('mq.leadsSub')}
+      refreshing={refreshing && !loading}
+      refreshingLabel={t('mq.refreshing')}
+      actions={HAS_BACKEND ? <>
+        <ExportButton rows={montres} columns={colonnesExport} base="prospects" scope="prospects" disabled={montres.length === 0} />
+        <Button icon="refresh" onClick={() => void reload()} disabled={refreshing}>{t('mq.refresh')}</Button>
+        {canWrite && <Button icon="plus" variant="primary" onClick={() => setEditing('nouveau')}>{t('crm.newLead')}</Button>}
+      </> : undefined}
     />
   )
 
@@ -114,27 +161,7 @@ export function Leads() {
     return (
       <>
         {head}
-        <Card><Empty title={t('crm.offline')} hint={t('crm.offlineHint')} scene="vide" /></Card>
-      </>
-    )
-  }
-
-  if (loading) {
-    return <>{head}<Card><Empty title="…" scene="aucune" /></Card></>
-  }
-
-  if (error) {
-    return (
-      <>
-        {head}
-        <Card>
-          <Empty
-            title={t('crm.failed')}
-            hint={error}
-            scene="alerte"
-            action={<Button icon="refresh" onClick={() => { setLoading(true); void reload() }}>{t('sync.retry')}</Button>}
-          />
-        </Card>
+        <Section><Empty title={t('mq.demoTitle')} hint={t('mq.demoHint')} scene="vide" /></Section>
       </>
     )
   }
@@ -143,102 +170,178 @@ export function Leads() {
     <>
       {head}
 
-      {report && report.total > 0 && (
-        <Card className="stat" flush>
-          <div className="row gap-6" style={{ padding: 'var(--sp-4) var(--sp-6)', flexWrap: 'wrap' }}>
-            <span className="col">
-              <span className="stat__label">{t('crm.pipelineTotal')}</span>
-              <span className="stat__value">{formatMoney(report.total_value)}</span>
-              <span className="stat__hint t-num">{report.total}</span>
-            </span>
-            {report.by_status
-              .filter((b) => b.count > 0 && b.status !== 'gagne' && b.status !== 'perdu' && b.oldest_at)
-              .slice(0, 4)
-              .map((b) => (
-                <span key={b.status} className="col gap-1">
-                  <span className="t-caption t-tertiary">{t(`crm.st_${b.status}` as 'crm.st_nouveau')}</span>
-                  <span className="t-small t-medium t-num">{formatMoney(b.value)}</span>
-                  <span className="t-caption t-tertiary">{t('crm.sleeping', { n: daysSince(b.oldest_at) })}</span>
-                </span>
-              ))}
-          </div>
-        </Card>
-      )}
+      {error && <Erreur message={error} retryLabel={t('mq.retry')} onRetry={() => void reload()} />}
 
-      {leads.length === 0 ? (
-        <Card>
-          <Empty
-            title={t('crm.none')}
-            hint={t('crm.noneHint')}
-            scene="equipe"
-            action={canWrite ? <Button icon="plus" variant="primary" onClick={() => setEditing('nouveau')}>{t('crm.newLead')}</Button> : undefined}
-          />
-        </Card>
+      {loading && !data ? (
+        <>
+          <Squelette type="kpis" n={4} />
+          <Squelette type="cartes" n={4} />
+        </>
       ) : (
-        <div className="kanban" style={{ marginTop: 'var(--sp-5)' }}>
-          {LEAD_STATUSES.map((status) => {
-            const column = leads.filter((l) => l.status === status)
-            const sum = column.reduce((n, l) => n + Number(l.estimatedValue ?? 0), 0)
-            return (
-              <div
-                key={status}
-                className={`kanban__col ${over === status ? 'kanban__col--over' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); setOver(status) }}
-                onDragLeave={() => setOver((s) => (s === status ? null : s))}
-                onDrop={() => { if (dragging) void move(dragging, status); setDragging(null); setOver(null) }}
-              >
-                <header className="kanban__col-head">
-                  <Pill tone={STATUS_TONE[status]} dot>{t(`crm.st_${status}` as 'crm.st_nouveau')}</Pill>
-                  <span className="t-caption t-tertiary t-num">{column.length}</span>
-                </header>
-                {sum > 0 && (
-                  <div className="t-caption t-tertiary t-num" style={{ padding: '0 var(--sp-1) var(--sp-2)' }}>
-                    {formatMoney(sum)}
-                  </div>
-                )}
+        <>
+          <KpiGrid>
+            <Kpi label={t('mq.leadsOpen')} value={compte.ouvertes} icon="pipeline" tone="blue"
+                 hint={t('mq.leadsOpenHint', { n: leads.length })} />
+            <Kpi label={t('mq.leadsValue')} value={formatMoney(report?.total_value ?? compte.valeur)} icon="payments"
+                 hint={t('mq.leadsValueHint')} />
+            <Kpi label={t('mq.leadsOverdue')} value={compte.enRetard} icon="clock"
+                 tone={compte.enRetard > 0 ? 'orange' : undefined} hint={t('mq.leadsOverdueHint')} />
+            <Kpi label={t('mq.leadsWon')} value={compte.gagnees} icon="check" tone="green"
+                 hint={t('crm.thisYear')} />
+          </KpiGrid>
 
-                {column.map((l) => (
-                  <div
-                    key={l.id}
-                    role="button"
-                    tabIndex={0}
-                    draggable={canWrite}
-                    onDragStart={() => setDragging(l.id)}
-                    onDragEnd={() => setDragging(null)}
-                    onClick={() => setOpenId(l.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(l.id) }
-                    }}
-                    className={`kanban__card ${dragging === l.id ? 'kanban__card--dragging' : ''}`}
-                  >
-                    <div className="row gap-2" style={{ marginBottom: 'var(--sp-2)' }}>
-                      <span className="t-small t-medium grow t-truncate">{leadName(l)}</span>
-                      {l.clientId && <Icon name="check" size={14} className="t-tertiary" />}
-                    </div>
-                    {l.companyName && leadName(l) !== l.companyName && (
-                      <div className="t-caption t-tertiary t-truncate">{l.companyName}</div>
-                    )}
-                    <div className="row-between" style={{ marginTop: 'var(--sp-2)' }}>
-                      <span className="t-caption t-tertiary">
-                        {t(`crm.sv_${l.serviceInterest}` as 'crm.sv_visa')}
-                      </span>
-                      {Number(l.estimatedValue) > 0 && (
-                        <span className="t-caption t-num t-medium">{formatMoney(Number(l.estimatedValue), l.currency)}</span>
-                      )}
-                    </div>
-                    {l.nextActionAt && (
-                      <div className="t-caption" style={{ marginTop: 'var(--sp-2)' }}>
-                        <span className={new Date(l.nextActionAt) < new Date() ? 't-orange' : 't-tertiary'}>
-                          {t('crm.dueOn', { date: formatDate(l.nextActionAt) })}
-                        </span>
+          {leads.length === 0 ? (
+            <Section>
+              <Empty
+                title={t('crm.none')}
+                hint={t('crm.noneHint')}
+                scene="equipe"
+                action={canWrite ? <Button icon="plus" variant="primary" onClick={() => setEditing('nouveau')}>{t('crm.newLead')}</Button> : undefined}
+              />
+            </Section>
+          ) : (
+            <Section flush>
+              <Toolbar right={<><span className="t-caption t-tertiary t-num">{t('mq.rowsOf', { n: montres.length, total: leads.length })}</span><Segmented<Vue>
+                  value={vue}
+                  onChange={setVue}
+                  label={t('mq.view')}
+                  options={[
+                    { value: 'colonnes', label: t('mq.viewBoard') },
+                    { value: 'liste', label: t('mq.viewList') },
+                  ]}
+                /></>}>
+                <Input
+                  className="md-search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder={t('mq.leadsSearch')}
+                  aria-label={t('mq.search')}
+                />
+                <Select className="md-select" value={service} onChange={(e) => setService(e.target.value as LeadService | '')} aria-label={t('crm.service')}>
+                  <option value="">{t('mq.allServices')}</option>
+                  {LEAD_SERVICES.map((s) => <option key={s} value={s}>{t(`crm.sv_${s}` as 'crm.sv_visa')}</option>)}
+                </Select>
+              </Toolbar>
+
+              {montres.length === 0 ? (
+                <Vide title={t('mq.nothingInFilter')} hint={t('mq.nothingInFilterHint')} icon="search" />
+              ) : vue === 'liste' ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>{t('crm.lastName')}</th>
+                      <th>{t('crm.status')}</th>
+                      <th className="col-optional">{t('crm.service')}</th>
+                      <th className="num col-optional">{t('crm.value')}</th>
+                      <th className="col-optional">{t('crm.nextAction')}</th>
+                      <th className="col-optional">{t('crm.here')}</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {montres.map((l) => {
+                      const tel = (l.phone ?? '').replace(/\s/g, '')
+                      const wa = digits(l.whatsapp ?? l.phone)
+                      const late = l.nextActionAt ? new Date(l.nextActionAt) < new Date() : false
+                      return (
+                        <tr key={l.id} className="adm-row--click" onClick={() => setOpenId(l.id)}>
+                          <td>
+                            <div className="adm-cell-main">
+                              <span>{leadName(l)}</span>
+                              {l.companyName && leadName(l) !== l.companyName && <span className="t-caption">{l.companyName}</span>}
+                            </div>
+                          </td>
+                          <td><Pill tone={STATUS_TONE[l.status]} dot>{t(`crm.st_${l.status}` as 'crm.st_nouveau')}</Pill></td>
+                          <td className="col-optional t-secondary">{t(`crm.sv_${l.serviceInterest}` as 'crm.sv_visa')}</td>
+                          <td className="num col-optional">{Number(l.estimatedValue) > 0 ? formatMoney(Number(l.estimatedValue), l.currency) : <span className="t-tertiary">·</span>}</td>
+                          <td className="col-optional">
+                            {l.nextActionAt
+                              ? <span className={late ? 't-orange' : undefined}>{formatDate(l.nextActionAt)}</span>
+                              : <span className="t-tertiary">·</span>}
+                          </td>
+                          <td className="col-optional t-tertiary"><Ago iso={l.statusSince} /></td>
+                          <td className="actions" onClick={(e) => e.stopPropagation()}>
+                            {tel && <a className="btn btn--secondary btn--sm" href={`tel:${tel}`} title={t('crm.call')} aria-label={t('crm.call')}><Icon name="phone" size={14} /></a>}
+                            {wa && <a className="btn btn--secondary btn--sm" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" title={t('crm.whatsappOpen')} aria-label={t('crm.whatsappOpen')}><Icon name="whatsapp" size={14} /></a>}
+                            <Button size="sm" onClick={() => setOpenId(l.id)}>{t('mq.open')}</Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </Table>
+              ) : (
+                <div className="kanban md-kanban">
+                  {LEAD_STATUSES.map((status) => {
+                    const column = montres.filter((l) => l.status === status)
+                    const sum = column.reduce((n, l) => n + Number(l.estimatedValue ?? 0), 0)
+                    const dormant = report?.by_status.find((b) => b.status === status)?.oldest_at ?? null
+                    return (
+                      <div
+                        key={status}
+                        className={`kanban__col ${over === status ? 'kanban__col--over' : ''}`}
+                        onDragOver={(e) => { e.preventDefault(); setOver(status) }}
+                        onDragLeave={() => setOver((s) => (s === status ? null : s))}
+                        onDrop={() => { if (dragging) void move(dragging, status); setDragging(null); setOver(null) }}
+                      >
+                        <header className="kanban__col-head">
+                          <Pill tone={STATUS_TONE[status]} dot>{t(`crm.st_${status}` as 'crm.st_nouveau')}</Pill>
+                          <span className="t-caption t-tertiary t-num">{column.length}</span>
+                        </header>
+                        {(sum > 0 || dormant) && (
+                          <div className="md-kanban__meta t-caption t-tertiary">
+                            {sum > 0 && <span className="t-num">{formatMoney(sum)}</span>}
+                            {dormant && status !== 'gagne' && status !== 'perdu' && <span>{t('crm.sleeping', { n: daysSince(dormant) })}</span>}
+                          </div>
+                        )}
+
+                        {column.map((l) => (
+                          <div
+                            key={l.id}
+                            role="button"
+                            tabIndex={0}
+                            draggable={canWrite}
+                            onDragStart={() => setDragging(l.id)}
+                            onDragEnd={() => setDragging(null)}
+                            onClick={() => setOpenId(l.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(l.id) }
+                            }}
+                            className={`kanban__card ${dragging === l.id ? 'kanban__card--dragging' : ''}`}
+                          >
+                            <div className="row gap-2" style={{ marginBottom: 'var(--sp-2)' }}>
+                              <span className="t-small t-medium grow t-truncate">{leadName(l)}</span>
+                              {l.clientId && <Icon name="check" size={14} className="t-tertiary" />}
+                            </div>
+                            {l.companyName && leadName(l) !== l.companyName && (
+                              <div className="t-caption t-tertiary t-truncate">{l.companyName}</div>
+                            )}
+                            <div className="row-between" style={{ marginTop: 'var(--sp-2)' }}>
+                              <span className="t-caption t-tertiary">
+                                {t(`crm.sv_${l.serviceInterest}` as 'crm.sv_visa')}
+                              </span>
+                              {Number(l.estimatedValue) > 0 && (
+                                <span className="t-caption t-num t-medium">{formatMoney(Number(l.estimatedValue), l.currency)}</span>
+                              )}
+                            </div>
+                            {l.nextActionAt && (
+                              <div className="t-caption" style={{ marginTop: 'var(--sp-2)' }}>
+                                <span className={new Date(l.nextActionAt) < new Date() ? 't-orange' : 't-tertiary'}>
+                                  {t('crm.dueOn', { date: formatDate(l.nextActionAt) })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {column.length === 0 && <div className="md-kanban__empty t-caption t-tertiary">{t('mq.columnEmpty')}</div>}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Section>
+          )}
+        </>
       )}
 
       {open && (
