@@ -5,7 +5,8 @@
 --   · le premier bureau et le premier compte passent TOUJOURS, même quota nul,
 --     sinon `platform_create_agency` ne peut plus créer personne ;
 --   · le garde refuse le bureau de trop, et il refuse AVANT, pas après ;
---   · la facture se calcule en sièges × 45 DT × 12, jamais en forfait ;
+--   · la facture se calcule sur la grille Active de 0070 : 179 DT le socle,
+--     119 le bureau en plus, 35 le compte en plus, douze mois payés ;
 --   · une agence en essai a tout, une agence suspendue n'a rien ;
 --   · et une agence ne change pas son propre plan, quoi qu'elle tente.
 
@@ -52,7 +53,9 @@ begin
 
   j := agency_plan(v_ag);
   perform assert(j ->> 'code' = 'essai', 'le plan effectif d''une agence neuve est l''essai');
-  perform assert(j -> 'limits' ->> 'offices' is null, 'l''essai n''est pas bridé en volume (null = illimité)');
+  -- Adapté en 0070 : l'essai est borné en volume (un bureau, dix comptes),
+  -- pour qu'un essai abandonné ne pèse rien.
+  perform assert((j -> 'limits' ->> 'offices')::int = 1, 'l''essai est borné à un bureau');
   perform assert((j ->> 'renewal_on')::date > current_date, 'l''essai porte une échéance dans le futur');
 
   -- Une agence en essai a TOUT, y compris la marque blanche.
@@ -81,29 +84,31 @@ begin
   -- 3 · Passer au payant : le plan, la facture, les fonctionnalités
   -- ---------------------------------------------------------------
   set local role authenticated;
-  j := platform_set_subscription(v_ag, 'starter', 3, (current_date + 365)::date, 'active');
+  -- Adapté en 0070 : Starter a laissé la place à Active. Les sièges se
+  -- calculent (quatre du socle), p_seats est ignoré.
+  j := platform_set_subscription(v_ag, 'active', 3, (current_date + 365)::date, 'active');
   reset role;
 
-  perform assert(j ->> 'code' = 'starter', 'la plateforme pose le plan Starter');
-  perform assert((j ->> 'seats')::int = 3, 'les sièges signés sont ceux qu''on a demandés');
-  perform assert((j ->> 'price_per_user_month')::numeric = 45, 'le prix reste 45 DT par utilisateur et par mois');
+  perform assert(j ->> 'code' = 'active', 'la plateforme pose le plan Active');
+  perform assert((j ->> 'seats')::int = 4, 'les sièges sont ceux du socle : quatre');
+  perform assert((j ->> 'base_price_month')::numeric = 179, 'le socle coûte 179 DT par mois');
 
   select count(*) into n from subscription_events where agency_id = v_ag and kind = 'changement_plan';
   perform assert(n = 1, 'le changement de plan entre au journal');
 
   -- LA ligne de facture : quantifiable, jamais un forfait.
   m := subscription_invoice_amount(v_ag);
-  perform assert(m = 3 * 45 * 12, 'le montant annuel est sièges × 45 DT × 12 mois (' || m || ')');
+  perform assert(m = 179 * 12, 'le montant annuel est le socle × 12 mois (' || m || ')');
 
-  perform assert(agency_has_feature(v_ag, 'CLIENT_PORTAL'), 'Starter ouvre le portail client');
-  perform assert(not agency_has_feature(v_ag, 'API'), 'Starter n''ouvre pas l''API');
-  perform assert(not agency_has_feature(v_ag, 'WHITE_LABEL'), 'Starter n''ouvre pas la marque blanche');
+  perform assert(agency_has_feature(v_ag, 'CLIENT_PORTAL'), 'Active ouvre le portail client');
+  perform assert(not agency_has_feature(v_ag, 'API'), 'Active n''ouvre pas l''API');
+  perform assert(not agency_has_feature(v_ag, 'WHITE_LABEL'), 'Active n''ouvre pas la marque blanche');
 
   -- ---------------------------------------------------------------
   -- 4 · Le quota des bureaux, mesuré puis appliqué
   -- ---------------------------------------------------------------
   q := quota_check(v_ag, 'offices');
-  perform assert((q ->> 'limite')::int = 1, 'Starter plafonne à un bureau');
+  perform assert((q ->> 'limite')::int = 1, 'Active plafonne à un bureau');
   perform assert((q ->> 'utilise')::int = 1, 'un bureau est déjà occupé');
   perform assert((q ->> 'reste')::int = 0, 'il n''en reste aucun');
   -- Plein n'est pas dépassé : une agence qui a rempli ce qu'elle a payé est
@@ -121,38 +126,39 @@ begin
   select count(*) into n from offices where agency_id = v_ag;
   perform assert(n = 1, 'le bureau refusé n''a rien laissé derrière lui');
 
-  -- Monter de plan lève le mur, tout de suite.
+  -- Acheter un bureau lève le mur, tout de suite (adapté en 0070 : on
+  -- n'achète plus un plan plus gros, on achète un bureau).
   set local role authenticated;
-  perform platform_set_subscription(v_ag, 'pro', 5, null, 'active');
+  perform platform_set_subscription(v_ag, 'active', null, null, 'active', 0, 1);
   reset role;
   insert into offices (agency_id, name, country, country_code) values (v_ag, 'Sfax', 'Tunisie', 'TN');
   select count(*) into n from offices where agency_id = v_ag;
-  perform assert(n = 2, 'passé en Pro, le deuxième bureau passe');
-  perform assert(agency_has_feature(v_ag, 'CRM'), 'Pro ouvre la relation client');
-  perform assert(not agency_has_feature(v_ag, 'API'), 'Pro n''ouvre toujours pas l''API');
-  perform assert(subscription_invoice_amount(v_ag) = 5 * 45 * 12, 'la facture suit les sièges signés');
+  perform assert(n = 2, 'un bureau acheté, le deuxième bureau passe');
+  perform assert(agency_has_feature(v_ag, 'CRM'), 'Active ouvre la relation client');
+  perform assert(not agency_has_feature(v_ag, 'API'), 'Active n''ouvre toujours pas l''API');
+  perform assert(subscription_invoice_amount(v_ag) = (179 + 119) * 12, 'la facture suit les ajouts signés');
 
   select limit_value into n from plan_features pf
     join plans p on p.id = pf.plan_id join features f on f.id = pf.feature_id
-   where p.code = 'pro' and f.code = 'WHATSAPP';
-  perform assert(n = 2000, 'un plan peut plafonner une fonctionnalité, pas seulement l''ouvrir');
+   where p.code = 'active' and p.currency = 'TND' and f.code = 'WHATSAPP';
+  perform assert(n is null, 'WhatsApp n''est pas plafonné : le compte Meta est celui de l''agence');
 
   -- ---------------------------------------------------------------
   -- 5 · Le quota des comptes
   -- ---------------------------------------------------------------
-  -- Redescendre de plan avec deux bureaux ouverts : LÀ, c'est un vrai
+  -- Retirer le bureau acheté avec deux bureaux ouverts : LÀ, c'est un vrai
   -- dépassement, et il doit s'inscrire au journal.
   set local role authenticated;
-  perform platform_set_subscription(v_ag, 'starter', 3, null, 'active');
+  perform platform_set_subscription(v_ag, 'active', null, null, 'active', 0, 0);
   reset role;
   q := quota_check(v_ag, 'offices');
   perform assert((q ->> 'utilise')::int = 2 and (q ->> 'limite')::int = 1,
                  'deux bureaux ouverts pour un seul payé');
-  perform assert((q ->> 'depasse')::boolean, 'redescendre de plan met l''agence en dépassement');
+  perform assert((q ->> 'depasse')::boolean, 'retirer l''ajout met l''agence en dépassement');
   select count(*) into n from subscription_events where agency_id = v_ag and kind = 'quota_depasse';
   perform assert(n = 1, 'le dépassement constaté entre au journal');
 
-  -- Starter : trois utilisateurs. On referme le bureau en trop, sinon c'est le
+  -- Active : quatre comptes. On referme le bureau en trop, sinon c'est le
   -- quota des bureaux qui parle avant celui des comptes.
   update offices set active = false where agency_id = v_ag and name = 'Sfax';
   perform assert(not (quota_check(v_ag, 'offices') ->> 'depasse')::boolean,
@@ -161,18 +167,21 @@ begin
   insert into auth.users (id) values (gen_random_uuid()) returning id into v_u3;
   insert into profiles (id, agency_id, office_id, name, role) values (v_u3, v_ag, v_off, 'Hatem', 'agent');
   perform assert((quota_check(v_ag, 'users') ->> 'utilise')::int = 3, 'trois comptes actifs sont comptés');
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_u4;
+  insert into profiles (id, agency_id, office_id, name, role) values (v_u4, v_ag, v_off, 'Stage', 'viewer');
+  perform assert((quota_check(v_ag, 'users') ->> 'utilise')::int = 4, 'le quatrième compte passe : il est dans le socle');
 
   ok := false;
   begin
     insert into auth.users (id) values (gen_random_uuid()) returning id into v_u4;
-    insert into profiles (id, agency_id, office_id, name, role) values (v_u4, v_ag, v_off, 'Stage', 'viewer');
-  exception when others then ok := true;
+    insert into profiles (id, agency_id, office_id, name, role) values (v_u4, v_ag, v_off, 'Cinquième', 'viewer');
+  exception when others then ok := sqlerrm like '%35 DT par mois%';
   end;
-  perform assert(ok, 'le quatrième compte est refusé au-delà du quota');
+  perform assert(ok, 'le cinquième compte est refusé, et le message cite le prix du compte en plus');
 
   -- Un compte désactivé ne consomme pas de siège : on facture ce qui travaille.
   update profiles set active = false where id = v_u3;
-  perform assert((quota_check(v_ag, 'users') ->> 'utilise')::int = 2, 'un compte désactivé libère son siège');
+  perform assert((quota_check(v_ag, 'users') ->> 'utilise')::int = 3, 'un compte désactivé libère son siège');
 
   -- ---------------------------------------------------------------
   -- 6 · Le premier bureau et le premier compte passent TOUJOURS
@@ -201,13 +210,14 @@ begin
   end;
   perform assert(ok, 'le deuxième bureau, lui, tombe sur le garde');
 
-  update plans set max_offices = null, max_users = null where code = 'essai';
+  -- Adapté en 0070 : l'essai vaut un bureau et dix comptes, pas l'illimité.
+  update plans set max_offices = 1, max_users = 10 where code = 'essai';
 
   -- ---------------------------------------------------------------
   -- 7 · Suspendre, c'est tout couper
   -- ---------------------------------------------------------------
   set local role authenticated;
-  perform platform_set_subscription(v_ag, 'pro', 5, null, 'suspendue');
+  perform platform_set_subscription(v_ag, 'active', null, null, 'suspendue');
   reset role;
   perform assert(not agency_has_feature(v_ag, 'VISA'), 'une agence suspendue n''a plus rien, pas même les visas');
   perform assert(not agency_has_feature(v_ag, 'CLIENT_PORTAL'), 'une agence suspendue n''a plus le portail');
@@ -215,7 +225,7 @@ begin
   perform assert(n = 1, 'la suspension entre au journal');
 
   set local role authenticated;
-  perform platform_set_subscription(v_ag, 'pro', 5, null, 'active');
+  perform platform_set_subscription(v_ag, 'active', null, null, 'active');
   reset role;
   perform assert(agency_has_feature(v_ag, 'VISA'), 'réactivée, l''agence retrouve son plan');
   select count(*) into n from subscription_events where agency_id = v_ag and kind = 'reactivee';
@@ -242,11 +252,12 @@ begin
   -- Elle LIT son abonnement : c'est ce que la carte du plan affiche.
   select count(*) into n from subscriptions where agency_id = v_ag;
   perform assert(n = 1, 'une agence lit sa propre souscription');
-  perform assert((my_plan() ->> 'code') = 'pro', 'my_plan rend le plan de l''agence connectée');
+  perform assert((my_plan() ->> 'code') = 'active', 'my_plan rend le plan de l''agence connectée');
   perform assert((my_plan() -> 'usage' ->> 'offices')::int >= 1, 'my_plan rend aussi la consommation');
 
   -- Mais elle ne l'écrit pas.
-  update subscriptions set plan_id = (select id from plans where code = 'enterprise')
+  -- Adapté en 0070 : Enterprise est retiré de la vente, Premium le remplace.
+  update subscriptions set plan_id = (select id from plans where code = 'premium' and currency = 'TND')
    where agency_id = v_ag;
   get diagnostics n = row_count;
   perform assert(n = 0, 'une agence ne change pas son propre plan');
@@ -254,7 +265,7 @@ begin
   ok := false;
   begin
     insert into subscriptions (agency_id, plan_id, status, price_per_user_month, seats)
-    select v_ag2, id, 'active', 45, 99 from plans where code = 'enterprise';
+    select v_ag2, id, 'active', 45, 99 from plans where code = 'premium' and currency = 'TND';
   exception when others then ok := true;
   end;
   perform assert(ok, 'une agence ne se pose pas non plus un abonnement à la main');
@@ -273,7 +284,7 @@ begin
 
   ok := false;
   begin
-    perform platform_set_subscription(v_ag, 'enterprise', 99, null, 'active');
+    perform platform_set_subscription(v_ag, 'premium', 99, null, 'active');
   exception when others then ok := true;
   end;
   perform assert(ok, 'poser un abonnement est refusé à un compte d''agence');
@@ -283,8 +294,8 @@ begin
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
 
   perform assert((select code from plans p join subscriptions s on s.plan_id = p.id
-                   where s.agency_id = v_ag and s.status <> 'resiliee') = 'pro',
-                 'après toutes ces tentatives, le plan est resté Pro');
+                   where s.agency_id = v_ag and s.status <> 'resiliee') = 'active',
+                 'après toutes ces tentatives, le plan est resté Active');
 
   -- ---------------------------------------------------------------
   -- 10 · La console de la plateforme
@@ -295,8 +306,8 @@ begin
   perform assert(jsonb_array_length(j) >= 2, 'la console liste les agences avec leur abonnement');
   perform assert(exists (select 1 from jsonb_array_elements(j) e
                           where (e ->> 'agency_id')::uuid = v_ag
-                            and e ->> 'plan' = 'pro'
-                            and (e ->> 'annual_amount')::numeric = 5 * 45 * 12),
+                            and e ->> 'plan' = 'active'
+                            and (e ->> 'annual_amount')::numeric = 179 * 12),
                  'la console montre le plan et le montant annuel de chaque agence');
   perform assert(exists (select 1 from jsonb_array_elements(j) e
                           where (e ->> 'agency_id')::uuid = v_ag
@@ -318,7 +329,7 @@ begin
   delete from subscriptions where agency_id = v_ag3_never;
 
   set local role authenticated;
-  perform platform_set_subscription(v_ag, 'pro', 5, null, 'resiliee');
+  perform platform_set_subscription(v_ag, 'active', null, null, 'resiliee');
   reset role;
   perform assert((select ends_on from subscriptions where agency_id = v_ag) = current_date,
                  'la résiliation date la fin');
@@ -343,8 +354,9 @@ begin
   -- Aucun plan ne plafonne les clients : une agence ne se fait pas couper le
   -- carnet d'adresses qu'elle a construit.
   perform assert(quota_limit(v_ag2, 'clients') is null, 'le nombre de clients n''est jamais plafonné');
-  perform assert((quota_check(v_ag2, 'storage') ->> 'limite') is null,
-                 'l''essai ne plafonne pas le stockage');
+  -- Adapté en 0070 : l'essai plafonne le stockage à 2 Go.
+  perform assert((quota_check(v_ag2, 'storage') ->> 'limite')::bigint = 2048::bigint * 1024 * 1024,
+                 'l''essai plafonne le stockage à 2 Go');
 
   raise notice '--- banc des abonnements : tout est vert ---';
 end $$;

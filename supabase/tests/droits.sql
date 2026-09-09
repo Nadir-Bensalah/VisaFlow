@@ -85,6 +85,11 @@ begin
       -- ou périmé : aucun essai ne renseigne. C'est la raison d'être de ces
       -- deux fonctions d'être appelées par un client qui n'a pas de compte.
       'tracking_open', 'tracking_resolve',
+      -- La grille des tarifs pour la page publique (0070). Elle ne prend
+      -- qu'une devise, ne rend que les plans en vente, et jamais une agence :
+      -- la page des prix n'a pas de session, et les prix ne vivent pas dans
+      -- le front.
+      'public_plans',
       -- L'outil du banc lui-même, absent de la production.
       'assert'
     );

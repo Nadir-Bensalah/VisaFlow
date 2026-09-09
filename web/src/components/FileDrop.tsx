@@ -3,6 +3,8 @@ import { useI18n } from '@/i18n'
 import { Icon } from './Icon'
 import { ACCEPT_ATTR, check, humanSize, keyFor, put, remove, url } from '@/data/files'
 import type { RejectReason, StoredFile } from '@/data/files'
+import { signalerUsage, useQuotaBloque } from '@/data/usage'
+import { QuotaBlocked } from './UsageGauges'
 
 /* Déposer une pièce.
    Le geste naturel du client est la photo prise avec son téléphone, celui de
@@ -39,6 +41,9 @@ export function FileDrop({ scope, id, current, onAttach, onUpload, onDetach, rea
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<RejectReason | null>(null)
   const [preview, setPreview] = useState<string | undefined>()
+  // Le stockage dépasse la formule depuis plus de 30 jours : les nouveaux
+  // dépôts attendent, rien n'est effacé. Sans session (portail), jamais bloqué.
+  const bloque = useQuotaBloque('storage')
 
   // L'aperçu vit dans une URL d'objet : sans révocation, le blob reste en
   // mémoire tant que l'onglet est ouvert.
@@ -76,6 +81,7 @@ export function FileDrop({ scope, id, current, onAttach, onUpload, onDetach, rea
         if (current?.key) await remove(current.key)
         onAttach?.({ key: meta.key, name: meta.name, size: meta.size, type: meta.type })
       }
+      signalerUsage()
     } catch {
       setError('stockage')
     } finally {
@@ -122,6 +128,7 @@ export function FileDrop({ scope, id, current, onAttach, onUpload, onDetach, rea
   }
 
   if (readOnly) return null
+  if (bloque) return <QuotaBlocked code="storage" compact />
 
   return (
     <>

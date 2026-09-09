@@ -58,7 +58,7 @@ export const CIBLES: Record<AuditRow['target_kind'], string> = {
 
 const KINDS: Record<UrgentKind, string> = {
   demande: 'Demande', ticket: 'Ticket', suspendue: 'Suspendue', grace: 'Grâce',
-  essai_fin: 'Fin d’essai', tache_echouee: 'Tâche', agence_inactive: 'Inactive',
+  essai_fin: 'Fin d’essai', tache_echouee: 'Tâche', agence_inactive: 'Inactive', quota: 'Quota',
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
@@ -382,6 +382,16 @@ function Parc({ d }: { d: CockpitData }) {
         to="/admin/demandes"
         icon="bell"
       />
+      {/* Au moins une ressource à 100 %. Rouge dès la première : la grille
+          promet une ligne dans la console à ce moment-là, pas plus tard. */}
+      <Kpi
+        label="Agences en dépassement"
+        value={nb(k.agences_en_depassement ?? 0)}
+        hint="au moins une limite atteinte"
+        tone={(k.agences_en_depassement ?? 0) > 0 ? 'red' : 'gray'}
+        to="/admin/agences?filtre=depassement"
+        icon="alert"
+      />
     </KpiGrid>
   )
 }
@@ -419,6 +429,7 @@ function LigneUrgent({ u, peutLancer, enCours, onLancer }: {
         {u.kind === 'grace' && lien(regler, 'Constater un règlement', true)}
         {u.kind === 'essai_fin' && lien(fiche, 'Voir l’agence')}
         {u.kind === 'agence_inactive' && lien(fiche, 'Ouvrir la fiche')}
+        {u.kind === 'quota' && lien(fiche, 'Voir la fiche', true)}
         {u.kind === 'tache_echouee' && (peutLancer
           ? <Button size="sm" variant="primary" icon="refresh" disabled={enCours} onClick={() => void onLancer(u.id)}>{enCours ? 'En cours…' : 'Relancer'}</Button>
           : lien(u.url, 'Voir'))}

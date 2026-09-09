@@ -88,7 +88,9 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md'
 
 export function Progress({ pct, tone, label, valueText }: {
   pct: number
-  tone?: 'green' | 'orange'
+  /* Bleu par défaut. Le rouge est arrivé avec les jauges de quota : une
+     ressource bloquée ne se dessine pas en orange. */
+  tone?: 'green' | 'orange' | 'blue' | 'red'
   label?: string
   valueText?: string
 }) {

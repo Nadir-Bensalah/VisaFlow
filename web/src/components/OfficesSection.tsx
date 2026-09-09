@@ -4,6 +4,7 @@ import { useVisible } from '@/data/scope'
 import { useI18n } from '@/i18n'
 import { Button, Card, Field, IconButton, Input, Modal, Pill, Select, Switch, useToast } from '@/components/ui'
 import type { Office } from '@/data/types'
+import { signalerUsage } from '@/data/usage'
 
 /**
  * Les bureaux de l'agence.
@@ -78,7 +79,7 @@ export function OfficesSection() {
           office={editing === 'nouveau' ? null : editing}
           base={db.agency.offices[0]}
           onClose={() => setEditing(null)}
-          onSave={(o) => { actions.saveOffice(o); setEditing(null); toast(editing === 'nouveau' ? t('crud.created') : t('crud.updated')) }}
+          onSave={(o) => { actions.saveOffice(o); signalerUsage(); setEditing(null); toast(editing === 'nouveau' ? t('crud.created') : t('crud.updated')) }}
         />
       )}
     </>

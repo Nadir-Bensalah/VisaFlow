@@ -5,6 +5,8 @@ import { useI18n } from '@/i18n'
 import { Button, Field, Input, Modal, Select, Switch, Textarea, useToast } from './ui'
 import { clientName } from '@/lib/derive'
 import type { Incoterm, Shipment, ShipmentMode, ShipmentStatus } from '@/data/types'
+import { signalerUsage, useQuotaBloque } from '@/data/usage'
+import { QuotaBlocked } from './UsageGauges'
 
 /* Le meme formulaire sert a creer et a corriger. Une cargaison se corrige
    souvent : le conteneur change, l'ETA glisse, la douane bloque. */
@@ -36,6 +38,16 @@ export function ShipmentEditor({ shipment, onClose }: { shipment: Shipment | nul
     },
   )
   const set = <K extends keyof typeof draft>(key: K, value: (typeof draft)[K]) => setDraft({ ...draft, [key]: value })
+  // Seule la CRÉATION se garde : corriger une cargaison existante passe toujours.
+  const bloque = useQuotaBloque('shipments')
+
+  if (!shipment && bloque) {
+    return (
+      <Modal title={t('ship.newShipment')} onClose={onClose} footer={<Button onClick={onClose}>{t('action.cancel')}</Button>}>
+        <QuotaBlocked code="shipments" />
+      </Modal>
+    )
+  }
 
   return (
     <Modal
@@ -50,6 +62,7 @@ export function ShipmentEditor({ shipment, onClose }: { shipment: Shipment | nul
             disabled={!draft.clientId || !draft.goods.fr.trim()}
             onClick={() => {
               actions.saveShipment(draft)
+              if (!shipment) signalerUsage()
               onClose()
               toast(shipment ? t('crud.updated') : t('crud.created'))
             }}

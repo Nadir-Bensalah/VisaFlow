@@ -577,6 +577,8 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
 .progress__bar { height: 100%; border-radius: var(--radius-pill); background: var(--blue); transition: width var(--dur-slow) var(--ease); }
 .progress__bar--green { background: var(--green); }
 .progress__bar--orange { background: var(--orange); }
+.progress__bar--blue { background: var(--blue); }
+.progress__bar--red { background: var(--red); }
 
 .divider { height: 1px; background: var(--hairline); border: 0; margin: var(--sp-5) 0; }
 

@@ -346,12 +346,14 @@ begin
                  'la commission entre au journal avec l''ancienne valeur');
 
   perform pf_as(v_fac);
-  j := platform_set_subscription(v_ag, 'pro', 3, current_date + 365, 'active');
+  -- Adapté en 0070 : Active avec un bureau en plus (l'agence en a deux) :
+  -- six sièges, calculés, 179 + 119 = 298 par mois.
+  j := platform_set_subscription(v_ag, 'active', null, current_date + 365, 'active', 0, 1);
   reset role;
-  perform assert((select seats from subscriptions where agency_id = v_ag and status = 'active') = 3,
-                 'la facturation pose un abonnement à trois sièges');
+  perform assert((select seats from subscriptions where agency_id = v_ag and status = 'active') = 6,
+                 'la facturation pose un abonnement à six sièges');
   perform assert(exists (select 1 from platform_audit where action = 'abonnement.modifie'
-                         and detail ->> 'agency_id' = v_ag::text and (detail ->> 'sieges')::int = 3),
+                         and detail ->> 'agency_id' = v_ag::text and (detail ->> 'sieges')::int = 6),
                  'l''abonnement entre au journal avec les sièges');
 
   begin
@@ -841,8 +843,8 @@ begin
   perform assert(j -> 'acces' ->> 'etat' = 'a_jour' and (j -> 'acces') ? 'coupee' and (j -> 'acces') ? 'bloquant'
                  and (j -> 'acces') ? 'trial_ends_on' and (j -> 'acces') ? 'grace_ends_on' and (j -> 'acces') ? 'renewal_on',
                  'le bloc accès dit à jour, avec ses sept clés');
-  perform assert(j -> 'abonnement' ->> 'plan_code' = 'pro' and (j -> 'abonnement' ->> 'seats')::int = 3
-                 and (j -> 'abonnement' ->> 'mensuel')::numeric = 3 * 45,
+  perform assert(j -> 'abonnement' ->> 'plan_code' = 'active' and (j -> 'abonnement' ->> 'seats')::int = 6
+                 and (j -> 'abonnement' ->> 'mensuel')::numeric = 179 + 119,
                  'l''abonnement dit son plan et ce qu''il vaut par mois');
   perform assert(jsonb_array_length(j -> 'bureaux') = 2, 'les deux bureaux sont là');
   perform assert((select (b ->> 'members')::int from jsonb_array_elements(j -> 'bureaux') b where b ->> 'id' = v_off2::text) = 1,
@@ -917,12 +919,14 @@ begin
                  'le cockpit porte les sept blocs du contrat');
 
   j := c -> 'kpis';
-  perform assert((select count(*) from jsonb_object_keys(j)) = 19, 'dix-neuf indicateurs, comme le contrat');
-  perform assert((j ->> 'mrr')::numeric = (select coalesce(sum(seats * price_per_user_month), 0) from subscriptions where status = 'active')
-                 and (j ->> 'mrr')::numeric >= 135,
-                 'le MRR est la somme des sièges × prix des abonnements actifs');
+  -- Adapté en 0070 : mrr_eur, arr_eur et agences_en_depassement s'ajoutent.
+  perform assert((select count(*) from jsonb_object_keys(j)) = 22, 'vingt-deux indicateurs, comme le contrat');
+  perform assert((j ->> 'mrr')::numeric = (select coalesce(sum(subscription_monthly_amount(agency_id)), 0)
+                                             from subscriptions where status = 'active' and currency = 'TND')
+                 and (j ->> 'mrr')::numeric >= 298,
+                 'le MRR est la somme des mensuels des abonnements actifs en dinars');
   perform assert((j ->> 'arr')::numeric = (j ->> 'mrr')::numeric * 12, 'l''ARR est douze fois le MRR');
-  perform assert((j ->> 'mrr_potentiel')::numeric >= 45, 'les essais valent quelque chose s''ils signent');
+  perform assert((j ->> 'mrr_potentiel')::numeric >= 179, 'les essais valent quelque chose s''ils signent');
   perform assert((j ->> 'agences_suspendues')::int >= 1 and (j ->> 'graces')::int >= 1
                  and (j ->> 'essais_finissant_7j')::int >= 1 and (j ->> 'demandes_nouvelles')::int >= 1
                  and (j ->> 'tickets_urgents')::int >= 1,
@@ -976,7 +980,7 @@ begin
                  and (j -> 'encaisse_12m' -> 11 ->> 'amount')::numeric >= 1620
                  and (j -> 'encaisse_12m' -> 8 ->> 'amount')::numeric >= 500,
                  'l''encaissé mensuel place chaque règlement dans son mois');
-  perform assert((j -> 'mrr_12m' -> 11 ->> 'amount')::numeric >= 135, 'le MRR du mois courant compte l''abonnement actif');
+  perform assert((j -> 'mrr_12m' -> 11 ->> 'amount')::numeric >= 298, 'le MRR du mois courant compte l''abonnement actif');
   perform assert((j -> 'signups_30j' -> 26 ->> 'n')::int >= 1 and j -> 'signups_30j' -> 26 ->> 'day' = to_char(current_date - 3, 'YYYY-MM-DD'),
                  'la demande d''il y a trois jours est sur son jour');
   perform assert((j -> 'connexions_14j' -> 13 ->> 'n')::int >= 1, 'la connexion du jour est sur la série');

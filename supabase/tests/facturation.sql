@@ -59,9 +59,10 @@ begin
                  'le délai de grâce suit l''essai, sept jours');
 
   -- La durée n'est pas écrite dans le code : elle vient de la grille.
-  perform assert((select trial_days from plans where code = 'essai') = 15,
+  -- Adapté en 0070 : l'essai existe en deux devises, on lit la ligne TND.
+  perform assert((select trial_days from plans where code = 'essai' and currency = 'TND') = 15,
                  'la durée de l''essai vit dans la grille, pas dans le code');
-  perform assert((select grace_days from plans where code = 'essai') = 7,
+  perform assert((select grace_days from plans where code = 'essai' and currency = 'TND') = 7,
                  'la durée de grâce vit dans la grille aussi');
 
   j := agency_access_state(v_ag);
@@ -257,7 +258,8 @@ begin
   -- 8 · Un paiement après suspension réactive l'agence
   -- ---------------------------------------------------------------
   set local role authenticated;
-  p := platform_record_payment(v_ag, 3 * 45 * 12, 'TND',
+  -- Adapté en 0070 : le montant est celui du socle Active, 179 × 12.
+  p := platform_record_payment(v_ag, 179 * 12, 'TND',
          current_date, (current_date + interval '1 year' - interval '1 day')::date,
          'virement', 'VIR-' || sfx, 'Virement reçu le jour même.');
   reset role;
@@ -330,7 +332,7 @@ begin
     from subscriptions where agency_id = v_ag2;
 
   set local role authenticated;
-  perform platform_record_payment(v_ag2, 5 * 45 * 12, 'TND', null, null,
+  perform platform_record_payment(v_ag2, 179 * 12, 'TND', null, null,
                                   'virement', 'VIR2-' || sfx);
   reset role;
 
@@ -359,7 +361,7 @@ begin
   set local role authenticated;
   v_ag3 := platform_create_agency('Banc Renouv', 'banc-renouv-' || sfx, 'Tunisie',
                                   'par_dossier', 8, 'Sousse');
-  perform platform_set_subscription(v_ag3, 'pro', 4, (current_date - 1)::date, 'active');
+  perform platform_set_subscription(v_ag3, 'active', null, (current_date - 1)::date, 'active');
   reset role;
 
   perform assert((select billing_state from subscriptions where agency_id = v_ag3) = 'a_jour',
@@ -383,8 +385,8 @@ begin
   perform assert(jsonb_array_length(j) >= 3, 'le tableau liste les agences');
   perform assert(exists (select 1 from jsonb_array_elements(j) e
                           where (e ->> 'agency_id')::uuid = v_ag3
-                            and (e ->> 'montant_attendu')::numeric = 4 * 45 * 12),
-                 'chaque ligne porte le montant attendu : sièges × 45 DT × 12 mois');
+                            and (e ->> 'montant_attendu')::numeric = 179 * 12),
+                 'chaque ligne porte le montant attendu : le socle Active × 12 mois (adapté en 0070)');
   perform assert(exists (select 1 from jsonb_array_elements(j) e
                           where (e ->> 'agency_id')::uuid = v_ag
                             and (e ->> 'dernier_paiement')::date = current_date

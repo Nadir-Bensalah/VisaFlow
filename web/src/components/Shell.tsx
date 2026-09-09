@@ -11,6 +11,7 @@ import { brandTheme, themeVariables } from '@/lib/marque'
 import { NotificationBell } from './NotificationBell'
 import { AnnouncementBanner } from './AnnouncementBanner'
 import { BillingBanner } from './BillingBanner'
+import { QuotaBanner } from './QuotaBanner'
 import { FeedbackButton } from './FeedbackButton'
 import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
@@ -276,15 +277,6 @@ export function Shell() {
   return (
     <div className="shell">
       <a className="skip" href="#contenu">{t('nav.workspace')}</a>
-      <AnnouncementBanner />
-      <BillingBanner agencyId={db.agency.id} />
-      {syncError && (
-        <div className="syncbar" role="alert">
-          <Icon name="alert" size={16} />
-          <span className="grow t-small">{t(`sync.${syncError}` as 'sync.connexion')}</span>
-          <button type="button" className="syncbar__btn" onClick={retry}>{t('sync.retry')}</button>
-        </div>
-      )}
 
       <aside
         className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`}
@@ -359,6 +351,19 @@ export function Shell() {
       {menuOpen && <div className="scrim" aria-hidden="true" onClick={() => setMenuOpen(false)} />}
 
       <div className="main">
+        {/* Les bandeaux vivent dans la colonne principale, au-dessus de la barre
+            du haut. Posés à côté de la barre latérale, ils devenaient des
+            colonnes de la coque (display: flex) et poussaient tout le contenu. */}
+        <AnnouncementBanner />
+        <BillingBanner agencyId={db.agency.id} />
+        <QuotaBanner />
+        {syncError && (
+          <div className="syncbar" role="alert">
+            <Icon name="alert" size={16} />
+            <span className="grow t-small">{t(`sync.${syncError}` as 'sync.connexion')}</span>
+            <button type="button" className="syncbar__btn" onClick={retry}>{t('sync.retry')}</button>
+          </div>
+        )}
         <header className="topbar">
           <IconButton icon="menu" label="Menu" className="sidebar__toggle" onClick={() => setMenuOpen((value) => !value)} />
 

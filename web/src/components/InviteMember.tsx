@@ -9,6 +9,7 @@ import type { InviteResult } from '@/lib/invite'
 import { tenantUrl } from '@/tenant'
 import { TempPassword } from './TempPassword'
 import type { Locale, Office, Role } from '@/data/types'
+import { signalerUsage } from '@/data/usage'
 
 /**
  * Le formulaire d'invitation, indépendant du magasin : la console plateforme
@@ -38,6 +39,7 @@ export function InviteForm({ agencyId, offices, roles, defaultOffice, onClose, o
         agencyId, officeId: f.officeId, role: f.role, name: f.name.trim(),
         email: f.email.trim().toLowerCase(), phone: f.phone.trim() || undefined, locale: f.locale,
       })
+      signalerUsage()
       onDone({ ...r, name: f.name.trim(), phone: f.phone.trim(), locale: f.locale })
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''

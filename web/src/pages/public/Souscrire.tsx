@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useI18n, LOCALES, LOCALE_META } from '@/i18n'
 import { HAS_BACKEND } from '@/lib/supabase'
 import { rpc } from '@/data/remote'
+import { loadPublicPlans, type Currency, type PublicPlan } from '@/data/abonnements'
+import { estimer, type LigneCode } from '@/data/grille'
 import { Button, Card, Field, Input, Select, Textarea } from '@/components/ui'
 import { Icon } from '@/components/Icon'
 import { Illustration } from '@/components/Illustration'
@@ -16,19 +18,40 @@ import type { Locale } from '@/data/types'
  *   · L'abonnement se facture à l'année, au format TTN. On ne prélève pas.
  *   · Il n'existe pas de paiement récurrent par carte en Tunisie, et Stripe ne
  *     couvre pas le pays : personne ne peut « payer et entrer » tout seul.
- *   · La grille doit être par unité d'œuvre, 45 DT par utilisateur et par mois,
- *     jamais un forfait sec, sinon la banque refuse le transfert (article 3 de
- *     la circulaire BCT 2016-09).
+ *   · La facture doit porter des unités (« 1 licence Active, 12 mois »,
+ *     « 2 comptes × 12 mois »), jamais un forfait sec, sinon la banque refuse
+ *     le transfert (article 3 de la circulaire BCT 2016-09).
  *
  * Le prix se discute donc, il ne se clique pas. La page demande ce qu'il faut
  * pour chiffrer sans rappeler, et affiche l'estimation pendant la saisie : une
  * agence qui découvre le prix après trois échanges se sent piégée.
+ *
+ * L'estimation applique la formule de la grille (data/grille.ts) aux lignes
+ * de `public_plans`. Aucun prix n'est écrit ici : la grille bouge en base,
+ * la page suit.
  */
 
-const PRIX_UTILISATEUR_MOIS = 45
+/** Les pays proposés. TND pour la Tunisie et la Libye, EUR pour tout l'export. */
+const PAYS: { value: string; devise: Currency; fcfa?: boolean }[] = [
+  { value: 'Tunisie', devise: 'TND' },
+  { value: 'Libye', devise: 'TND' },
+  { value: 'Maroc', devise: 'EUR' },
+  { value: 'Algérie', devise: 'EUR' },
+  { value: 'Sénégal', devise: 'EUR', fcfa: true },
+  { value: 'Côte d’Ivoire', devise: 'EUR', fcfa: true },
+  { value: 'Autre', devise: 'EUR' },
+]
+
+/** La parité fixe EUR/FCFA (UEMOA). Ce n'est pas un prix : c'est une loi. */
+const FCFA_PAR_EUR = 655.957
+
+type LigneKey = 'grille.line.socle' | 'grille.line.bureau' | 'grille.line.compte' | 'grille.line.premium'
+const LIGNE_KEY: Record<LigneCode, LigneKey> = {
+  socle: 'grille.line.socle', bureau: 'grille.line.bureau', compte: 'grille.line.compte', premium: 'grille.line.premium',
+}
 
 export function Souscrire() {
-  const { t, locale, setLocale } = useI18n()
+  const { t, locale, setLocale, formatMoney, formatNumber } = useI18n()
   const [step, setStep] = useState<'formulaire' | 'fini'>('formulaire')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -37,12 +60,37 @@ export function Souscrire() {
     agencyName: '', contactName: '', phone: '', email: '',
     country: 'Tunisie', city: '',
     visas: true, fret: false,
-    teamSize: '', monthlyCases: '', currentTool: '', note: '',
+    teamSize: '', offices: '1', monthlyCases: '', currentTool: '', note: '',
   })
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }))
 
+  const pays = PAYS.find((p) => p.value === f.country) ?? PAYS[0]
+  const devise = pays.devise
+
+  // La grille dans la devise du pays. Elle se relit quand la devise change,
+  // et un échec n'empêche pas d'envoyer la demande : l'estimation devient un
+  // message, le formulaire reste.
+  const [grille, setGrille] = useState<{ devise: Currency; plans: PublicPlan[] } | null>(null)
+  const [grilleEtat, setGrilleEtat] = useState<'chargement' | 'pret' | 'erreur'>('chargement')
+  useEffect(() => {
+    if (!HAS_BACKEND) { setGrilleEtat('erreur'); return }
+    let vivant = true
+    setGrilleEtat('chargement')
+    loadPublicPlans(devise)
+      .then((plans) => { if (vivant) { setGrille({ devise, plans }); setGrilleEtat('pret') } })
+      .catch(() => { if (vivant) setGrilleEtat('erreur') })
+    return () => { vivant = false }
+  }, [devise])
+
   const users = Number(f.teamSize) || 0
-  const estimation = users > 0 ? users * PRIX_UTILISATEUR_MOIS * 12 : 0
+  const bureaux = Math.max(1, Number(f.offices) || 1)
+  const estimation = useMemo(
+    () => (grille && grille.devise === devise && users > 0 ? estimer(grille.plans, users, bureaux) : null),
+    [grille, devise, users, bureaux],
+  )
+  const essai = grille?.plans.find((p) => p.code === 'essai')
+  const premium = grille?.plans.find((p) => p.code === 'premium')
+
   // L'e-mail est obligatoire : c'est l'identifiant de connexion du compte
   // qu'on ouvrira au propriétaire. Sans lui, l'agence ne pourrait pas entrer.
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())
@@ -70,7 +118,9 @@ export function Souscrire() {
         p_team_size: users || null,
         p_monthly_cases: Number(f.monthlyCases) || null,
         p_current_tool: f.currentTool.trim() || null,
-        p_note: f.note.trim() || null,
+        // Le nombre de bureaux n'a pas de colonne dans la demande : il part
+        // dans la note, où le commercial le lira avant d'appeler.
+        p_note: [bureaux > 1 ? `${t('grille.offices')} ${bureaux}` : null, f.note.trim() || null].filter(Boolean).join('\n') || null,
         p_locale: locale,
       })
       setStep('fini')
@@ -80,6 +130,8 @@ export function Souscrire() {
       setBusy(false)
     }
   }
+
+  const argent = (n: number) => formatMoney(n, devise)
 
   return (
     <div className="portal">
@@ -126,8 +178,7 @@ export function Souscrire() {
                   </Field>
                   <Field label={t('sub.country')}>
                     <Select value={f.country} onChange={(e) => set('country', e.target.value)}>
-                      <option>Tunisie</option>
-                      <option>Libye</option>
+                      {PAYS.map((p) => <option key={p.value} value={p.value}>{p.value}</option>)}
                     </Select>
                   </Field>
                   <Field label={t('sub.city')}>
@@ -158,8 +209,11 @@ export function Souscrire() {
                 </div>
 
                 <div className="grid grid--2">
-                  <Field label={t('sub.teamSize')} hint={t('sub.teamSizeHint')}>
+                  <Field label={t('grille.people')} hint={t('sub.teamSizeHint')}>
                     <Input type="number" min={1} value={f.teamSize} onChange={(e) => set('teamSize', e.target.value)} />
+                  </Field>
+                  <Field label={t('grille.offices')} hint={t('grille.officesHint')}>
+                    <Input type="number" min={1} value={f.offices} onChange={(e) => set('offices', e.target.value)} />
                   </Field>
                   <Field label={t('sub.monthlyCases')}>
                     <Input type="number" min={0} value={f.monthlyCases} onChange={(e) => set('monthlyCases', e.target.value)} />
@@ -175,11 +229,66 @@ export function Souscrire() {
 
                 {/* Le prix s'affiche pendant la saisie. Une agence qui le
                     découvre après trois échanges se sent piégée. */}
-                {estimation > 0 && (
+                {users > 0 && grilleEtat === 'erreur' && (
+                  <p className="schengen__note" style={{ margin: 0 }}>
+                    <Icon name="alert" size={14} />
+                    <span>{t('grille.error')}</span>
+                  </p>
+                )}
+                {users > 0 && grilleEtat === 'chargement' && (
                   <p className="schengen__note" style={{ margin: 0 }}>
                     <Icon name="sparkle" size={14} />
-                    <span>{t('sub.estimate', { users, month: users * PRIX_UTILISATEUR_MOIS, year: estimation })}</span>
+                    <span>{t('grille.loading')}</span>
                   </p>
+                )}
+                {estimation && (
+                  <div className="schengen__note" style={{ margin: 0, flexDirection: 'column', gap: 'var(--sp-2)' }}>
+                    <div className="row gap-2" style={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <Icon name="sparkle" size={14} />
+                      <span className="t-caption t-tertiary">{t('grille.recommended')}</span>
+                      <span className="t-medium" style={{ color: 'var(--text-primary)' }}>
+                        {t(estimation.conseille === 'active' ? 'grille.formule.active' : 'grille.formule.premium')}
+                      </span>
+                      <span className="grow" />
+                      <span className="t-medium t-num" style={{ color: 'var(--text-primary)' }}>{t('grille.perMonth', { amount: argent(estimation.mensuel) })}</span>
+                      <span className="t-num">{t('grille.perYear', { amount: argent(estimation.annuel) })}</span>
+                    </div>
+
+                    {estimation.conseille === 'devis' && premium && (
+                      <span>{t('grille.devis', { users: formatNumber(premium.fair_use_users ?? users), offices: formatNumber(premium.fair_use_offices ?? bureaux) })}</span>
+                    )}
+                    {estimation.conseille === 'premium' && estimation.activeMensuel !== null && (
+                      <span>{t('grille.premiumWhy', { active: argent(estimation.activeMensuel) })}</span>
+                    )}
+
+                    {estimation.conseille === 'active' && (
+                      <div className="col gap-1">
+                        <span className="t-caption t-tertiary">{t('grille.detail')}</span>
+                        {estimation.lignes.map((l) => (
+                          <span key={l.label} className="row gap-2" style={{ alignItems: 'baseline' }}>
+                            <span>{t(LIGNE_KEY[l.label])}</span>
+                            <span className="t-caption t-tertiary">{t('grille.lineQty', { n: formatNumber(l.quantite), price: argent(l.unitaire) })}</span>
+                            <span className="grow" />
+                            <span className="t-num">{argent(l.total)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <span className="t-caption t-tertiary">
+                      {t('grille.ht')}
+                      {pays.fcfa ? ` ${t('grille.fcfa', { amount: formatNumber(Math.round(estimation.annuel * FCFA_PAR_EUR)) })}` : ''}
+                    </span>
+
+                    {estimation.alternative && (
+                      <span className="t-caption">
+                        {t('grille.alternative', { month: argent(estimation.alternative.mensuel), year: argent(estimation.alternative.annuel) })}
+                      </span>
+                    )}
+                    {essai && essai.trial_days > 0 && (
+                      <span className="t-caption">{t('grille.trial', { days: formatNumber(essai.trial_days) })}</span>
+                    )}
+                  </div>
                 )}
 
                 {error && <p className="t-small" style={{ color: 'var(--red)', margin: 0 }}>{error}</p>}

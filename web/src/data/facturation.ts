@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { InvoiceTotals, PlanCode } from './abonnements'
 
 /* Tous les appels du module « cycle de facturation ».
  *
@@ -58,7 +59,7 @@ export interface BillingRow {
   statut: string | null
   plan: string | null
   sieges: number
-  /** Sièges signés × 45 DT × 12 mois. La ligne de facture, pas un encaissement. */
+  /** Le montant de la période, remise déduite (0049 puis 0070). La ligne de facture, pas un encaissement. */
   montant_attendu: number
   devise: string
   dernier_paiement: string | null
@@ -66,6 +67,19 @@ export interface BillingRow {
   suspendue_le: string | null
   motif: string | null
   suspendue: boolean
+  /* La grille du 9 septembre 2026 : le mensuel vient de la base, on ne le
+     reconstruit plus à partir des sièges. */
+  plan_code: PlanCode | null
+  currency: string
+  extra_users: number
+  extra_offices: number
+  monthly_amount: number
+  annual_amount: number
+  /** HT, TVA, retenue, net à payer : ce que la facture imprime. Null sans souscription payante. */
+  invoice_totals: InvoiceTotals | null
+  /** Ce qui reste dû après les règlements partiels de la période. Zéro quand c'est réglé. */
+  solde_du: number
+  dernier_reglement_le: string | null
 }
 
 export type PaymentMethod = 'virement' | 'cheque' | 'especes' | 'carte' | 'autre'
@@ -74,10 +88,16 @@ export interface RecordedPayment {
   ok: boolean
   agency_id: string
   paiement_id: string
-  etat: 'a_jour'
+  etat: 'a_jour' | 'grace' | 'essai' | 'suspendue'
   renewal_on: string
   grace_ends_on: string
   reactivee: boolean
+  /** Vrai quand le montant reçu atteint le net à payer, à un dinar près.
+   *  Un règlement partiel s'enregistre mais ne repousse pas l'échéance :
+   *  c'est ce qui empêche qu'une retenue à la source se lise comme un impayé. */
+  complet: boolean
+  solde_du: number
+  net_a_payer: number
 }
 
 export interface AgencyPayment {

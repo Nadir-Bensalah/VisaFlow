@@ -5,6 +5,8 @@ import { useStore } from '@/data/store'
 import { deleteAgence, loadAgence360 } from '@/data/plateforme'
 import type { Agence360, AuditAction, AuditRow } from '@/data/plateforme'
 import { reactivateAgency, recordPayment } from '@/data/facturation'
+import { loadAgencyUsage, type AgencyUsage } from '@/data/usage'
+import { UsageGauges } from '@/components/UsageGauges'
 import type { PaymentMethod } from '@/data/facturation'
 import { Button, Field, Input, Modal, Pill, Select, useToast } from '@/components/ui'
 import { Icon } from '@/components/Icon'
@@ -15,6 +17,7 @@ import {
   dateFr, delai, depuis, money, nb, octets, useChargement,
 } from './kit'
 import '@/styles/admin-agences.css'
+import '@/styles/admin-finance.css'
 
 /**
  * LA FICHE 360 D'UNE AGENCE.
@@ -85,7 +88,18 @@ export function commissionLisible(kind: string, amount: number): string {
   }
 }
 
-const PERIODE: Record<string, string> = { mensuel: 'Mensuel', annuel: 'Annuel', monthly: 'Mensuel', yearly: 'Annuel' }
+const PERIODE: Record<string, string> = { mensuel: 'Mensuel', annuel: 'Annuel', semestriel: 'Semestriel', monthly: 'Mensuel', yearly: 'Annuel' }
+const FORMULE: Record<string, string> = { essai: 'Essai', active: 'Active', premium: 'Premium' }
+
+/** « +1 bureau, +2 comptes », ou « socle seul ». */
+function ajouts(bureaux: number | null, comptes: number | null): string {
+  const parts: string[] = []
+  const b = Number(bureaux ?? 0)
+  const u = Number(comptes ?? 0)
+  if (b > 0) parts.push(`+${nb(b)} ${b === 1 ? 'bureau' : 'bureaux'}`)
+  if (u > 0) parts.push(`+${nb(u)} ${u === 1 ? 'compte' : 'comptes'}`)
+  return parts.length > 0 ? parts.join(', ') : 'socle seul'
+}
 
 /* Ce que `platform_agency_detail` rend, pour les gestes qui ont besoin de
    plus que la vue 360. */
@@ -112,7 +126,11 @@ export function Agence() {
   // Le détail (adresses des bureaux, bureau de chaque compte) ne se relit
   // qu'au moment d'un geste, et s'oublie à chaque rechargement de la fiche.
   const detailRef = useRef<Detail | null>(null)
-  useEffect(() => { detailRef.current = null }, [data])
+  // La consommation relue à la demande. Elle s'efface quand la fiche se
+  // recharge : la fiche porte alors la valeur la plus fraîche.
+  const [usageLocal, setUsageLocal] = useState<AgencyUsage | null>(null)
+  const [usageBusy, setUsageBusy] = useState(false)
+  useEffect(() => { detailRef.current = null; setUsageLocal(null) }, [data])
   const detail = async () => {
     if (!detailRef.current) detailRef.current = await chargerDetail(id)
     return detailRef.current
@@ -124,6 +142,11 @@ export function Agence() {
   const [commission, setCommission] = useState(false)
   const [bureau, setBureau] = useState<DetailBureau | 'nouveau' | null>(null)
   const [membreBusy, setMembreBusy] = useState<string | null>(null)
+
+  const actualiserUsage = async () => {
+    setUsageBusy(true)
+    try { setUsageLocal(await loadAgencyUsage(id)) } catch (e) { toast(e instanceof Error ? e.message : 'Consommation illisible.') } finally { setUsageBusy(false) }
+  }
 
   const apresGeste = (message: string) => { toast(message); void reload(); rafraichirCompteurs() }
 
@@ -226,6 +249,7 @@ export function Agence() {
   const points = activite_30j.map((p) => p.n)
   const totalActivite = points.reduce((s, n) => s + n, 0)
   const lieu = [agence.city, agence.country].filter(Boolean).join(', ')
+  const usage = usageLocal ?? data.usage ?? null
 
   return (
     <>
@@ -261,7 +285,7 @@ export function Agence() {
       )}
 
       <KpiGrid>
-        <Kpi label="Abonnement" value={abonnement.mensuel !== null ? `${money(abonnement.mensuel)} / mois` : '·'} tone={etatAcces.tone}
+        <Kpi label="Abonnement" value={abonnement.monthly_amount !== null && abonnement.monthly_amount !== undefined ? `${money(abonnement.monthly_amount, abonnement.currency ?? 'TND')} / mois` : abonnement.mensuel !== null ? `${money(abonnement.mensuel, abonnement.currency ?? 'TND')} / mois` : '·'} tone={etatAcces.tone}
           hint={`${etatAcces.label} · ${delai(acces.jours_restants)}`} to={`/admin/abonnements?agence=${id}`} icon="payments" />
         <Kpi label="Clients" value={nb(compteurs.clients)} icon="clients" />
         <Kpi label="Dossiers ouverts" value={nb(compteurs.cases_open)} hint={`${nb(compteurs.cases_total)} au total`} icon="cases" />
@@ -269,6 +293,18 @@ export function Agence() {
         <Kpi label="Comptes" value={nb(membres.filter((m) => m.active).length)} hint={`${nb(compteurs.connexions_7j)} connexions sur 7 j`} icon="clients" />
         <Kpi label="Stockage" value={octets(compteurs.storage_bytes)} hint={`${nb(compteurs.documents)} documents`} icon="documents" />
       </KpiGrid>
+
+      <Section
+        title="Consommation en temps réel"
+        action={<span className="row gap-2 wrap" style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+          {usage && <span className="t-caption t-tertiary">calculé {depuis(usage.computed_at)}</span>}
+          <Button size="sm" icon="refresh" disabled={usageBusy} onClick={() => void actualiserUsage()}>Actualiser</Button>
+        </span>}
+      >
+        {usage
+          ? <UsageGauges usage={usage} compact console />
+          : <p className="t-small t-tertiary" style={{ margin: 0 }}>Consommation indisponible : la base ne la rend pas encore pour cette agence.</p>}
+      </Section>
 
       <div className="ag-grille">
         <div>
@@ -361,11 +397,15 @@ export function Agence() {
 
         <div>
           <Section title="Abonnement" action={<Link to={`/admin/abonnements?agence=${id}`} className="btn btn--secondary btn--sm">Modifier l’abonnement</Link>}>
-            <Ligne label="Formule">{abonnement.plan_name ?? agence.plan}</Ligne>
+            <Ligne label="Formule">{abonnement.plan_name ?? (abonnement.plan_code ? FORMULE[abonnement.plan_code] ?? abonnement.plan_code : agence.plan)}</Ligne>
             <Ligne label="État"><Etat etat={abonnement.billing_state ?? acces.etat} dot /></Ligne>
-            <Ligne label="Sièges">{nb(abonnement.seats)}</Ligne>
-            <Ligne label="Prix par siège et par mois">{money(abonnement.price_per_user_month, abonnement.currency ?? 'TND')}</Ligne>
+            <Ligne label="Devise">{abonnement.currency ?? 'TND'}</Ligne>
+            <Ligne label="Ajouts">{abonnement.plan_code === 'active' ? ajouts(abonnement.extra_offices, abonnement.extra_users) : '·'}</Ligne>
+            <Ligne label="Comptes autorisés">{abonnement.seats_allowed === null ? 'sans limite' : nb(abonnement.seats_allowed)}</Ligne>
+            <Ligne label="Mensuel, HT">{abonnement.monthly_amount !== null && abonnement.monthly_amount !== undefined ? money(abonnement.monthly_amount, abonnement.currency ?? 'TND') : '·'}</Ligne>
             <Ligne label="Période">{abonnement.billing_period ? (PERIODE[abonnement.billing_period] ?? abonnement.billing_period) : '·'}</Ligne>
+            <Ligne label={abonnement.billing_period === 'semestriel' ? 'Montant du semestre, HT' : 'Montant annuel, HT'}>{abonnement.annual_amount !== null && abonnement.annual_amount !== undefined ? money(abonnement.annual_amount, abonnement.currency ?? 'TND') : '·'}</Ligne>
+            <Ligne label="Net à payer">{abonnement.invoice_totals ? money(abonnement.invoice_totals.net_a_payer, abonnement.invoice_totals.currency) : '·'}</Ligne>
             <Ligne label="Début">{dateFr(abonnement.started_on)}</Ligne>
             <Ligne label="Fin d’essai">{dateFr(abonnement.trial_ends_on ?? acces.trial_ends_on)}</Ligne>
             <Ligne label="Fin de grâce">{dateFr(abonnement.grace_ends_on ?? acces.grace_ends_on)}</Ligne>
@@ -436,8 +476,9 @@ export function Agence() {
 
       {reglement && (
         <FormeReglement agencyId={id} nom={agence.name} devise={abonnement.currency ?? 'TND'}
-          annuel={abonnement.billing_period === 'annuel' || abonnement.billing_period === 'yearly'}
-          attendu={abonnement.mensuel !== null ? (abonnement.billing_period === 'annuel' || abonnement.billing_period === 'yearly' ? abonnement.mensuel * 12 : abonnement.mensuel) : null}
+          periode={abonnement.billing_period === 'semestriel' ? 'semestriel' : abonnement.billing_period === 'mensuel' || abonnement.billing_period === 'monthly' ? 'mensuel' : 'annuel'}
+          attendu={abonnement.invoice_totals ? abonnement.invoice_totals.net_a_payer : (abonnement.annual_amount ?? null)}
+          totaux={abonnement.invoice_totals}
           onClose={() => setReglement(false)}
           onDone={(m) => { setReglement(false); apresGeste(m) }} />
       )}
@@ -503,18 +544,22 @@ function MenuPlus({ items }: { items: { label: string; icon?: 'trash' | 'edit' |
 const jourIso = (d: Date) => d.toISOString().slice(0, 10)
 
 /** Le même formulaire que l'écran Facturation, posé sur la fiche : un
-    virement constaté, jamais un prélèvement. Le montant est saisi, pas calculé. */
-export function FormeReglement({ agencyId, nom, devise, annuel, attendu, onClose, onDone }: {
-  agencyId: string; nom: string; devise: string; annuel: boolean; attendu: number | null
+    virement constaté, jamais un prélèvement. Le montant proposé est le net à
+    payer de la facture (HT + TVA − retenue à la source) ; il reste modifiable,
+    et un règlement partiel s'enregistre sans repousser l'échéance. */
+export function FormeReglement({ agencyId, nom, devise, periode, attendu, totaux, onClose, onDone }: {
+  agencyId: string; nom: string; devise: string; periode: 'annuel' | 'semestriel' | 'mensuel'; attendu: number | null
+  totaux: Agence360['abonnement']['invoice_totals']
   onClose: () => void; onDone: (message: string) => void
 }) {
-  const [montant, setMontant] = useState(attendu !== null ? String(attendu) : '')
+  const [montant, setMontant] = useState(attendu !== null ? String(Math.round(attendu * 1000) / 1000) : '')
   const [methode, setMethode] = useState<PaymentMethod>('virement')
   const [reference, setReference] = useState('')
   const [debut, setDebut] = useState(jourIso(new Date()))
   const [fin, setFin] = useState(() => {
     const d = new Date()
-    if (annuel) d.setFullYear(d.getFullYear() + 1); else d.setMonth(d.getMonth() + 1)
+    if (periode === 'annuel') d.setFullYear(d.getFullYear() + 1)
+    else d.setMonth(d.getMonth() + (periode === 'semestriel' ? 6 : 1))
     d.setDate(d.getDate() - 1)
     return jourIso(d)
   })
@@ -523,6 +568,10 @@ export function FormeReglement({ agencyId, nom, devise, annuel, attendu, onClose
   const [erreur, setErreur] = useState<string | null>(null)
   const n = Number(montant)
   const valide = Number.isFinite(n) && n > 0 && fin >= debut
+  const cur = devise || 'TND'
+  const pct = (r: number) => nb(Math.round(r * 10000) / 100)
+  const partiel = valide && attendu !== null && n < attendu - 1
+  const libPeriode = periode === 'annuel' ? 'pour l’année' : periode === 'semestriel' ? 'pour le semestre' : 'pour le mois'
 
   return (
     <Modal title={`Règlement · ${nom}`} onClose={onClose} footer={<>
@@ -531,10 +580,15 @@ export function FormeReglement({ agencyId, nom, devise, annuel, attendu, onClose
         setBusy(true); setErreur(null)
         try {
           const out = await recordPayment({
-            agencyId, amount: n, currency: devise || 'TND', periodStart: debut, periodEnd: fin,
+            agencyId, amount: n, currency: cur, periodStart: debut, periodEnd: fin,
             method: methode, reference: reference.trim() || null, note: note.trim() || null,
           })
-          onDone(out.reactivee ? 'Règlement enregistré. L’agence est rouverte.' : 'Règlement enregistré.')
+          // Le serveur dit si c'est complet. Partiel : l'échéance ne bouge pas, on annonce le solde.
+          if (out.complet === false) {
+            onDone(`Règlement partiel enregistré. Il reste ${money(Number(out.solde_du), cur)} sur ${money(Number(out.net_a_payer), cur)} ; l’échéance ne bouge pas.`)
+          } else {
+            onDone(out.reactivee ? `Règlement complet. L’agence est rouverte et à jour jusqu’au ${dateFr(out.renewal_on)}.` : `Règlement complet. À jour jusqu’au ${dateFr(out.renewal_on)}.`)
+          }
         } catch (e) {
           setBusy(false)
           setErreur(e instanceof Error ? e.message : 'Enregistrement impossible.')
@@ -543,11 +597,21 @@ export function FormeReglement({ agencyId, nom, devise, annuel, attendu, onClose
     </>}>
       <div className="col gap-4">
         <p className="t-caption t-tertiary" style={{ margin: 0 }}>
-          Ce geste constate un virement déjà reçu. Il ne prélève rien : il remet l’agence à jour, repousse son échéance et rouvre son accès si elle était suspendue.
+          Ce geste constate un virement déjà reçu. Il ne prélève rien : s’il atteint le net à payer, il remet l’agence à jour, repousse son échéance et rouvre son accès si elle était suspendue.
         </p>
-        <Field label={`Montant (${devise || 'TND'})`} hint={attendu !== null ? `Attendu : ${money(attendu, devise || 'TND')} ${annuel ? 'pour l’année' : 'pour le mois'}` : undefined}>
+        <Field label={`Montant (${cur})`} hint={attendu !== null ? `Net à payer : ${money(attendu, cur)} ${libPeriode}` : undefined}
+          error={partiel && attendu !== null ? `Règlement partiel : il restera ${money(attendu - n, cur)}, l’échéance ne bougera pas.` : undefined}>
           <Input type="number" min="0" step="0.001" value={montant} onChange={(e) => setMontant(e.target.value)} autoFocus />
         </Field>
+        {totaux && (
+          <div className="fi-totaux" aria-label="Le détail de la facture">
+            <span>Hors taxes</span><span>{money(totaux.ht, cur)}</span>
+            {totaux.tva > 0 && <><span>TVA {pct(totaux.tva_rate)} %</span><span>{money(totaux.tva, cur)}</span></>}
+            {totaux.tva > 0 && <><span>Toutes taxes</span><span>{money(totaux.ttc, cur)}</span></>}
+            {totaux.retenue > 0 && <><span>Retenue à la source {pct(totaux.withholding_rate)} %, déduite par le client</span><span>−{money(totaux.retenue, cur)}</span></>}
+            <span className="fi-totaux--net" style={{ display: 'contents' }}><span>Net à payer</span><span>{money(totaux.net_a_payer, cur)}</span></span>
+          </div>
+        )}
         <Field label="Moyen">
           <Select value={methode} onChange={(e) => setMethode(e.target.value as PaymentMethod)}>
             {METHODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}

@@ -33,12 +33,18 @@ export interface Signup {
   status: StatutDemande; received_at: string
   quoted_users: number | null; quoted_amount: number | null; quoted_currency: string | null; refusal_reason: string | null
   agency_id: string | null; agency_slug: string | null
-  /** Sièges × 45 TND × 12 mois, calculé en base. */
+  /** L'estimation calculée en base sur la grille : socle Active + ajouts pour
+   *  `team_size` comptes et un bureau, en TND, hors taxes. Jamais recalculée ici. */
   suggested_year: number | null
+  suggested_month: number | null
+  suggested_plan: string | null
 }
 
-const PRIX_SIEGE_MOIS = 45
 const TRENTE_JOURS = 30 * 86400 * 1000
+
+/** Le nom d'une formule dans la console. Le code seul se lit mal dans un tableau. */
+const FORMULE: Record<string, string> = { essai: 'Essai', active: 'Active', premium: 'Premium' }
+const formule = (code: string | null) => (code ? (FORMULE[code] ?? code) : '·')
 
 export async function chargerDemandes(): Promise<Signup[]> {
   if (!supabase) throw new Error('La console n’existe qu’avec un backend.')
@@ -172,7 +178,7 @@ export function Demandes() {
                     <td className="num">
                       <div className="adm-cell-main" style={{ alignItems: 'flex-end' }}>
                         <span>{money(d.suggested_year)}</span>
-                        <span className="t-caption">{PRIX_SIEGE_MOIS} TND par utilisateur et par mois</span>
+                        <span className="t-caption">{d.suggested_month !== null ? `${formule(d.suggested_plan)} · ${money(d.suggested_month)} par mois` : 'socle Active + ajouts, HT'}</span>
                       </div>
                     </td>
                     <td className="t-tertiary" title={dateHeure(d.received_at)}>{depuis(d.received_at)}</td>
@@ -214,11 +220,13 @@ export function Demandes() {
 function FormeDevis({ demande, onClose, onDone }: { demande: Signup; onClose: () => void; onDone: (m: string) => void }) {
   const [users, setUsers] = useState(String(demande.quoted_users ?? demande.team_size ?? ''))
   const nUsers = Number(users)
-  // Le montant suit le nombre d'utilisateurs tant qu'on ne l'a pas touché :
-  // 45 TND par siège et par mois, sur douze mois. On peut le corriger.
+  // Le montant proposé est l'estimation de la base (socle Active + ajouts
+  // pour l'équipe déclarée, un bureau, HT). On ne la recalcule pas ici : si le
+  // nombre de comptes change, le devis se corrige à la main, et la vraie
+  // ligne de facture naîtra de l'abonnement posé sur l'agence.
   const [montant, setMontant] = useState(demande.quoted_amount !== null ? String(demande.quoted_amount) : '')
   const [montantTouche, setMontantTouche] = useState(demande.quoted_amount !== null)
-  const propose = Number.isFinite(nUsers) && nUsers > 0 ? nUsers * PRIX_SIEGE_MOIS * 12 : null
+  const propose = demande.suggested_year !== null && demande.suggested_year > 0 ? demande.suggested_year : null
   const montantEffectif = montantTouche ? Number(montant) : (propose ?? NaN)
   const valide = Number.isFinite(nUsers) && nUsers > 0 && Number.isFinite(montantEffectif) && montantEffectif > 0
   const [busy, setBusy] = useState(false)
@@ -235,13 +243,13 @@ function FormeDevis({ demande, onClose, onDone }: { demande: Signup; onClose: ()
     </>}>
       <div className="col gap-4">
         <p className="t-caption t-tertiary" style={{ margin: 0 }}>
-          Ce qu’on a proposé, pour ne pas le rechercher dans ses messages. La grille est par utilisateur et par mois : c’est l’unité d’œuvre exigée par la circulaire BCT 2016-09.
+          Ce qu’on a proposé, pour ne pas le rechercher dans ses messages. La facture porte des unités (licence, bureaux, comptes × 12 mois) : c’est ce que la circulaire BCT 2016-09 exige.
         </p>
         <div className="grid grid--2" style={{ gap: 'var(--sp-3)' }}>
           <Field label="Utilisateurs" hint={demande.team_size ? `L’agence a déclaré ${nb(demande.team_size)} personnes.` : undefined}>
             <Input type="number" min="1" step="1" value={users} autoFocus onChange={(e) => setUsers(e.target.value)} />
           </Field>
-          <Field label="Montant par an (TND)" hint={propose !== null ? `${nb(nUsers)} × ${PRIX_SIEGE_MOIS} × 12 = ${money(propose)}` : undefined}>
+          <Field label="Montant par an (TND, HT)" hint={propose !== null ? `Estimation : ${formule(demande.suggested_plan)}, ${money(demande.suggested_month)} par mois, soit ${money(propose)} par an pour ${nb(demande.team_size)} comptes et un bureau.` : undefined}>
             <Input type="number" min="0" step="0.001" value={montantTouche ? montant : (propose !== null ? String(propose) : '')}
               onChange={(e) => { setMontant(e.target.value); setMontantTouche(true) }} />
           </Field>
@@ -320,7 +328,7 @@ function Details({ demande: d, onClose }: { demande: Signup; onClose: () => void
         <div>
           <span className="t-caption t-tertiary">Historique</span>
           <Ligne label="Reçue le">{dateHeure(d.received_at)}</Ligne>
-          <Ligne label="Estimation">{money(d.suggested_year)} par an</Ligne>
+          <Ligne label="Estimation">{formule(d.suggested_plan)} · {money(d.suggested_month)} par mois · {money(d.suggested_year)} par an, socle Active + ajouts, HT</Ligne>
           {(d.quoted_users !== null || d.quoted_amount !== null) && (
             <Ligne label="Devis">{nb(d.quoted_users)} utilisateurs · {money(d.quoted_amount, d.quoted_currency ?? 'TND')} par an</Ligne>
           )}

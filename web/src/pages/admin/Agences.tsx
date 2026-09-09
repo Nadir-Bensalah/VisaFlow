@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useStore } from '@/data/store'
-import { Button, Input, Segmented, Select, useToast } from '@/components/ui'
+import { Button, Input, Pill, Segmented, Select, useToast } from '@/components/ui'
+import type { UsageNiveau } from '@/data/usage'
 import { usePlateforme } from './contexte'
 import {
   Barre, Confirmer, Erreur, Etat, Kpi, KpiGrid, PageHeader, Section, Squelette, Table, Vide,
@@ -22,9 +23,21 @@ export interface AgencyRow {
   id: string; slug: string; name: string; country: string; plan: string
   suspended: boolean; created_at: string; users: number; offices: number; clients: number; cases_open: number
   last_activity: string | null; commission_kind: string; commission_amount: number
+  /* La consommation, comptée par la base. Absente sur une base antérieure. */
+  usage_max_pct?: number | null
+  usage_niveau?: UsageNiveau
 }
 
-type Filtre = 'toutes' | 'actives' | 'essais' | 'suspendues'
+type Filtre = 'toutes' | 'actives' | 'essais' | 'suspendues' | 'depassement'
+const FILTRES: Filtre[] = ['toutes', 'actives', 'essais', 'suspendues', 'depassement']
+
+const NIVEAU: Record<UsageNiveau, { label: string; tone: 'gray' | 'blue' | 'orange' | 'red' }> = {
+  ok: { label: 'ok', tone: 'gray' }, info: { label: '80 %', tone: 'blue' },
+  attention: { label: 'au complet', tone: 'orange' }, bloque: { label: 'bloquée', tone: 'red' },
+}
+
+/** Au moins une ressource à 100 % : la ligne dans la console que la grille promet. */
+export const enDepassement = (a: AgencyRow): boolean => a.usage_niveau === 'attention' || a.usage_niveau === 'bloque'
 type Tri = 'activite' | 'creation' | 'nom' | 'dossiers'
 
 const QUATORZE_JOURS = 14 * 86400 * 1000
@@ -34,6 +47,18 @@ async function chargerAgences(): Promise<AgencyRow[]> {
   const { data, error } = await supabase.rpc('platform_agencies')
   if (error) throw new Error(error.message)
   return (data as AgencyRow[] | null) ?? []
+}
+
+/** Le pourcentage le plus haut et son niveau. Premium sans repère chiffré : « illimité ». */
+function CelluleUsage({ a }: { a: AgencyRow }) {
+  if (a.usage_niveau === undefined) return <span className="t-tertiary">·</span>
+  const n = NIVEAU[a.usage_niveau] ?? NIVEAU.ok
+  return (
+    <span className="row gap-2" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+      <span className="t-num">{a.usage_max_pct === null || a.usage_max_pct === undefined ? (a.plan === 'premium' ? 'illimité' : '·') : `${nb(Math.round(a.usage_max_pct))} %`}</span>
+      {a.usage_niveau !== 'ok' && <Pill tone={n.tone} dot>{n.label}</Pill>}
+    </span>
+  )
 }
 
 /** Sans activité depuis quatorze jours : une agence qui s'éteint sans le dire. */
@@ -52,7 +77,11 @@ export function Agences() {
   const agences = data ?? []
 
   const [q, setQ] = useState('')
-  const [filtre, setFiltre] = useState<Filtre>('toutes')
+  // Le poste de pilotage ouvre la liste déjà filtrée : /admin/agences?filtre=depassement
+  const [params, setParams] = useSearchParams()
+  const demande = params.get('filtre')
+  const filtre: Filtre = FILTRES.includes(demande as Filtre) ? (demande as Filtre) : 'toutes'
+  const setFiltre = (f: Filtre) => setParams(f === 'toutes' ? {} : { filtre: f }, { replace: true })
   const [tri, setTri] = useState<Tri>('activite')
   const [confirmation, setConfirmation] = useState<{ agence: AgencyRow; etat: 'suspendue' | 'active' } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -61,6 +90,7 @@ export function Agences() {
   const suspendues = agences.filter((a) => a.suspended).length
   const essais = agences.filter((a) => a.plan === 'essai' && !a.suspended).length
   const dormantes = agences.filter(sansActivite).length
+  const depassements = agences.filter(enDepassement).length
 
   const visibles = useMemo(() => {
     const texte = q.trim().toLowerCase()
@@ -68,6 +98,7 @@ export function Agences() {
       if (filtre === 'actives' && a.suspended) return false
       if (filtre === 'suspendues' && !a.suspended) return false
       if (filtre === 'essais' && a.plan !== 'essai') return false
+      if (filtre === 'depassement' && !enDepassement(a)) return false
       if (!texte) return true
       return [a.name, a.slug, a.country].some((v) => v.toLowerCase().includes(texte))
     })
@@ -104,10 +135,10 @@ export function Agences() {
 
   const exporter = () => {
     telechargerCsv(`agences-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ['Agence', 'Sous-domaine', 'Pays', 'Formule', 'État', 'Bureaux', 'Comptes', 'Clients', 'Dossiers ouverts', 'Dernière activité', 'Ouverte le', 'Commission', 'Montant'],
+      ['Agence', 'Sous-domaine', 'Pays', 'Formule', 'État', 'Bureaux', 'Comptes', 'Clients', 'Dossiers ouverts', 'Usage max (%)', 'Niveau', 'Dernière activité', 'Ouverte le', 'Commission', 'Montant'],
       ...visibles.map((a) => [
         a.name, `${a.slug}.visaflow.app`, a.country, a.plan, a.suspended ? 'suspendue' : 'active',
-        a.offices, a.users, a.clients, a.cases_open, a.last_activity ?? '', a.created_at.slice(0, 10), a.commission_kind, a.commission_amount,
+        a.offices, a.users, a.clients, a.cases_open, a.usage_max_pct ?? '', a.usage_niveau ?? '', a.last_activity ?? '', a.created_at.slice(0, 10), a.commission_kind, a.commission_amount,
       ]),
     ])
   }
@@ -149,6 +180,7 @@ export function Agences() {
           <Segmented value={filtre} onChange={setFiltre} label="Filtrer" options={[
             { value: 'toutes', label: 'Toutes' }, { value: 'actives', label: 'Actives' },
             { value: 'essais', label: 'Essais' }, { value: 'suspendues', label: 'Suspendues' },
+            { value: 'depassement', label: `En dépassement · ${depassements}` },
           ]} />
         </Barre>
 
@@ -161,6 +193,7 @@ export function Agences() {
               <tr>
                 <th>Agence</th><th>Pays</th><th>Formule</th>
                 <th className="num">Bureaux</th><th className="num">Comptes</th><th className="num">Clients</th><th className="num">Dossiers</th>
+                <th className="num">Usage</th>
                 <th>Activité</th><th>État</th><th className="actions" />
               </tr>
             </thead>
@@ -179,6 +212,7 @@ export function Agences() {
                   <td className="num">{nb(a.users)}</td>
                   <td className="num">{nb(a.clients)}</td>
                   <td className="num">{nb(a.cases_open)}</td>
+                  <td className="num"><CelluleUsage a={a} /></td>
                   <td className="t-tertiary" title={a.last_activity ? dateFr(a.last_activity) : 'Aucune activité'}>{depuis(a.last_activity)}</td>
                   <td><Etat etat={a.suspended ? 'suspendue' : 'active'} dot /></td>
                   <td className="actions" onClick={(e) => e.stopPropagation()}>

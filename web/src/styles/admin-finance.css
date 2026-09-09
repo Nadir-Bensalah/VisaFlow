@@ -112,3 +112,53 @@
 /* La recherche dans la barre : elle prend ce qui reste, jamais plus. */
 .fi-recherche { width: 220px; max-width: 100%; }
 @media (max-width: 700px) { .fi-recherche { width: 100%; } }
+
+/* ------------------------------------------------------------------ */
+/* La grille du 9 septembre 2026 : ajouts, simulateur, facture          */
+/* ------------------------------------------------------------------ */
+
+/* Sur la carte Active, les ajouts se lisent sous le socle : le prix de
+   l'ajout en gras, ce qu'il apporte en dessous, en petit. */
+.fi-plan__limites--ajouts { border-top: 1px dashed var(--hairline); }
+.fi-plan__ajout span:first-child { font-weight: var(--w-medium); color: var(--text-primary); }
+.fi-plan__limites li.fi-plan__detail {
+  display: block; padding: 0 0 8px; border-bottom: 0;
+  font-size: var(--size-caption); color: var(--text-tertiary); line-height: 1.4;
+}
+
+/* Le simulateur sous les cartes : deux champs à gauche, la réponse à droite. */
+.fi-simu {
+  display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: var(--sp-5);
+  margin-top: var(--sp-5); padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--hairline); border-radius: var(--radius-card); background: var(--bg-sunken);
+}
+.fi-simu__champs { display: flex; flex-direction: column; gap: var(--sp-3); }
+.fi-simu__resultat { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+@media (max-width: 700px) { .fi-simu { grid-template-columns: minmax(0, 1fr); } }
+
+/* Les lignes d'une estimation ou d'une facture : le libellé, la quantité, le total. */
+.fi-simu__lignes {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; font-size: var(--size-small);
+}
+.fi-simu__lignes li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(90px, auto); gap: var(--sp-3); align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid var(--hairline);
+}
+.fi-simu__lignes li:last-child { border-bottom: 0; }
+.fi-simu__lignes li > span:last-child { text-align: end; font-variant-numeric: tabular-nums; font-weight: var(--w-medium); }
+
+/* Trois champs côte à côte (la remise), qui se replient comme .fi-deux. */
+.fi-trois { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3); }
+
+/* Le détail HT / TVA / retenue / net sous le champ du montant. */
+.fi-totaux {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--sp-3);
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-card-sm);
+  background: var(--bg-sunken); font-size: var(--size-caption); color: var(--text-secondary);
+}
+.fi-totaux > span:nth-child(even) { text-align: end; font-variant-numeric: tabular-nums; }
+.fi-totaux--net > span { font-weight: var(--w-medium); color: var(--text-primary); }
+
+/* Le solde dû : rouge dès qu'il reste quelque chose. */
+.fi-solde { color: var(--red); font-weight: var(--w-medium); }

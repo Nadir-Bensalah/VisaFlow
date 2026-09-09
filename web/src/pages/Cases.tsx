@@ -7,6 +7,8 @@ import { Button, Card, Combobox, Empty, Input, Select, Field, Modal, useToast } 
 import { Ago, Countdown, PageHead, StagePill, StatusPill } from '@/components/bits'
 import { ACTIVE_STAGES, caseBalance, clientName, isLate, progress, urgency } from '@/lib/derive'
 import type { Stage } from '@/data/types'
+import { signalerUsage, useQuotaBloque } from '@/data/usage'
+import { QuotaBlocked } from '@/components/UsageGauges'
 
 type Filter = 'tous' | 'mine' | 'retard' | 'bloques'
 
@@ -175,6 +177,9 @@ function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: 
   const [visaTypeId, setVisaTypeId] = useState(db.visaTypes[0]?.id ?? '')
   const [assigneeId, setAssigneeId] = useState(currentUserId)
   const [travelDate, setTravelDate] = useState('')
+  // La base dit « bloque » quand les dossiers actifs dépassent la formule
+  // depuis plus de 30 jours. Avant la première réponse, on laisse passer.
+  const bloque = useQuotaBloque('cases')
 
   const selected = db.visaTypes.find((x) => x.id === visaTypeId)
   const pieces = db.checklists.find((c) => c.id === selected?.checklistId)?.items.filter((i) => i.required).length ?? 0
@@ -187,7 +192,16 @@ function NewCase({ onClose, onCreated }: { onClose: () => void; onCreated: (id: 
       travelDate: travelDate ? new Date(travelDate).toISOString() : undefined,
       source: 'comptoir',
     })
+    signalerUsage()
     onCreated(id)
+  }
+
+  if (bloque) {
+    return (
+      <Modal title={t('cases.newCase')} onClose={onClose} footer={<Button onClick={onClose}>{t('action.cancel')}</Button>}>
+        <QuotaBlocked code="cases" />
+      </Modal>
+    )
   }
 
   return (

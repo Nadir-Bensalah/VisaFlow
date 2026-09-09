@@ -12,7 +12,7 @@ import {
   reactivateAgency, recordPayment,
   type AgencyPayment, type BillingRow, type PaymentMethod, type PlatformInvoice, type RecentPayment,
 } from '@/data/facturation'
-import { loadPlans, type Plan } from '@/data/abonnements'
+import { loadPlans, type BillingPeriod, type InvoiceTotals, type Plan } from '@/data/abonnements'
 import '@/styles/admin-finance.css'
 
 /**
@@ -73,35 +73,41 @@ function douzeMois(): { value: string; label: string }[] {
 /* -------------------------------- Tarif ------------------------------ */
 
 interface Tarif {
-  /** Sièges × prix par utilisateur : ce que vaut l'abonnement par mois. Null quand rien n'est signé. */
+  /** Socle + ajouts, aux prix figés : ce que vaut l'abonnement par mois. Null quand rien n'est signé. */
   mensuel: number | null
-  periode: 'annuel' | 'mensuel'
-  prix: number | null
+  periode: BillingPeriod
+  /** Ce que la facture de la période porte, HT, remise déduite. */
+  periodeMontant: number | null
+  /** HT, TVA, retenue, net à payer. Null sans souscription payante. */
+  totaux: InvoiceTotals | null
+  /** Ce qui reste dû après les règlements partiels. */
+  solde: number
 }
 
 /**
- * Le tarif d'une ligne. La base rend `montant_attendu` (sièges × prix signé ×
- * 12) : c'est le prix de LA souscription, négocié ou pas, donc on le préfère.
- * Sans souscription payante, on lit le prix de la formule. Rien n'est inventé :
- * pas de plan connu et rien de signé, c'est « · ».
+ * Le tarif d'une ligne. Tout vient de la base : `monthly_amount` est calculé
+ * aux prix figés de la souscription, `invoice_totals` porte le net à payer.
+ * Rien n'est reconstruit ici : pas de souscription payante, c'est « · ».
  */
-function tarif(row: BillingRow, plans: Map<string, Plan>): Tarif {
-  const p = row.plan ? plans.get(row.plan) : undefined
-  const periode = p?.billing_period ?? 'annuel'
-  const attendu = Number(row.montant_attendu ?? 0)
-  if (attendu > 0) {
-    const mensuel = attendu / 12
-    return { mensuel, periode, prix: row.sieges > 0 ? mensuel / row.sieges : null }
+function tarif(row: BillingRow): Tarif {
+  const mensuel = Number(row.monthly_amount ?? 0)
+  const totaux = row.invoice_totals ?? null
+  const periode: BillingPeriod = totaux?.period ?? 'annuel'
+  const annuel = Number(row.annual_amount ?? row.montant_attendu ?? 0)
+  return {
+    mensuel: mensuel > 0 ? mensuel : null,
+    periode,
+    periodeMontant: annuel > 0 ? annuel : null,
+    totaux,
+    solde: Number(row.solde_du ?? 0),
   }
-  if (p && row.sieges > 0) {
-    const prix = Number(p.price_per_user_month)
-    return { mensuel: row.sieges * prix, periode, prix }
-  }
-  return { mensuel: null, periode, prix: null }
 }
 
-/** Ce qu'un règlement couvre : un an ou un mois selon la période de la formule. */
-const du = (t: Tarif) => (t.mensuel === null ? null : t.periode === 'annuel' ? t.mensuel * 12 : t.mensuel)
+/** Ce qu'un règlement doit atteindre pour être complet : le net à payer, sinon le montant de la période. */
+const du = (t: Tarif) => (t.totaux ? Number(t.totaux.net_a_payer) : t.periodeMontant)
+
+/** « par an », « par semestre », « par mois ». */
+const parPeriode = (p: BillingPeriod) => (p === 'annuel' ? 'par an' : p === 'semestriel' ? 'par semestre' : 'par mois')
 
 /* ------------------------------ Filtrage ----------------------------- */
 
@@ -127,11 +133,12 @@ export function Facturation() {
   const { can, rafraichirCompteurs } = usePlateforme()
   const [params, setParams] = useSearchParams()
 
-  // Le parc et les formules ensemble : le tarif d'une ligne a besoin des deux.
+  // Le parc et les formules ensemble : les durées du cycle (essai, grâce)
+  // viennent de la formule d'essai. Le tarif, lui, est déjà sur chaque ligne.
   const { data, loading, refreshing, error, reload } = useChargement(async () => {
     const [rows, plans] = await Promise.all([
       loadBillingBoard(),
-      // Les formules ne bloquent jamais l'écran : sans elles, on montre « · » au mensuel.
+      // Les formules ne bloquent jamais l'écran : sans elles, 15 et 7 jours restent le repli.
       loadPlans().catch(() => [] as Plan[]),
     ])
     return { rows, plans }
@@ -173,9 +180,10 @@ export function Facturation() {
   /* ---------------------------- Compteurs ---------------------------- */
 
   const compte = useMemo(() => {
-    const c = { suspendues: 0, graces: 0, gracesSous7: 0, essais: 0, essaisSous7: 0, aJour: 0, attendu30: 0, attenduInconnu: false }
+    const c = { suspendues: 0, graces: 0, gracesSous7: 0, essais: 0, essaisSous7: 0, aJour: 0, attendu30: 0, attenduInconnu: false, soldes: 0, soldesN: 0 }
     for (const r of rows) {
-      const t = tarif(r, plans)
+      const t = tarif(r)
+      if (t.solde > 0) { c.soldes += t.solde; c.soldesN++ }
       if (r.etat === 'suspendue') c.suspendues++
       if (r.etat === 'grace') { c.graces++; if (r.jours_restants !== null && r.jours_restants <= 7) c.gracesSous7++ }
       if (r.etat === 'essai') { c.essais++; if (r.jours_restants !== null && r.jours_restants <= 7) c.essaisSous7++ }
@@ -191,7 +199,7 @@ export function Facturation() {
       }
     }
     return c
-  }, [rows, plans])
+  }, [rows])
 
   const encaisseMois = useMemo(() => {
     if (!recents.data) return null
@@ -265,11 +273,13 @@ export function Facturation() {
   }
 
   const exporterParc = () => telechargerCsv(`facturation-${aujourdhui()}.csv`, [
-    ['Agence', 'Slug', 'Pays', 'État', 'Jours restants', 'Échéance', 'Formule', 'Sièges', 'Mensuel', 'Période', 'Devise', 'Dernier règlement', 'Dernier montant'],
+    ['Agence', 'Slug', 'Pays', 'État', 'Jours restants', 'Échéance', 'Formule', 'Devise', 'Bureaux en plus', 'Comptes en plus', 'Mensuel', 'Période', 'Montant période HT', 'TVA', 'TTC', 'Retenue', 'Net à payer', 'Solde dû', 'Dernier règlement', 'Dernier montant'],
     ...montres.map((r) => {
-      const t = tarif(r, plans)
-      return [r.name, r.slug, r.country, r.etat, r.jours_restants, r.echeance, r.plan, r.sieges,
-        t.mensuel === null ? '' : Math.round(t.mensuel * 1000) / 1000, t.periode, r.devise, r.dernier_paiement, r.dernier_montant]
+      const t = tarif(r)
+      return [r.name, r.slug, r.country, r.etat, r.jours_restants, r.echeance, r.plan_code ?? r.plan, r.currency ?? r.devise,
+        r.extra_offices, r.extra_users, t.mensuel, t.periode, t.periodeMontant,
+        t.totaux?.tva ?? '', t.totaux?.ttc ?? '', t.totaux?.retenue ?? '', t.totaux?.net_a_payer ?? '', t.solde,
+        r.dernier_reglement_le ?? r.dernier_paiement, r.dernier_montant]
     }),
   ])
 
@@ -321,7 +331,8 @@ export function Facturation() {
             <Kpi
               label="Attendu sur 30 jours"
               value={money(compte.attendu30)}
-              hint={compte.attenduInconnu ? 'grâces et renouvellements, formule inconnue pour certaines' : 'grâces et renouvellements du mois'}
+              hint={compte.attenduInconnu ? 'grâces et renouvellements, net à payer, formule inconnue pour certaines' : compte.soldesN > 0 ? `dont ${money(compte.soldes)} de soldes dus sur ${nb(compte.soldesN)} ${compte.soldesN === 1 ? 'agence' : 'agences'}` : 'grâces et renouvellements du mois, net à payer'}
+              tone={compte.soldesN > 0 ? 'orange' : undefined}
               icon="today"
             />
           </KpiGrid>
@@ -374,13 +385,13 @@ export function Facturation() {
                 <thead>
                   <tr>
                     <th>Agence</th><th>État</th><th>Échéance</th><th>Formule</th>
-                    <th className="num">Sièges</th><th className="num">Mensuel</th>
+                    <th className="num">Mensuel</th><th className="num">Net à payer</th><th className="num">Solde dû</th>
                     <th>Dernier règlement</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {montres.map((r) => {
-                    const t = tarif(r, plans)
+                    const t = tarif(r)
                     return (
                       <tr key={r.agency_id} id={`fi-${r.agency_id}`} className={r.agency_id === cible ? 'fi-row--cible' : ''}>
                         <td>
@@ -400,16 +411,28 @@ export function Facturation() {
                           </span>
                         </td>
                         <td><Echeance r={r} /></td>
-                        <td className="t-small">{r.plan ? (plans.get(r.plan)?.name ?? r.plan) : <span className="t-tertiary">·</span>}</td>
-                        <td className="num t-num">{nb(r.sieges)}</td>
+                        <td className="t-small">
+                          <div className="adm-cell-main">
+                            <span>{r.plan ? (plans.get(r.plan)?.name ?? r.plan) : <span className="t-tertiary">·</span>}</span>
+                            {(Number(r.extra_offices) > 0 || Number(r.extra_users) > 0) && (
+                              <span className="t-caption">{[Number(r.extra_offices) > 0 ? `+${nb(r.extra_offices)} bureau${Number(r.extra_offices) > 1 ? 'x' : ''}` : null, Number(r.extra_users) > 0 ? `+${nb(r.extra_users)} compte${Number(r.extra_users) > 1 ? 's' : ''}` : null].filter(Boolean).join(', ')}</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="num t-num t-medium">
-                          {t.mensuel === null ? <span className="t-tertiary">·</span> : money(t.mensuel, r.devise)}
-                          {t.mensuel !== null && t.periode === 'annuel' && <div className="t-caption t-tertiary">{money(t.mensuel * 12, r.devise)} / an</div>}
+                          {t.mensuel === null ? <span className="t-tertiary">·</span> : money(t.mensuel, r.currency ?? r.devise)}
+                          {t.periodeMontant !== null && <div className="t-caption t-tertiary">{money(t.periodeMontant, r.currency ?? r.devise)} HT {parPeriode(t.periode)}</div>}
+                        </td>
+                        <td className="num t-num">
+                          {t.totaux ? money(Number(t.totaux.net_a_payer), t.totaux.currency) : <span className="t-tertiary">·</span>}
+                        </td>
+                        <td className="num t-num">
+                          {t.solde > 0 ? <span className="fi-solde">{money(t.solde, r.currency ?? r.devise)}</span> : t.totaux ? <span className="t-tertiary">réglé</span> : <span className="t-tertiary">·</span>}
                         </td>
                         <td className="t-small">
-                          {r.dernier_paiement ? (
+                          {(r.dernier_reglement_le ?? r.dernier_paiement) ? (
                             <div className="adm-cell-main">
-                              <span>{dateFr(r.dernier_paiement)}</span>
+                              <span>{dateFr(r.dernier_reglement_le ?? r.dernier_paiement)}</span>
                               {r.dernier_montant !== null && <span className="t-caption t-num">{money(Number(r.dernier_montant), r.devise)}</span>}
                             </div>
                           ) : <span className="t-tertiary">jamais</span>}
@@ -472,7 +495,7 @@ export function Facturation() {
       {paying && (
         <FormeReglement
           row={paying}
-          tarif={tarif(paying, plans)}
+          tarif={tarif(paying)}
           onClose={() => setPaying(null)}
           onDone={() => { setPaying(null); toutRecharger(); rafraichirCompteurs() }}
         />
@@ -583,10 +606,12 @@ function Echeance({ r }: { r: BillingRow }) {
 /* ------------------------- Constater un règlement --------------------- */
 
 /**
- * Le montant est proposé, jamais imposé : un client règle parfois une partie,
- * ou un montant négocié, et forcer le calcul ferait saisir un chiffre faux
- * pour aller vite. La période, elle, s'enchaîne sur la dernière : c'est ce qui
- * évite un trou ou un chevauchement dans les factures.
+ * Le montant proposé est le NET À PAYER de la facture : HT, plus TVA, moins la
+ * retenue à la source que le client déduit lui-même. C'est ce que la banque
+ * vire, et c'est ce qui fait un règlement complet. Il reste modifiable : un
+ * client règle parfois une partie, et la base le sait (elle enregistre sans
+ * repousser l'échéance). La période, elle, s'enchaîne sur la dernière : c'est
+ * ce qui évite un trou ou un chevauchement dans les factures.
  */
 function FormeReglement({ row, tarif: t, onClose, onDone }: {
   row: BillingRow
@@ -597,7 +622,7 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
   const toast = useToast()
   const attendu = du(t)
   const [montant, setMontant] = useState(attendu === null ? '' : String(Math.round(attendu * 1000) / 1000))
-  const [devise, setDevise] = useState(row.devise || 'TND')
+  const [devise, setDevise] = useState(row.currency || row.devise || 'TND')
   const [methode, setMethode] = useState<PaymentMethod>('virement')
   const [reference, setReference] = useState('')
   const [debut, setDebut] = useState(aujourdhui())
@@ -647,18 +672,25 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
         periodStart: debut, periodEnd: fin, method: methode,
         reference: reference.trim() || null, note: note.trim() || null,
       })
-      toast(out.reactivee ? `Règlement constaté. ${row.name} est rouverte et à jour jusqu’au ${dateFr(out.renewal_on)}.`
-        : `Règlement constaté. ${row.name} est à jour jusqu’au ${dateFr(out.renewal_on)}.`)
+      // Le serveur dit si le règlement est complet. Partiel : l'échéance ne bouge
+      // pas, et c'est le solde qu'on annonce, pas une fausse mise à jour.
+      const cur = devise.trim().toUpperCase() || 'TND'
+      if (out.complet === false) {
+        toast(`Règlement partiel enregistré pour ${row.name}. Il reste ${money(Number(out.solde_du), cur)} sur ${money(Number(out.net_a_payer), cur)} ; l’échéance ne bouge pas.`)
+      } else {
+        toast(out.reactivee ? `Règlement complet. ${row.name} est rouverte et à jour jusqu’au ${dateFr(out.renewal_on)}.`
+          : `Règlement complet. ${row.name} est à jour jusqu’au ${dateFr(out.renewal_on)}.`)
+      }
       onDone()
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Enregistrement impossible.')
     } finally { setBusy(false) }
   }
 
-  const mois = t.periode === 'annuel' ? 12 : 1
-  const decomposition = t.prix !== null && row.sieges > 0
-    ? `${nb(row.sieges)} ${row.sieges === 1 ? 'siège' : 'sièges'} × ${money(t.prix, row.devise)} × ${mois} mois`
-    : null
+  const tot = t.totaux
+  const cur = row.currency ?? row.devise
+  const pct = (r: number) => nb(Math.round(r * 10000) / 100)
+  const partiel = Number.isFinite(n) && n > 0 && attendu !== null && n < attendu - 1
 
   return (
     <Modal
@@ -677,7 +709,7 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
         </p>
 
         <div className="fi-deux">
-          <Field label="Montant reçu" hint={attendu !== null ? `Attendu : ${money(attendu, row.devise)}${decomposition ? ` (${decomposition})` : ''}` : 'Aucune formule payante signée : saisissez le montant du virement.'} error={erreurs.montant}>
+          <Field label="Montant reçu" hint={attendu !== null ? `Net à payer : ${money(attendu, cur)}${t.solde > 0 ? ` · solde dû ${money(t.solde, cur)}` : ''}` : 'Aucune formule payante signée : saisissez le montant du virement.'} error={erreurs.montant}>
             <Input type="number" min="0" step="0.001" inputMode="decimal" value={montant} onChange={(e) => setMontant(e.target.value)} autoFocus />
           </Field>
           <Field label="Devise">
@@ -685,11 +717,21 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
           </Field>
         </div>
 
+        {tot && (
+          <div className="fi-totaux" aria-label="Le détail de la facture">
+            <span>Hors taxes, {parPeriode(t.periode)}</span><span>{money(Number(tot.ht), cur)}</span>
+            {Number(tot.tva) > 0 && <><span>TVA {pct(Number(tot.tva_rate))} %</span><span>{money(Number(tot.tva), cur)}</span></>}
+            {Number(tot.tva) > 0 && <><span>Toutes taxes</span><span>{money(Number(tot.ttc), cur)}</span></>}
+            {Number(tot.retenue) > 0 && <><span>Retenue à la source {pct(Number(tot.withholding_rate))} %, déduite par le client</span><span>−{money(Number(tot.retenue), cur)}</span></>}
+            <span className="fi-totaux--net" style={{ display: 'contents' }}><span>Net à payer</span><span>{money(Number(tot.net_a_payer), cur)}</span></span>
+          </div>
+        )}
+
         <div className="fi-deux">
           <Field label="Période du">
             <Input type="date" value={debut} onChange={(e) => changerDebut(e.target.value)} />
           </Field>
-          <Field label="au" hint={finTouchee ? undefined : `Un ${t.periode === 'annuel' ? 'an' : 'mois'}, modifiable.`} error={erreurs.fin}>
+          <Field label="au" hint={finTouchee ? undefined : `${t.periode === 'annuel' ? 'Un an' : t.periode === 'semestriel' ? 'Six mois' : 'Un mois'}, modifiable.`} error={erreurs.fin}>
             <Input type="date" value={fin} onChange={(e) => { setFinTouchee(true); setFin(e.target.value) }} />
           </Field>
         </div>
@@ -709,11 +751,15 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reçu sur le compte le 12 septembre." />
         </Field>
 
-        <div className={`fi-recap ${valide ? '' : 'fi-recap--neutre'}`}>
-          <Icon name="check" size={16} />
+        <div className={`fi-recap ${valide && !partiel ? '' : 'fi-recap--neutre'}`}>
+          <Icon name={partiel ? 'alert' : 'check'} size={16} />
           <span>
-            Après enregistrement, l’agence passe à jour jusqu’au <strong>{fin ? dateFr(fin) : '…'}</strong>
-            {row.etat === 'suspendue' ? ' et rouvre, puisqu’elle est suspendue.' : ' et rouvre si elle était suspendue.'}
+            {partiel && attendu !== null ? (
+              <>Règlement partiel : il restera <strong>{money(attendu - n, cur)}</strong>. L’échéance ne bouge pas tant que le net à payer n’est pas atteint, à un dinar près.</>
+            ) : (
+              <>Après enregistrement, l’agence passe à jour jusqu’au <strong>{fin ? dateFr(fin) : '…'}</strong>
+                {row.etat === 'suspendue' ? ' et rouvre, puisqu’elle est suspendue.' : ' et rouvre si elle était suspendue.'}</>
+            )}
           </span>
         </div>
       </div>
@@ -721,10 +767,10 @@ function FormeReglement({ row, tarif: t, onClose, onDone }: {
   )
 }
 
-/** La fin d'une période qui commence à `debut` : un an ou un mois, moins un jour. */
-function finAuto(debut: string, periode: 'annuel' | 'mensuel'): string {
+/** La fin d'une période qui commence à `debut` : un an, six mois ou un mois, moins un jour. */
+function finAuto(debut: string, periode: BillingPeriod): string {
   if (!debut) return ''
-  return plusJours(periode === 'annuel' ? plusAns(debut, 1) : plusMois(debut, 1), -1)
+  return plusJours(periode === 'annuel' ? plusAns(debut, 1) : periode === 'semestriel' ? plusMois(debut, 6) : plusMois(debut, 1), -1)
 }
 
 /* --------------------------- L'historique d'une agence ---------------- */

@@ -17,7 +17,7 @@
 set search_path = public;
 
 -- BANC REJOUABLE : on efface d'abord ce qu'un passage précédent aurait laissé.
-delete from agencies where slug in ('ouv-alpha', 'ouv-beta');
+delete from agencies where slug in ('ouv-alpha', 'ouv-beta') or slug like 'banc-ouv-pu-%';
 delete from platform_admins where email = 'admin@banc-ouverture.test';
 
 create or replace function assert(condition boolean, label text) returns void
@@ -39,6 +39,7 @@ end $$;
 
 do $$
 declare
+  ok boolean;
   a1 uuid; o1 uuid; u_admin uuid; u_agence uuid;
   n int; d jsonb; s text[]; c text; v_id uuid;
 begin
@@ -341,6 +342,18 @@ begin
     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c2 where c2 like 'search_path=%');
   perform assert(n = 0, 'les fonctions SECURITY DEFINER de l''ouverture ont leur search_path figé');
 
+
+  -- 0071 : la méthode de l'assistant d'ouverture est acceptée par la contrainte.
+  -- On teste la contrainte elle-même, en superutilisateur : c'est elle qui
+  -- refusait en production, pas la fonction.
+  begin
+    insert into agencies (slug, name, country, commission_kind, commission_amount)
+    values ('banc-ouv-pu-' || substr(md5(random()::text), 1, 6), 'Banc Ouverture PU', 'Tunisie', 'par_utilisateur', 45);
+    ok := true;
+  exception when others then ok := false; raise notice 'ouverture par_utilisateur refusée : %', sqlerrm;
+  end;
+  perform assert(ok, 'une agence s''ouvre en méthode « par utilisateur » (0071)');
+  delete from agencies where slug like 'banc-ouv-pu-%';
   -- Ménage.
   delete from agencies where id = a1;
   delete from platform_admins where id = u_admin;

@@ -1,4 +1,5 @@
 import { supabase, HAS_BACKEND } from '@/lib/supabase'
+import type { AgencyUsage } from './usage'
 
 /**
  * LE CONTRAT DE LA CONSOLE PLATEFORME.
@@ -91,6 +92,7 @@ export type UrgentKind =
   | 'essai_fin'      // essai qui finit sous 3 jours
   | 'tache_echouee'  // tâche planifiée en échec
   | 'agence_inactive'// agence active sans aucune activité depuis 14 jours
+  | 'quota'          // ressource à 80 % (info) ou à 100 % (attention) ; url /admin/agences/<id>
 
 export interface Urgent {
   kind: UrgentKind
@@ -132,6 +134,7 @@ export interface Cockpit {
     dossiers_ouverts: number
     dossiers_30j: number
     connexions_24h: number      // user_sessions.last_seen_at
+    agences_en_depassement: number // au moins une ressource à 100 % (usage_niveau attention ou bloque)
   }
   urgents: Urgent[]
   series: {
@@ -318,7 +321,17 @@ export interface Agence360 {
     seats: number | null; price_per_user_month: number | null; billing_period: string | null; currency: string | null
     started_on: string | null; renewal_on: string | null
     trial_ends_on: string | null; grace_ends_on: string | null; last_payment_on: string | null
-    mensuel: number | null   // sièges × prix, ce que vaut l'abonnement par mois
+    mensuel: number | null   // ce que vaut l'abonnement par mois, tel que la base le calcule
+    /* La grille du 9 septembre 2026 (0070) : les ajouts, les montants, la facture. Additif. */
+    extra_users: number | null
+    extra_offices: number | null
+    monthly_amount: number | null
+    annual_amount: number | null
+    invoice_totals: {
+      currency: string; ht: number; tva_rate: number; tva: number; ttc: number
+      withholding_rate: number; retenue: number; net_a_payer: number; period: string; monthly: number
+    } | null
+    seats_allowed: number | null
   }
   bureaux: { id: string; name: string; city: string | null; active: boolean; members: number }[]
   membres: { id: string; name: string; email: string; role: string; active: boolean; office_name: string | null; last_sign_in_at: string | null }[]
@@ -327,6 +340,8 @@ export interface Agence360 {
   tickets: { id: string; subject: string; priority: string; status: string; created_at: string }[]
   journal: AuditRow[]
   activite_30j: Point[]
+  /** La même forme que `agency_usage`, comptée en direct. Absente sur une base antérieure. */
+  usage?: AgencyUsage | null
 }
 
 /** rpc platform_agency_360(p_agency) → Agence360. */

@@ -50,7 +50,10 @@ begin
   -- ---------------------------------------------------------------
   -- Les bureaux depuis la console
   -- ---------------------------------------------------------------
+  -- Adapté en 0070 : l'essai est borné à un bureau. L'agence passe en Active
+  -- avec un bureau en plus avant que la console n'ouvre Benghazi.
   set local role authenticated;
+  perform platform_set_subscription(v_ag, 'active', null, null, 'active', 0, 1);
   v_off2 := platform_save_office(v_ag, null, 'Benghazi', 'Benghazi', 'Libye', '+218 92 000 0000', 'Rue X');
   reset role;
   select count(*) into n from offices where agency_id = v_ag;
