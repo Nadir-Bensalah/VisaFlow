@@ -13,6 +13,8 @@
 export const ouverture = {
   fr: {
     ouv: {
+      resume: 'Reprendre là où ça s’est arrêté',
+      resumeHint: 'L’agence existe déjà. Il reste à ouvrir le compte du propriétaire : rien ne sera créé deux fois.',
       /* L'assistant */
       title: 'Ouvrir une agence',
       subtitle: 'Quatre étapes. Tout est vérifié au fur et à mesure, rien n’est créé avant la dernière.',
@@ -97,6 +99,8 @@ export const ouverture = {
 
   en: {
     ouv: {
+      resume: 'Resume where it stopped',
+      resumeHint: 'The agency already exists. Only the owner account remains to open: nothing is created twice.',
       title: 'Open an agency',
       subtitle: 'Four steps. Everything is checked as you go, nothing is created before the last one.',
       stepIdentity: 'The agency',
@@ -173,6 +177,8 @@ export const ouverture = {
 
   ar: {
     ouv: {
+      resume: 'المتابعة من حيث توقف',
+      resumeHint: 'الوكالة موجودة بالفعل. يبقى فتح حساب المالك: لا شيء يُنشأ مرتين.',
       title: 'فتح وكالة',
       subtitle: 'أربع خطوات. يتم التحقق من كل شيء أثناء الإدخال، ولا يُنشأ شيء قبل الخطوة الأخيرة.',
       stepIdentity: 'الوكالة',
@@ -249,6 +255,8 @@ export const ouverture = {
 
   zh: {
     ouv: {
+      resume: '从中断处继续',
+      resumeHint: '机构已存在。只剩打开所有者账号：不会重复创建。',
       title: '开设代理机构',
       subtitle: '四个步骤。每一步都会即时校验，最后一步之前不会创建任何数据。',
       stepIdentity: '机构信息',

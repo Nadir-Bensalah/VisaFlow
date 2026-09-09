@@ -1669,3 +1669,32 @@ button.list__row { width: 100%; border: 0; background: transparent; text-align: 
   font-size: var(--size-caption); text-align: center;
 }
 .admin__tab--active .admin__tab-count { background: var(--blue); color: var(--text-white); }
+
+/* L'assistant d'ouverture d'une agence. */
+.ouv__etapes { display: flex; gap: var(--sp-2); list-style: none; padding: 0; margin: 0 0 var(--sp-6); flex-wrap: wrap; }
+.ouv__etape { display: inline-flex; align-items: center; gap: 8px; font-size: var(--size-small); color: var(--text-tertiary); padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--bg-sunken); }
+.ouv__etape--active { color: var(--text-primary); background: var(--tint-blue); font-weight: var(--w-medium); }
+.ouv__etape--faite { color: var(--text-secondary); }
+.ouv__num { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: var(--bg-white); border: 1px solid var(--hairline-strong); }
+.ouv__etape--active .ouv__num { background: var(--blue); color: #fff; border-color: var(--blue); }
+.ouv__etape--faite .ouv__num { background: var(--green); color: #fff; border-color: var(--green); }
+.ouv__champ { display: flex; align-items: center; gap: var(--sp-2); }
+.ouv__champ .input { flex: 1; }
+.ouv__coche { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.ouv__coche--ok { background: var(--tint-green); color: var(--green); }
+.ouv__coche--ko { background: var(--tint-red); color: var(--red); }
+.ouv__spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--hairline-strong); border-top-color: var(--blue); animation: ouv-spin .8s linear infinite; }
+@keyframes ouv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ouv__spin { animation: none; } }
+.ouv__indicatif { font-family: ui-monospace, monospace; font-size: var(--size-small); color: var(--text-secondary); white-space: nowrap; padding: 0 4px; }
+.ouv__proches { border: 1px solid var(--hairline); border-inline-start: 3px solid var(--orange); border-radius: var(--radius-card-sm); padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: 4px; background: var(--tint-orange); }
+.ouv__proches ul { margin: 4px 0 0; padding-inline-start: 18px; font-size: var(--size-small); }
+.ouv__ville { position: relative; }
+.ouv__liste { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); max-height: 260px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--bg-white); border: 1px solid var(--hairline); border-radius: var(--radius-field); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.ouv__liste button { width: 100%; display: flex; justify-content: space-between; gap: var(--sp-3); padding: 8px 10px; background: none; border: 0; border-radius: 6px; cursor: pointer; font: inherit; text-align: start; color: var(--text-primary); }
+.ouv__liste button:hover { background: var(--bg-hover); }
+.ouv__liste-vide { padding: 10px; display: flex; flex-direction: column; gap: 2px; font-size: var(--size-small); }
+.ouv__recap { display: grid; grid-template-columns: max-content 1fr; gap: 6px var(--sp-4); margin: 0; font-size: var(--size-small); }
+.ouv__recap dt { color: var(--text-tertiary); }
+.ouv__recap dd { margin: 0; }
+.ouv__reprise { display: flex; gap: 8px; align-items: center; margin: 0; padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-card-sm); background: var(--tint-orange); color: var(--text-primary); }

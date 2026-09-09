@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { loadGate } from './data/facturation'
+import type { AccessGate } from './data/facturation'
+import { BillingWall } from './components/BillingBanner'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
 import { Card, Empty, ToastProvider } from './components/ui'
@@ -57,6 +61,17 @@ import { ChangePassword } from './pages/ChangePassword'
 function RequireSession({ children }: { children: ReactNode }) {
   const { signedIn, db, currentUserId, readOnly } = useStore()
   const auth = useAuth()
+  /* Le mur de facturation. Il vit côté application et non dans les politiques
+     de la base : couper les 148 politiques d'une agence suspendue l'empêcherait
+     de lire sa propre situation, donc de comprendre et de payer. Ce qui coupe
+     vraiment (portail public, fonctionnalités) est déjà coupé côté serveur. */
+  const [gate, setGate] = useState<AccessGate | null>(null)
+  useEffect(() => {
+    if (!HAS_BACKEND || !auth.session || readOnly) { setGate(null); return }
+    let vivant = true
+    loadGate().then((g) => { if (vivant) setGate(g) }).catch(() => { if (vivant) setGate(null) })
+    return () => { vivant = false }
+  }, [auth.session, readOnly])
   // Sur un rechargement dur, la session Supabase met un instant à se restaurer.
   // On attend ce verdict avant de renvoyer vers la connexion, sinon on éjecte
   // un utilisateur pourtant connecté.
@@ -72,6 +87,9 @@ function RequireSession({ children }: { children: ReactNode }) {
   // invitation, et le retour d'un lien « mot de passe oublié ». Dans les deux
   // cas la session existe, et dans les deux cas elle ne doit servir qu'à ça.
   if (HAS_BACKEND && !readOnly && (auth.recovering || me?.mustResetPassword)) return <ChangePassword />
+  if (gate?.bloquant && gate.message_cle) {
+    return <BillingWall messageKey={gate.message_cle} contact={gate.contact} onSignOut={() => { void auth.signOut() }} />
+  }
   return <>{children}</>
 }
 

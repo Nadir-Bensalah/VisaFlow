@@ -10,6 +10,7 @@ import { CommandPalette } from './CommandPalette'
 import { brandTheme, themeVariables } from '@/lib/marque'
 import { NotificationBell } from './NotificationBell'
 import { AnnouncementBanner } from './AnnouncementBanner'
+import { BillingBanner } from './BillingBanner'
 import { FeedbackButton } from './FeedbackButton'
 import { daysUntil } from '@/lib/derive'
 import { roleKey } from '@/lib/permissions'
@@ -276,6 +277,7 @@ export function Shell() {
     <div className="shell">
       <a className="skip" href="#contenu">{t('nav.workspace')}</a>
       <AnnouncementBanner />
+      <BillingBanner agencyId={db.agency.id} />
       {syncError && (
         <div className="syncbar" role="alert">
           <Icon name="alert" size={16} />
