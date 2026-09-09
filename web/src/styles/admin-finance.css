@@ -72,20 +72,29 @@
 .fi-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
 
 /* Les formules : de petites cartes, le prix en gros, les limites en liste. */
-.fi-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); }
+/* Les formules. Cinq cartes serrées sur une ligne ne se lisent pas : chacune
+   a besoin de la largeur d'une vraie colonne de tarifs, et la grille passe à
+   trois puis deux par ligne plutôt que de les tasser. */
+.fi-plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4); }
 .fi-plan {
-  display: flex; flex-direction: column; gap: var(--sp-2);
-  padding: var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--radius-card-sm);
-  background: var(--bg-elevated); min-width: 0;
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  padding: var(--sp-5); border: 1px solid var(--hairline); border-radius: var(--radius-card);
+  background: var(--bg-white); min-width: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
+.fi-plan--vivant { border-color: color-mix(in oklab, var(--blue) 35%, var(--hairline)); }
 .fi-plan__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
-.fi-plan__nom { font-weight: 600; font-size: var(--size-body); letter-spacing: var(--track-tight); }
-.fi-plan__prix { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
-.fi-plan__unite { font-size: var(--size-caption); color: var(--text-tertiary); }
-.fi-plan__limites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--size-caption); color: var(--text-secondary); }
-.fi-plan__limites li { display: flex; justify-content: space-between; gap: var(--sp-2); }
-.fi-plan__limites li span:last-child { font-variant-numeric: tabular-nums; color: var(--text-primary); }
-.fi-plan__note { font-size: var(--size-caption); color: var(--text-tertiary); margin: 0; }
+.fi-plan__nom { font-weight: 600; font-size: var(--size-lead); letter-spacing: -0.01em; }
+.fi-plan__prix { font-size: 30px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+.fi-plan__unite { font-size: var(--size-caption); color: var(--text-tertiary); margin-top: 4px; line-height: 1.4; }
+.fi-plan__limites {
+  list-style: none; margin: 0; padding: var(--sp-2) 0 0; border-top: 1px solid var(--hairline);
+  display: flex; flex-direction: column; font-size: var(--size-small); color: var(--text-secondary);
+}
+.fi-plan__limites li { display: flex; justify-content: space-between; gap: var(--sp-3); padding: 7px 0; border-bottom: 1px solid var(--hairline); }
+.fi-plan__limites li:last-child { border-bottom: 0; }
+.fi-plan__limites li span:last-child { font-variant-numeric: tabular-nums; color: var(--text-primary); font-weight: var(--w-medium); }
+.fi-plan__note { font-size: var(--size-caption); color: var(--text-tertiary); margin: auto 0 0; line-height: 1.45; }
 
 /* La jauge des sièges dans une cellule : le chiffre, puis la barre. */
 .fi-sieges { display: flex; flex-direction: column; gap: 4px; min-width: 96px; }
