@@ -118,8 +118,8 @@ export const fr = {
     sidebarColor: 'Couleur de la barre latérale',
     accentColor: 'Couleur d’accent',
     preview: 'Aperçu',
-    contrastOk: 'Contraste {n}:1 — lisible. Le texte s’adapte tout seul à votre couleur.',
-    contrastLow: 'Contraste {n}:1 — un peu juste. Prenez une couleur plus foncée ou plus claire.',
+    contrastOk: 'Contraste {n}:1 · lisible. Le texte s’adapte tout seul à votre couleur.',
+    contrastLow: 'Contraste {n}:1 · un peu juste. Prenez une couleur plus foncée ou plus claire.',
   },
   slot: {
     whoToCall: 'Un créneau se libère : qui appeler',
@@ -344,7 +344,7 @@ export const fr = {
     alertCcec: 'Ligne {n} : titre P, autorisation d\'importation obligatoire.',
     alertPref: 'Ligne {n} : code préférentiel impossible sur une origine {origin}.',
   },
-  support: { banner: 'Mode support — lecture seule — {agency}', exit: 'Quitter' },
+  support: { banner: 'Mode support · lecture seule · {agency}', exit: 'Quitter' },
   notif: {
     title: 'Notifications',
     none: 'Rien de neuf pour l’instant.',

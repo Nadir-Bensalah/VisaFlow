@@ -117,8 +117,8 @@ export const zh: Dict = {
     sidebarColor: '侧边栏颜色',
     accentColor: '强调色',
     preview: '预览',
-    contrastOk: '对比度 {n}:1 — 清晰可读。文字会自动适配你的颜色。',
-    contrastLow: '对比度 {n}:1 — 略显不足。请选更深或更浅的颜色。',
+    contrastOk: '对比度 {n}:1 · 清晰可读。文字会自动适配你的颜色。',
+    contrastLow: '对比度 {n}:1 · 略显不足。请选更深或更浅的颜色。',
   },
   slot: {
     whoToCall: '有空位释放：该通知谁',
@@ -343,7 +343,7 @@ export const zh: Dict = {
     alertCcec: '第 {n} 行：P 类，须先取得进口许可。',
     alertPref: '第 {n} 行：{origin} 原产地不适用优惠代码。',
   },
-  support: { banner: '支持模式 — 只读 — {agency}', exit: '退出' },
+  support: { banner: '支持模式 · 只读 · {agency}', exit: '退出' },
   notif: {
     title: '通知',
     none: '暂无新消息。',

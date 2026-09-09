@@ -117,8 +117,8 @@ export const en: Dict = {
     sidebarColor: 'Sidebar colour',
     accentColor: 'Accent colour',
     preview: 'Preview',
-    contrastOk: 'Contrast {n}:1 — readable. Text adapts to your colour on its own.',
-    contrastLow: 'Contrast {n}:1 — a bit tight. Pick a darker or lighter colour.',
+    contrastOk: 'Contrast {n}:1 · readable. Text adapts to your colour on its own.',
+    contrastLow: 'Contrast {n}:1 · a bit tight. Pick a darker or lighter colour.',
   },
   slot: {
     whoToCall: 'A slot is free: who to call',
@@ -343,7 +343,7 @@ export const en: Dict = {
     alertCcec: 'Line {n}: P title, import authorisation required.',
     alertPref: 'Line {n}: preferential code impossible on a {origin} origin.',
   },
-  support: { banner: 'Support mode — read-only — {agency}', exit: 'Leave' },
+  support: { banner: 'Support mode · read-only · {agency}', exit: 'Leave' },
   notif: {
     title: 'Notifications',
     none: 'Nothing new yet.',

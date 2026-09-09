@@ -117,8 +117,8 @@ export const ar: Dict = {
     sidebarColor: 'لون الشريط الجانبي',
     accentColor: 'لون التمييز',
     preview: 'معاينة',
-    contrastOk: 'التباين {n}:1 — مقروء. النصّ يتكيّف مع لونك تلقائيًا.',
-    contrastLow: 'التباين {n}:1 — ضعيف قليلًا. اختر لونًا أغمق أو أفتح.',
+    contrastOk: 'التباين {n}:1 · مقروء. النصّ يتكيّف مع لونك تلقائيًا.',
+    contrastLow: 'التباين {n}:1 · ضعيف قليلًا. اختر لونًا أغمق أو أفتح.',
   },
   slot: {
     whoToCall: 'موعد تحرّر: من نتّصل به',
@@ -343,7 +343,7 @@ export const ar: Dict = {
     alertCcec: 'البند {n}: صنف P، رخصة توريد إجبارية.',
     alertPref: 'البند {n}: الرمز التفاضلي مستحيل على منشأ {origin}.',
   },
-  support: { banner: 'وضع الدعم — قراءة فقط — {agency}', exit: 'خروج' },
+  support: { banner: 'وضع الدعم · قراءة فقط · {agency}', exit: 'خروج' },
   notif: {
     title: 'الإشعارات',
     none: 'لا جديد حاليًا.',
