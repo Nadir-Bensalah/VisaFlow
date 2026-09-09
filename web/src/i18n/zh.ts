@@ -361,7 +361,7 @@ export const zh: Dict = {
     hint: '上传 CSV 格式的名单（Excel 的“另存为 CSV”）。系统自动识别列，你核对后一次性导入。',
     pick: '选择 CSV 文件',
     empty: '文件为空或无法读取。',
-    ignore: '— 忽略 —',
+    ignore: '(忽略)',
     col: '第 {n} 列',
     hasHeader: '首行为表头',
     preview: '{total} 行中有 {valid} 位有效客户',

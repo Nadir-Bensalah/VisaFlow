@@ -362,7 +362,7 @@ export const fr = {
     hint: 'Déposez votre liste au format CSV (le « Enregistrer sous CSV » d’Excel). On devine les colonnes, vous vérifiez, tout entre d’un coup.',
     pick: 'Choisir un fichier CSV',
     empty: 'Fichier vide ou illisible.',
-    ignore: '— ignorer —',
+    ignore: '(ignorer)',
     col: 'Colonne {n}',
     hasHeader: 'La première ligne est un en-tête',
     preview: '{valid} clients valides sur {total} lignes',

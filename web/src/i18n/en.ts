@@ -361,7 +361,7 @@ export const en: Dict = {
     hint: 'Drop your list as a CSV file (Excel’s “Save as CSV”). We guess the columns, you check, everything comes in at once.',
     pick: 'Choose a CSV file',
     empty: 'Empty or unreadable file.',
-    ignore: '— ignore —',
+    ignore: '(ignore)',
     col: 'Column {n}',
     hasHeader: 'The first row is a header',
     preview: '{valid} valid clients out of {total} rows',
