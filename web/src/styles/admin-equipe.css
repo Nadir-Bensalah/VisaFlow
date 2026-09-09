@@ -1,0 +1,61 @@
+/* ------------------------------------------------------------------ */
+/* L'équipe de la plateforme (préfixe eq-)                             */
+/* ------------------------------------------------------------------ */
+/* Ce que la boîte à outils (admin.css, préfixe adm-) ne couvre pas :
+   la matrice des pouvoirs, la liste des rôles, le sélecteur de rôle posé
+   dans une cellule. Rien ne déborde sous 360 px : la matrice défile dans
+   son propre cadre, la première colonne reste collée à gauche. */
+
+/* Le sélecteur de rôle dans le tableau : plus bas que le champ de formulaire,
+   pour tenir dans la hauteur d'une ligne. */
+.eq-role { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.eq-role .select { height: 30px; padding-block: 0; font-size: var(--size-small); min-width: 150px; }
+
+/* La personne : nom, courriel, et « vous » quand c'est soi. */
+.eq-personne { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.eq-personne__nom { display: flex; align-items: center; gap: var(--sp-2); font-weight: var(--w-medium); }
+.eq-personne__mail { font-size: var(--size-caption); color: var(--text-tertiary); overflow-wrap: anywhere; }
+
+/* La matrice des pouvoirs : les capacités en lignes, les rôles en colonnes.
+   Une coche verte dit « oui », une case vide dit « non ». Pas de demi-mesure :
+   les rôles sont fixes, c'est une lecture. */
+.eq-matrice-scroll { overflow-x: auto; }
+.eq-matrice { width: 100%; border-collapse: collapse; font-size: var(--size-small); min-width: 560px; }
+.eq-matrice th, .eq-matrice td { padding: 10px var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.eq-matrice th {
+  color: var(--text-tertiary); font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+  background: var(--bg-white);
+}
+.eq-matrice th:not(:first-child), .eq-matrice td:not(:first-child) { text-align: center; width: 96px; }
+.eq-matrice th:first-child, .eq-matrice td:first-child {
+  text-align: left; position: sticky; left: 0; background: var(--bg-white); z-index: 1;
+  padding-left: var(--sp-4); min-width: 200px;
+}
+.eq-matrice tbody tr:last-child td { border-bottom: 0; }
+.eq-matrice tbody tr:hover td { background: var(--bg-sunken); }
+.eq-matrice__cap { display: flex; flex-direction: column; gap: 1px; }
+.eq-matrice__code { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+.eq-coche { color: var(--green); display: inline-flex; }
+.eq-non { display: inline-block; width: 6px; height: 2px; border-radius: 2px; background: var(--hairline-strong); vertical-align: middle; }
+.eq-matrice__moi { color: var(--blue); }
+
+/* Ce que chaque rôle veut dire, sous la matrice. */
+.eq-roles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-3); padding: var(--sp-4); border-top: 1px solid var(--hairline);
+}
+.eq-role-carte { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.eq-role-carte__desc { font-size: var(--size-caption); color: var(--text-secondary); }
+
+/* Le formulaire d'invitation : la description du rôle choisi, en bloc. */
+.eq-invite__desc {
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-card-sm);
+  background: var(--bg-sunken); font-size: var(--size-small); color: var(--text-secondary);
+}
+.eq-invite__avert { display: flex; gap: var(--sp-2); align-items: flex-start; font-size: var(--size-caption); color: var(--text-tertiary); }
+.eq-invite__avert svg { flex: 0 0 auto; margin-top: 1px; }
+
+@media (max-width: 560px) {
+  .eq-role .select { min-width: 0; width: 100%; }
+}

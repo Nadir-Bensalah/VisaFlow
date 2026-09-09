@@ -1,0 +1,81 @@
+/* ------------------------------------------------------------------ */
+/* Le poste de pilotage, le journal, les tâches (préfixe ck-)           */
+/* ------------------------------------------------------------------ */
+/* Ce que la boîte à outils (admin.css, préfixe adm-) ne couvre pas :
+   le bandeau de santé, la liste des points à traiter, le fil d'activité,
+   la grille deux colonnes. Tout passe en une colonne sous 1000 px et rien
+   ne déborde en largeur sous 360 px. */
+
+/* Le bandeau de santé : une ligne, quatre pastilles, vert ou pas vert. */
+.ck-sante {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2);
+  margin: 0 0 var(--sp-4);
+}
+.ck-sante__item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 8px; border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline); background: var(--bg-white);
+  font-size: var(--size-caption); color: var(--text-secondary);
+  text-decoration: none; min-width: 0;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.ck-sante__item:hover { border-color: var(--hairline-strong); background: var(--bg-page); }
+.ck-sante__dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--green); }
+.ck-sante__item--ko { color: var(--text-primary); font-weight: var(--w-medium); }
+.ck-sante__item--red .ck-sante__dot { background: var(--red); box-shadow: 0 0 0 3px rgba(209, 0, 0, 0.14); }
+.ck-sante__item--orange .ck-sante__dot { background: var(--orange); box-shadow: 0 0 0 3px rgba(176, 69, 3, 0.14); }
+.ck-sante__n { font-variant-numeric: tabular-nums; }
+
+/* La grille deux colonnes : les urgences à gauche, les tendances à droite. */
+.ck-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--sp-4); align-items: start; }
+.ck-grid > * { min-width: 0; }
+@media (max-width: 1000px) { .ck-grid { grid-template-columns: 1fr; } }
+
+/* Les points à traiter */
+.ck-filtres { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
+.ck-urgents { list-style: none; margin: 0; padding: 0; }
+.ck-urgent {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline);
+}
+.ck-urgent:last-child { border-bottom: 0; }
+.ck-urgent:hover { background: var(--bg-sunken); }
+.ck-urgent > .adm-gravite { margin-top: 6px; }
+.ck-urgent__body { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ck-urgent__title { font-size: var(--size-small); font-weight: var(--w-medium); overflow-wrap: anywhere; }
+.ck-urgent__detail { font-size: var(--size-small); color: var(--text-secondary); overflow-wrap: anywhere; }
+.ck-urgent__meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--size-caption); color: var(--text-tertiary); }
+.ck-urgent__kind { text-transform: uppercase; letter-spacing: 0.05em; font-size: 10.5px; font-weight: 600; }
+.ck-urgent__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; flex: 0 1 auto; }
+@media (max-width: 560px) {
+  .ck-urgent { flex-wrap: wrap; }
+  .ck-urgent__actions { flex-basis: 100%; justify-content: flex-start; padding-left: 20px; }
+}
+
+/* Les douze mois : les barres ont besoin de place, elles défilent plutôt que de se tasser. */
+.ck-barres-scroll { overflow-x: auto; }
+.ck-barres-scroll > .adm-barres { min-width: 400px; }
+
+/* Le fil d'activité */
+.ck-activite { list-style: none; margin: 0; padding: 0; }
+.ck-activite__item { display: flex; flex-direction: column; gap: 1px; padding: 9px var(--sp-4); border-bottom: 1px solid var(--hairline); font-size: var(--size-small); }
+.ck-activite__item:last-child { border-bottom: 0; }
+.ck-activite__ligne { overflow-wrap: anywhere; }
+.ck-activite__meta { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: var(--size-caption); color: var(--text-tertiary); }
+
+/* Le JSON d'un geste, dans la modale du journal */
+.ck-json {
+  margin: 0; padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-sunken); border-radius: var(--radius-card-sm);
+  font-family: var(--font-mono); font-size: var(--size-caption); line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60vh; overflow: auto;
+}
+.ck-detail { color: var(--text-tertiary); font-size: var(--size-caption); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ck-detail-cell { display: flex; align-items: flex-start; gap: var(--sp-2); min-width: 180px; max-width: 360px; }
+.ck-detail-cell .btn { flex: 0 0 auto; }
+
+/* Une note sous un tableau */
+.ck-note { padding: var(--sp-3) var(--sp-4); font-size: var(--size-caption); color: var(--text-tertiary); border-top: 1px solid var(--hairline); }
+.ck-erreur { margin-bottom: var(--sp-4); }
+.ck-champ { min-width: 160px; max-width: 100%; }
+.ck-select { max-width: 100%; }

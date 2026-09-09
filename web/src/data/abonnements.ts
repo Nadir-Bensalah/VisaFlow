@@ -97,6 +97,8 @@ export interface Plan {
   max_active_shipments: number | null
   max_storage_mb: number | null
   trial_days: number
+  /** Le délai de grâce après l'échéance, posé par 0066. Absent sur une base antérieure. */
+  grace_days?: number
   active: boolean
   position: number
   note: string | null

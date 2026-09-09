@@ -54,6 +54,18 @@ import { PortalCase } from './pages/portal/PortalCase'
 import { PortalShipment } from './pages/portal/PortalShipment'
 import { NotFound } from './pages/NotFound'
 import { AdminGate } from './pages/admin/AdminGate'
+import { Cockpit } from './pages/admin/Cockpit'
+import { Agences } from './pages/admin/Agences'
+import { OuvrirAgence } from './pages/admin/OuvrirAgence'
+import { Agence } from './pages/admin/Agence'
+import { Demandes } from './pages/admin/Demandes'
+import { Abonnements } from './pages/admin/Abonnements'
+import { Facturation } from './pages/admin/Facturation'
+import { Assistance } from './pages/admin/Assistance'
+import { Annonces } from './pages/admin/Annonces'
+import { Equipe as EquipePlateforme } from './pages/admin/Equipe'
+import { Journal } from './pages/admin/Journal'
+import { Taches } from './pages/admin/Taches'
 import { AppSkeleton } from '@/components/AppSkeleton'
 import { ChangePassword } from './pages/ChangePassword'
 
@@ -112,7 +124,23 @@ export default function App() {
     <ToastProvider>
       <Routes>
         <Route path="/connexion" element={<Login />} />
-        <Route path="/admin" element={<AdminGate />} />
+        {/* La console plateforme : une vraie application, barre latérale et
+            pages routées. AdminGate garde la porte et rend AdminShell, qui
+            porte l'Outlet. */}
+        <Route path="/admin" element={<AdminGate />}>
+          <Route index element={<Cockpit />} />
+          <Route path="agences" element={<Agences />} />
+          <Route path="agences/nouvelle" element={<OuvrirAgence />} />
+          <Route path="agences/:id" element={<Agence />} />
+          <Route path="demandes" element={<Demandes />} />
+          <Route path="abonnements" element={<Abonnements />} />
+          <Route path="facturation" element={<Facturation />} />
+          <Route path="assistance" element={<Assistance />} />
+          <Route path="annonces" element={<Annonces />} />
+          <Route path="equipe" element={<EquipePlateforme />} />
+          <Route path="journal" element={<Journal />} />
+          <Route path="taches" element={<Taches />} />
+        </Route>
         <Route path="/inscription" element={<Signup />} />
         {/* La porte d'entrée commerciale : une agence demande à souscrire. */}
         <Route path="/souscrire" element={<Souscrire />} />

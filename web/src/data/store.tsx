@@ -7,7 +7,8 @@ import { loadSnapshot, currentAgencyId } from './remote'
 import { mirror } from './mirror'
 import { samePhone } from './identity'
 import { scopeOf } from '@/lib/permissions'
-import { AppSkeleton } from '@/components/AppSkeleton'
+import { useLocation } from 'react-router-dom'
+import { AppSkeleton, AdminSkeleton } from '@/components/AppSkeleton'
 import type { Office,
   ActivityEvent, Appointment, AttemptResult, CaseDocument, CaseNote, ChecklistItem, Client, ClientRequest,
   Consulate, Database, DocState, EventType, I18nText, Message, MessageTemplate, Payment, Priority, QueueEntry,
@@ -173,6 +174,10 @@ const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ slug, children }: { slug: string; children: ReactNode }) {
   const auth = useAuth()
+  // Le squelette d'attente doit avoir la forme de l'écran qui vient : sous
+  // /admin, c'est la console, pas l'espace agence (StoreProvider est sous
+  // BrowserRouter, useLocation y est légitime).
+  const surConsole = useLocation().pathname.startsWith('/admin')
   // La vue support : un super-admin ouvre une agence EN LECTURE SEULE, pour le
   // SAV. La cible tient dans le sessionStorage, elle survit à la navigation
   // interne et au rechargement, mais pas à un nouvel onglet ni à la fermeture.
@@ -1377,7 +1382,7 @@ export function StoreProvider({ slug, children }: { slug: string; children: Reac
   // Le temps que l'agence se charge depuis la base, on n'affiche pas un jeu de
   // démonstration qui clignoterait avant d'être remplacé.
   if (remote && !ready) {
-    return <AppSkeleton />
+    return surConsole ? <AdminSkeleton /> : <AppSkeleton />
   }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

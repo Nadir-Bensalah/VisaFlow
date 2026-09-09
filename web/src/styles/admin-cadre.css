@@ -1,0 +1,274 @@
+/* ------------------------------------------------------------------ */
+/* La console plateforme : le cadre (préfixe adm__)                    */
+/* ------------------------------------------------------------------ */
+/* Ces classes appartiennent à pages/admin/AdminShell.tsx et à
+   AdminSkeleton. Le cadre est une vraie application : barre latérale
+   fixe, pages routées, et un squelette qui ne concerne que le contenu.
+   La boîte à outils des écrans (préfixe adm-) vit dans admin.css.
+
+   Pourquoi la barre latérale reprend les mesures de l'espace agence
+   (--sidebar-w, --topbar-h, --bg-elevated) : le squelette et la vraie
+   barre doivent tomber au pixel près l'un sur l'autre, sinon le site
+   « saccade » à chaque chargement. C'était le reproche du client. */
+
+.adm {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+/* ------------------------------ La barre ----------------------------- */
+
+.adm__side {
+  position: fixed;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg-elevated);
+  border-inline-end: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transition: transform var(--dur) var(--ease);
+}
+
+/* Le repère « console plateforme ». Un bandeau fin, pas une barre sombre :
+   la marque bleue et le mot « Console » suffisent à dire où l'on est. */
+.adm__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--topbar-h);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+  flex: 0 0 auto;
+}
+.adm__mark {
+  display: grid; place-items: center;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-badge);
+  background: var(--blue); color: var(--text-white);
+  font-weight: var(--w-bold); font-size: var(--size-small);
+  flex: 0 0 auto;
+}
+.adm__brand-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.adm__brand-title { font-size: var(--size-control); font-weight: var(--w-title); letter-spacing: var(--track-body); }
+.adm__brand-mail { font-size: var(--size-caption); color: var(--text-tertiary); }
+.adm__brand-role { margin-top: 3px; }
+
+.adm__nav { flex: 1 1 auto; overflow-y: auto; padding: var(--sp-2) var(--sp-3) var(--sp-4); }
+.adm__group { margin-top: var(--sp-4); }
+.adm__group:first-child { margin-top: var(--sp-2); }
+.adm__group-label {
+  padding: 0 var(--sp-3) var(--sp-2);
+  font-size: var(--size-caption);
+  font-weight: var(--w-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.adm__navitem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: 8px var(--sp-3);
+  border: 0;
+  border-radius: var(--radius-field);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--size-control);
+  font-weight: var(--w-medium);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.adm__navitem:hover { background: var(--bg-hover); color: var(--text-primary); }
+.adm__navitem--active { background: var(--bg-active); color: var(--blue); }
+.adm__navitem__icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--text-secondary); }
+.adm__navitem--active .adm__navitem__icon { color: var(--blue); }
+.adm__navitem__label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* L'entrée réservée : on la voit, on ne l'ouvre pas. Cacher l'entrée
+   ferait croire que la fonction n'existe pas ; la griser dit « pas vous ». */
+.adm__navitem--off { color: var(--text-tertiary); cursor: not-allowed; }
+.adm__navitem--off:hover { background: transparent; color: var(--text-tertiary); }
+.adm__navitem--off .adm__navitem__icon { color: var(--text-tertiary); opacity: 0.6; }
+
+.adm__badge {
+  margin-inline-start: auto;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--tint-gray);
+  color: var(--text-secondary);
+  font-size: var(--size-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.adm__navitem--active .adm__badge { background: var(--tint-blue); color: var(--blue); }
+.adm__badge--red { background: var(--red); color: var(--text-white); }
+.adm__navitem--active .adm__badge--red { background: var(--red); color: var(--text-white); }
+.adm__badge--pulse { animation: adm-badge-pulse var(--dur-slow) var(--ease); }
+@keyframes adm-badge-pulse { 50% { transform: scale(1.18); } }
+
+.adm__foot {
+  flex: 0 0 auto;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.adm__foot .btn { width: 100%; justify-content: flex-start; }
+
+/* ------------------------------ Le contenu --------------------------- */
+
+.adm__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-inline-start: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  /* Aucun débordement horizontal, jamais : un tableau trop large défile
+     dans son propre cadre (.adm-scroll), pas la page. */
+  overflow-x: clip;
+}
+.adm__page {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 0 var(--sp-6) var(--sp-10);
+  min-width: 0;
+}
+.adm__page > * { min-width: 0; max-width: 100%; }
+
+/* La barre haute n'existe que sur mobile : elle porte le bouton menu. */
+.adm__topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--topbar-h);
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
+  background: var(--bg-bar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--hairline);
+}
+.adm__topbar .adm__mark { width: 28px; height: 28px; font-size: var(--size-caption); }
+.adm__scrim { display: none; }
+
+/* Plein écran centré : le mot de passe provisoire, une erreur de porte. */
+.adm__plein {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: var(--bg-page);
+}
+.adm__plein-carte {
+  width: min(440px, 100%);
+  background: var(--bg-white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: var(--sp-8);
+  box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: var(--sp-4);
+}
+.adm__plein-carte h1 { font-size: 22px; margin: 0; }
+.adm__plein-carte p { margin: 0; }
+
+/* ------------------------------ La palette --------------------------- */
+
+.adm-palette {
+  width: 100%;
+  max-width: 600px;
+  background: var(--bg-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: rise var(--dur) var(--ease);
+}
+.adm-palette__input {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--text-tertiary);
+}
+.adm-palette__input input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; outline: none; background: transparent;
+  font: inherit; font-size: var(--size-lead); color: var(--text-primary);
+}
+.adm-palette__input kbd {
+  font-family: var(--font-text); font-size: var(--size-caption);
+  padding: 2px 6px; border-radius: 6px;
+  border: 1px solid var(--hairline-strong); color: var(--text-tertiary);
+}
+.adm-palette__results { max-height: 380px; overflow-y: auto; padding: var(--sp-2); }
+.adm-palette__group {
+  padding: var(--sp-3) var(--sp-4) var(--sp-1);
+  font-size: var(--size-caption); color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.adm-palette__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: 9px var(--sp-3);
+  border: 0; border-radius: var(--radius-field);
+  background: transparent; color: var(--text-primary);
+  font: inherit; font-size: var(--size-control); text-align: start; cursor: pointer;
+}
+.adm-palette__item[data-active='true'] { background: var(--bg-active); color: var(--blue); }
+.adm-palette__item .t-caption { color: var(--text-tertiary); }
+.adm-palette__vide { padding: var(--sp-6); text-align: center; color: var(--text-secondary); font-size: var(--size-small); }
+
+/* ------------------------------ Le squelette ------------------------- */
+/* Même charpente que le cadre : c'est la condition pour que le passage du
+   squelette à la vraie console ne bouge pas d'un pixel. */
+
+.adm--skel .adm__side { padding: 0; }
+.adm-skel__brand { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--topbar-h); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
+.adm-skel__nav { display: flex; flex-direction: column; gap: 16px; padding: var(--sp-5) var(--sp-4); }
+.adm-skel__navrow { height: 14px; }
+.adm-skel__head { display: flex; flex-direction: column; gap: 10px; padding: var(--sp-8) 0 var(--sp-5); }
+.adm-skel__kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-5); }
+.adm-skel__kpi { height: 104px; border-radius: var(--radius-card-sm); }
+.adm-skel__bloc { height: 360px; border-radius: var(--radius-card); }
+
+/* ------------------------------ Les tailles -------------------------- */
+
+@media (max-width: 1100px) {
+  .adm-skel__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 899px) {
+  .adm__side {
+    width: min(var(--sidebar-w), 84vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  [dir='rtl'] .adm__side { transform: translateX(100%); }
+  .adm__side--open {
+    transform: none !important;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: var(--shadow-modal);
+  }
+  .adm__main { margin-inline-start: 0; }
+  .adm__topbar { display: flex; }
+  .adm__scrim { display: block; position: fixed; inset: 0; background: color-mix(in oklab, var(--bg-dark) 24%, transparent); z-index: 35; }
+  .adm__page { padding: 0 var(--sp-4) calc(var(--sp-10) + env(safe-area-inset-bottom)); }
+  .adm-palette { max-width: none; border-radius: var(--radius-card) var(--radius-card) 0 0; }
+  .adm-palette__results { max-height: 46dvh; }
+  .adm-skel__kpis { grid-template-columns: 1fr; }
+}

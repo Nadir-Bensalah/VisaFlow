@@ -1,0 +1,133 @@
+/* ------------------------------------------------------------------ */
+/* La console plateforme : le parc des agences (préfixe ag-)           */
+/* ------------------------------------------------------------------ */
+/* Ces classes appartiennent aux écrans Agences, Agence, OuvrirAgence et
+   Demandes. Tout ce qui est commun à la console vit dans admin.css. */
+
+/* La fiche 360 : deux colonnes, la gauche porte les tableaux */
+.ag-grille { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.ag-grille > * { min-width: 0; }
+@media (max-width: 1000px) { .ag-grille { grid-template-columns: minmax(0, 1fr); } }
+
+/* Le bandeau d'accès : orange en grâce, rouge en suspension */
+.ag-bandeau {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-5);
+  border-radius: var(--radius-card-sm); border: 1px solid transparent;
+  font-size: var(--size-small);
+}
+.ag-bandeau--orange { background: var(--tint-orange); color: var(--orange); border-color: rgba(176, 69, 3, 0.2); }
+.ag-bandeau--rouge { background: var(--tint-red); color: var(--red); border-color: rgba(209, 0, 0, 0.2); }
+.ag-bandeau__texte { flex: 1 1 240px; min-width: 0; font-weight: var(--w-medium); }
+.ag-bandeau__gestes { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* Le menu « … » de l'en-tête : un seul geste grave, on ne le met pas en avant */
+.ag-menu { position: relative; }
+.ag-menu__liste {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 220px; padding: 4px; margin: 0; list-style: none;
+  background: var(--bg-white); border: 1px solid var(--hairline);
+  border-radius: var(--radius-card-sm); box-shadow: var(--shadow-card);
+}
+.ag-menu__liste button {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 8px; background: none;
+  font: inherit; font-size: var(--size-small); text-align: start; cursor: pointer; color: var(--text-primary);
+}
+.ag-menu__liste button:hover { background: var(--bg-hover); }
+.ag-menu__liste button.ag-menu__danger { color: var(--red); }
+.ag-menu__liste button:disabled { opacity: 0.5; cursor: default; }
+
+/* Une courbe qui a de la hauteur : l'activité sur trente jours */
+.ag-courbe { padding: var(--sp-2) 0 0; }
+.ag-courbe__legende { display: flex; justify-content: space-between; font-size: var(--size-caption); color: var(--text-tertiary); margin-top: 4px; }
+
+/* Une ligne d'un tableau de la console qu'on vient de viser depuis le cockpit */
+.adm-table tbody tr.ag-row--cible td { background: var(--tint-blue); }
+.adm-table tbody tr.ag-row--cible:hover td { background: var(--tint-blue); }
+
+/* Un lien qui a la couleur du texte : le nom de l'agence dans un tableau */
+.ag-lien { color: inherit; text-decoration: none; }
+.ag-lien:hover { text-decoration: underline; }
+
+/* Le journal d'une agence */
+.ag-journal { display: flex; flex-direction: column; }
+.ag-journal__item { display: flex; gap: var(--sp-3); padding: 9px 0; border-bottom: 1px solid var(--hairline); font-size: var(--size-small); }
+.ag-journal__item:last-child { border-bottom: 0; }
+.ag-journal__geste { flex: 1 1 auto; min-width: 0; }
+.ag-journal__geste .t-caption { display: block; color: var(--text-tertiary); }
+.ag-journal__quand { flex: 0 0 auto; color: var(--text-tertiary); font-size: var(--size-caption); white-space: nowrap; }
+
+/* Les tickets ouverts */
+.ag-tickets { display: flex; flex-direction: column; }
+.ag-ticket { display: flex; align-items: center; gap: var(--sp-3); padding: 9px 0; border-bottom: 1px solid var(--hairline); color: inherit; text-decoration: none; font-size: var(--size-small); }
+.ag-ticket:last-child { border-bottom: 0; }
+.ag-ticket:hover .ag-ticket__sujet { text-decoration: underline; }
+.ag-ticket__sujet { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-ticket__quand { color: var(--text-tertiary); font-size: var(--size-caption); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ */
+/* Les demandes : le pipeline                                          */
+/* ------------------------------------------------------------------ */
+
+.ag-pipeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-5); }
+@media (max-width: 720px) { .ag-pipeline { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); } }
+.ag-etape {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: var(--sp-3) var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--radius-card-sm);
+  background: var(--bg-white); text-align: start; cursor: pointer; font: inherit; color: inherit;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.ag-etape:hover { border-color: var(--hairline-strong); }
+.ag-etape[aria-pressed='true'] { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.ag-etape__label { font-size: var(--size-caption); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-etape__n { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.ag-etape--nouvelle .ag-etape__n { color: var(--blue); }
+.ag-etape--contactee .ag-etape__n { color: var(--violet); }
+.ag-etape--devis_envoye .ag-etape__n { color: var(--orange); }
+.ag-etape--convertie .ag-etape__n { color: var(--green); }
+.ag-etape--ecartee .ag-etape__n { color: var(--text-tertiary); }
+
+/* Le détail d'une demande */
+.ag-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-4); }
+.ag-detail__bloc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ag-detail__bloc .t-caption { color: var(--text-tertiary); }
+.ag-note { white-space: pre-wrap; margin: 0; font-size: var(--size-small); padding: var(--sp-3) var(--sp-4); background: var(--bg-sunken); border-radius: var(--radius-card-sm); }
+
+/* ------------------------------------------------------------------ */
+/* Ouvrir une agence : la page                                         */
+/* ------------------------------------------------------------------ */
+
+.ag-ouv { display: grid; grid-template-columns: minmax(0, 720px) minmax(260px, 320px); gap: var(--sp-6); align-items: start; }
+@media (max-width: 1000px) { .ag-ouv { grid-template-columns: minmax(0, 720px); } .ag-ouv__aside { display: none; } }
+.ag-ouv__main { min-width: 0; }
+.ag-ouv__aside { position: sticky; top: var(--sp-5); }
+.ag-ouv__pied { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; padding-top: var(--sp-4); margin-top: var(--sp-4); border-top: 1px solid var(--hairline); }
+.ag-ouv__pied .grow { min-width: 0; }
+
+/* Le récapitulatif qui se remplit au fil de la saisie */
+.ag-recap { display: flex; flex-direction: column; }
+.ag-recap__item { display: flex; align-items: flex-start; gap: var(--sp-3); padding: 9px 0; border-bottom: 1px solid var(--hairline); font-size: var(--size-small); }
+.ag-recap__item:last-child { border-bottom: 0; }
+.ag-recap__coche {
+  width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-sunken); color: var(--text-tertiary); border: 1px solid var(--hairline-strong);
+}
+.ag-recap__coche--ok { background: var(--green); color: #fff; border-color: var(--green); }
+.ag-recap__corps { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ag-recap__corps .t-caption { color: var(--text-tertiary); }
+.ag-recap__valeur { overflow-wrap: anywhere; }
+.ag-recap__valeur--vide { color: var(--text-tertiary); font-style: italic; }
+
+/* L'issue : l'agence est ouverte */
+.ag-ouverte { display: flex; flex-direction: column; gap: var(--sp-4); }
+.ag-ouverte__tete { display: flex; align-items: center; gap: var(--sp-3); }
+.ag-ouverte__icone { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--tint-green); color: var(--green); flex: 0 0 auto; }
+.ag-ouverte__titre { font-family: var(--font-display); font-size: var(--size-h4); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.ag-mdp {
+  font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.06em; user-select: all;
+  padding: var(--sp-3) var(--sp-4); background: var(--bg-sunken); border-radius: var(--radius-card-sm);
+  overflow-wrap: anywhere;
+}
+.ag-ouverte__gestes { display: flex; gap: var(--sp-2); flex-wrap: wrap; }

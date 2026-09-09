@@ -188,3 +188,132 @@ export async function reactivateAgency(agencyId: string, note?: string): Promise
   if (error) throw new Error(error.message)
   return data as { ok: boolean; agency_id: string; etat: 'grace'; grace_ends_on: string }
 }
+
+/* ------------------------------------------------------------------ */
+/* Les règlements récents, toutes agences confondues                    */
+/* ------------------------------------------------------------------ */
+
+/** Une ligne de `subscription_payments` avec le nom de l'agence. */
+export interface RecentPayment {
+  id: string
+  agency_id: string
+  agency_name: string | null
+  amount: number
+  currency: string
+  period_start: string
+  period_end: string
+  method: PaymentMethod
+  reference: string | null
+  note: string | null
+  recorded_at: string
+  recorded_by: string | null
+  /** Le nom de qui a constaté, quand on a pu le retrouver. */
+  recorded_by_name: string | null
+}
+
+/** La forme brute que PostgREST rend avec `agencies(name)` : un objet ou un
+ *  tableau selon la cardinalité qu'il devine. On accepte les deux. */
+interface RecentPaymentRaw {
+  id: string
+  agency_id: string
+  amount: number | string
+  currency: string
+  period_start: string
+  period_end: string
+  method: PaymentMethod
+  reference: string | null
+  note: string | null
+  recorded_at: string
+  recorded_by: string | null
+  agencies: { name: string } | { name: string }[] | null
+}
+
+/**
+ * Les derniers règlements de toute la plateforme, les plus récents d'abord.
+ *
+ * Lecture directe de la table : la politique de sélection l'ouvre à l'admin de
+ * plateforme. Il n'existe pas de RPC pour cette liste, et en créer une pour
+ * un simple `order by recorded_at desc limit n` serait une porte de plus à
+ * entretenir. L'écran qui l'appelle doit survivre à un échec : il affiche
+ * « · » à la place du chiffre, jamais un écran cassé.
+ */
+export async function loadRecentPayments(limit = 20): Promise<RecentPayment[]> {
+  const { data, error } = await client()
+    .from('subscription_payments')
+    .select('*, agencies(name)')
+    .order('recorded_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  const lignes = (data ?? []) as RecentPaymentRaw[]
+  const noms = await nomsDesAuteurs(lignes.map((l) => l.recorded_by).filter((x): x is string => Boolean(x)))
+  return lignes.map((l) => ({
+    id: l.id,
+    agency_id: l.agency_id,
+    agency_name: Array.isArray(l.agencies) ? (l.agencies[0]?.name ?? null) : (l.agencies?.name ?? null),
+    amount: Number(l.amount),
+    currency: l.currency,
+    period_start: l.period_start,
+    period_end: l.period_end,
+    method: l.method,
+    reference: l.reference,
+    note: l.note,
+    recorded_at: l.recorded_at,
+    recorded_by: l.recorded_by,
+    recorded_by_name: l.recorded_by ? (noms.get(l.recorded_by) ?? null) : null,
+  }))
+}
+
+/**
+ * Qui a constaté un règlement. `recorded_by` pointe vers auth.users, que
+ * PostgREST ne sait pas joindre : on relit les noms à part, d'abord dans
+ * l'équipe de la plateforme, puis dans les profils. Un échec ici n'est jamais
+ * bloquant : on rend ce qu'on a trouvé.
+ */
+async function nomsDesAuteurs(ids: string[]): Promise<Map<string, string>> {
+  const noms = new Map<string, string>()
+  const uniques = [...new Set(ids)]
+  if (uniques.length === 0) return noms
+  for (const table of ['platform_admins', 'profiles'] as const) {
+    const manquants = uniques.filter((id) => !noms.has(id))
+    if (manquants.length === 0) break
+    try {
+      const { data } = await client().from(table).select('id, name').in('id', manquants)
+      for (const p of (data ?? []) as { id: string; name: string | null }[]) {
+        if (p.name) noms.set(p.id, p.name)
+      }
+    } catch {
+      // La table peut ne pas exister encore, ou être fermée : on passe.
+    }
+  }
+  return noms
+}
+
+/* ------------------------------------------------------------------ */
+/* Les factures de plateforme (0020 / 0027)                             */
+/* ------------------------------------------------------------------ */
+
+/** Une ligne de `platform_invoices_list` : la facture d'un mois pour une agence. */
+export interface PlatformInvoice {
+  agency: string
+  slug: string
+  /** Le premier jour du mois facturé, en date ISO. */
+  period: string
+  cases_billed: number
+  amount: number
+  currency: string
+  status: 'brouillon' | 'envoyee' | 'reglee' | 'annulee'
+}
+
+/** rpc platform_invoices_list(p_period) : les factures d'un mois, ou toutes si null. */
+export async function loadPlatformInvoices(period: string | null): Promise<PlatformInvoice[]> {
+  const { data, error } = await client().rpc('platform_invoices_list', { p_period: period })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as PlatformInvoice[]).map((i) => ({ ...i, amount: Number(i.amount), cases_billed: Number(i.cases_billed) }))
+}
+
+/** rpc platform_generate_invoices(p_period) → le nombre de factures posées ou remises à jour. Null = le mois courant. */
+export async function generatePlatformInvoices(period: string | null = null): Promise<number> {
+  const { data, error } = await client().rpc('platform_generate_invoices', { p_period: period })
+  if (error) throw new Error(error.message)
+  return Number(data ?? 0)
+}

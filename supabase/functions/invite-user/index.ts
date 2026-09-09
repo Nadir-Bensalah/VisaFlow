@@ -15,13 +15,21 @@
  * par heure, vers localhost). Le compte naît donc avec un mot de passe
  * PROVISOIRE, rendu UNE fois à qui invite, qui le transmet par téléphone ou
  * WhatsApp, comme une agence tunisienne le ferait de toute façon. Le profil
- * porte must_reset_password : l'application bloque tout jusqu'au changement. */
+ * porte must_reset_password : l'application bloque tout jusqu'au changement.
+ *
+ * MODE PLATEFORME (corps `{ platform: true, name, email, role }`) : inviter
+ * quelqu'un dans l'équipe de la plateforme elle-même, pas dans une agence.
+ * La capacité `equipe.gerer` est exigée (migration 0068), et le rôle
+ * superuser ne se donne que par un superuser. Le compte naît dans
+ * `platform_admins`, avec le même mot de passe provisoire, et le geste entre
+ * au journal de la plateforme. Le mode agence, lui, ne change pas. */
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 
 const ROLES = new Set(['owner', 'manager', 'agent', 'viewer'])
+const PLATFORM_ROLES = new Set(['superuser', 'admin', 'operateur', 'facturation', 'lecture'])
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -73,6 +81,7 @@ Deno.serve(async (req) => {
   // 2. Ce qu'on demande.
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return json({ error: 'corps illisible' }, 400) }
+  if (body.platform === true) return invitePlatformAdmin(bearer, callerId, body)
   const agencyId = String(body.agency_id ?? '')
   const officeId = String(body.office_id ?? '')
   const role = String(body.role ?? 'agent')
@@ -146,3 +155,75 @@ Deno.serve(async (req) => {
   // 7. Le mot de passe provisoire, rendu UNE fois. Il n'est écrit nulle part.
   return json({ ok: true, user_id: userId, email, temp_password: password })
 })
+
+/* Le mode plateforme : un membre de l'équipe de la plateforme, pas d'une
+   agence. Tout ce qui décide (capacité, rôle superuser) est demandé à la base
+   avec le jeton de l'appelant : c'est elle qui sait, pas cette fonction. */
+async function invitePlatformAdmin(bearer: string, callerId: string, body: Record<string, unknown>) {
+  const role = String(body.role ?? 'lecture')
+  const name = String(body.name ?? '').trim()
+  const email = String(body.email ?? '').trim().toLowerCase()
+  if (!name || !email) return json({ error: 'nom et e-mail obligatoires' }, 400)
+  if (!PLATFORM_ROLES.has(role)) return json({ error: 'rôle inconnu' }, 400)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'adresse e-mail invalide' }, 400)
+
+  // 1. La capacité, demandée à la base avec le jeton de l'appelant.
+  const can = await rest('/rest/v1/rpc/platform_can', {
+    method: 'POST', body: JSON.stringify({ p_code: 'equipe.gerer' }),
+  }, bearer)
+  if (!can.ok || can.data !== true) return json({ error: 'capacité requise : equipe.gerer' }, 403)
+
+  // 2. Le rôle superuser ne se donne que par un superuser.
+  if (role === 'superuser') {
+    const me = await rest('/rest/v1/rpc/platform_me', { method: 'POST', body: '{}' }, bearer)
+    const myRole = (me.data as { role?: string } | null)?.role
+    if (!me.ok || myRole !== 'superuser') return json({ error: 'réservé au super-administrateur' }, 403)
+  }
+
+  // 3. Le compte, avec le même mot de passe provisoire que le mode agence.
+  const password = motDePasseProvisoire()
+  const created = await rest('/auth/v1/admin/users', {
+    method: 'POST',
+    body: JSON.stringify({
+      email, password, email_confirm: true,
+      user_metadata: { name, locale: 'fr', invited_by: callerId, platform: true },
+    }),
+  })
+  if (!created.ok) {
+    const msg = String((created.data as { msg?: string; message?: string })?.msg
+      ?? (created.data as { message?: string })?.message ?? '')
+    if (created.status === 422 || /already|exists|registered/i.test(msg)) {
+      return json({ error: 'cette adresse a déjà un compte' }, 409)
+    }
+    return json({ error: 'création du compte refusée', detail: created.data }, 502)
+  }
+  const userId = (created.data as { id: string }).id
+
+  // 4. La ligne d'équipe, écrite avec la clé de service (elle contourne RLS).
+  const admin = await rest('/rest/v1/platform_admins', {
+    method: 'POST',
+    headers: { prefer: 'return=representation' },
+    body: JSON.stringify({
+      id: userId, name, email, role, superuser: role === 'superuser',
+      must_reset_password: true, invited_by: callerId,
+    }),
+  })
+  if (!admin.ok) {
+    // Un compte sans ligne d'équipe n'ouvrirait rien et polluerait la liste.
+    await rest(`/auth/v1/admin/users/${userId}`, { method: 'DELETE' })
+    return json({ error: 'équipe refusée', detail: admin.data }, 502)
+  }
+
+  // 5. Le journal, au nom de l'appelant. S'il échoue, le compte existe quand
+  //    même : on ne défait pas une invitation pour une ligne de journal.
+  await rest('/rest/v1/rpc/platform_log', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_action: 'admin.invite', p_target_kind: 'admin', p_target_id: userId,
+      p_target_label: email, p_detail: { role, name },
+    }),
+  }, bearer)
+
+  // 6. Le mot de passe provisoire, rendu UNE fois.
+  return json({ ok: true, user_id: userId, email, temp_password: password })
+}

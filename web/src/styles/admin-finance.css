@@ -1,0 +1,105 @@
+/* ------------------------------------------------------------------ */
+/* Facturation et abonnements (préfixe fi-)                            */
+/* ------------------------------------------------------------------ */
+/* Ce que la boîte à outils (admin.css, préfixe adm-) ne couvre pas :
+   la frise du cycle, la ligne ciblée depuis le cockpit, les cartes des
+   formules, la jauge des sièges. Tout tient en une colonne sous 700 px et
+   rien ne déborde en largeur sous 360 px : les tableaux défilent dans
+   leur cadre (.adm-scroll), jamais la page. */
+
+/* La frise du cycle : cinq étapes, une flèche entre chacune, le compteur
+   dans chaque étape. Cliquer une étape filtre le tableau. */
+.fi-cycle {
+  display: flex; align-items: stretch; gap: var(--sp-2);
+  margin: 0 0 var(--sp-5); padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-white); border: 1px solid var(--hairline);
+  border-radius: var(--radius-card-sm);
+  overflow-x: auto; scrollbar-width: none;
+}
+.fi-cycle::-webkit-scrollbar { display: none; }
+.fi-cycle__etape {
+  position: relative; flex: 1 1 0; min-width: 118px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sp-2) var(--sp-3); border: 0; border-radius: 10px;
+  background: transparent; text-align: left; cursor: pointer; color: inherit;
+  font: inherit;
+  transition: background var(--dur-fast) var(--ease);
+}
+.fi-cycle__etape:hover { background: var(--bg-sunken); }
+.fi-cycle__etape[aria-pressed='true'] { background: var(--bg-active); }
+.fi-cycle__etape:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.fi-cycle__label { font-size: var(--size-caption); font-weight: var(--w-medium); color: var(--text-secondary); white-space: nowrap; }
+.fi-cycle__n { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.fi-cycle__hint { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+.fi-cycle__etape--blue .fi-cycle__n { color: var(--blue); }
+.fi-cycle__etape--orange .fi-cycle__n { color: var(--orange); }
+.fi-cycle__etape--red .fi-cycle__n { color: var(--red); }
+.fi-cycle__etape--green .fi-cycle__n { color: var(--green); }
+.fi-cycle__fleche {
+  align-self: center; flex: 0 0 auto; color: var(--text-tertiary); opacity: 0.6;
+  display: inline-flex;
+}
+@media (max-width: 700px) {
+  .fi-cycle { padding: var(--sp-2); }
+  .fi-cycle__etape { min-width: 104px; }
+}
+
+/* La ligne visée par le cockpit (?agence=…) : un halo qui s'éteint seul. */
+.adm-table tr.fi-row--cible td { background: var(--bg-active); animation: fi-halo 3s var(--ease) 1 forwards; }
+@keyframes fi-halo { 0%, 70% { background: var(--bg-active); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .adm-table tr.fi-row--cible td { animation: none; } }
+
+/* Les échéances : la date et le mot, rouge quand ça brûle. */
+.fi-echeance { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fi-echeance__mot { font-weight: var(--w-medium); white-space: nowrap; }
+.fi-echeance--urgent .fi-echeance__mot { color: var(--red); }
+.fi-echeance__date { font-size: var(--size-caption); color: var(--text-tertiary); white-space: nowrap; }
+
+/* Les gestes d'une ligne restent cachés jusqu'au survol (règle du kit) ;
+   sans souris il n'y a pas de survol, on les montre toujours. */
+@media (hover: none) { .adm-table .actions .btn { visibility: visible; } }
+
+/* Le pied du formulaire de règlement : ce qui va se passer, en une phrase. */
+.fi-recap {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-card-sm);
+  background: var(--tint-green); color: var(--green); font-size: var(--size-small);
+}
+.fi-recap svg { flex: 0 0 auto; margin-top: 2px; }
+.fi-recap--neutre { background: var(--bg-sunken); color: var(--text-secondary); }
+
+/* Deux champs côte à côte qui passent l'un sous l'autre à 360 px. */
+.fi-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
+
+/* Les formules : de petites cartes, le prix en gros, les limites en liste. */
+.fi-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); }
+.fi-plan {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--radius-card-sm);
+  background: var(--bg-elevated); min-width: 0;
+}
+.fi-plan__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.fi-plan__nom { font-weight: 600; font-size: var(--size-body); letter-spacing: var(--track-tight); }
+.fi-plan__prix { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.fi-plan__unite { font-size: var(--size-caption); color: var(--text-tertiary); }
+.fi-plan__limites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--size-caption); color: var(--text-secondary); }
+.fi-plan__limites li { display: flex; justify-content: space-between; gap: var(--sp-2); }
+.fi-plan__limites li span:last-child { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.fi-plan__note { font-size: var(--size-caption); color: var(--text-tertiary); margin: 0; }
+
+/* La jauge des sièges dans une cellule : le chiffre, puis la barre. */
+.fi-sieges { display: flex; flex-direction: column; gap: 4px; min-width: 96px; }
+.fi-sieges__txt { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fi-sieges--depasse .fi-sieges__txt { color: var(--red); font-weight: var(--w-medium); }
+
+/* La consommation repliée : deux lignes, monospace, rouge au dépassement. */
+.fi-conso { display: flex; flex-direction: column; gap: 1px; font-size: var(--size-caption); }
+.fi-conso__val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.fi-conso__val--depasse { color: var(--red); }
+
+/* Le sélecteur de mois des factures : pas plus large que son contenu. */
+.fi-mois { width: auto; min-width: 160px; }
+
+/* La recherche dans la barre : elle prend ce qui reste, jamais plus. */
+.fi-recherche { width: 220px; max-width: 100%; }
+@media (max-width: 700px) { .fi-recherche { width: 100%; } }

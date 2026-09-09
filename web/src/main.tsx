@@ -9,6 +9,7 @@ import { ClockProvider } from './data/clock'
 import { resolveTenantSlug } from './tenant'
 import './styles/base.css'
 import './styles/ui.css'
+import './styles/admin.css'
 
 const slug = resolveTenantSlug()
 

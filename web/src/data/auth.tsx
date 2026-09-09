@@ -23,7 +23,7 @@ interface AuthValue {
       ouverte, mais elle ne sert qu'à en choisir un nouveau. */
   recovering: boolean
   /** Envoie le lien de réinitialisation. Rend un message d'erreur, ou null. */
-  sendRecovery: (email: string) => Promise<string | null>
+  sendRecovery: (email: string, retour?: 'connexion' | 'admin') => Promise<string | null>
   /** Pose le nouveau mot de passe et referme la parenthèse de récupération. */
   finishRecovery: () => void
 }
@@ -99,14 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRecovering(false)
     },
     recovering,
-    async sendRecovery(email) {
+    async sendRecovery(email, retour = 'connexion') {
       if (!supabase) return 'Aucun backend configuré.'
       /* Le lien doit revenir sur CETTE page, pas sur une adresse devinée : le
          site vit sous un sous-chemin sur les pages GitHub, et une adresse fausse
          mène à une page blanche avec un jeton valable dans l'URL. */
-      const retour = `${window.location.origin}${import.meta.env.BASE_URL ?? '/'}connexion`
+      const retour_ = `${window.location.origin}${import.meta.env.BASE_URL ?? '/'}${retour}`
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: retour.replace(/\/{2,}/g, '/').replace(':/', '://'),
+        redirectTo: retour_.replace(/\/{2,}/g, '/').replace(':/', '://'),
       })
       return error ? error.message : null
     },
